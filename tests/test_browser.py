@@ -49,6 +49,30 @@ def test_lesson_download_uses_selected_language(page):
     assert download.value.suggested_filename == "fullstack-http-go.zip"
 
 
+def test_inline_lesson_language_comparison_keeps_notes_and_checkpoint(page):
+    goto(page, "/lesson/fullstack-http")
+    page.get_by_label("课程笔记").fill("相同 API 契约，不同框架")
+    page.get_by_role("checkbox").first.check()
+    page.get_by_role("radio").first.check()
+    for name, source in [
+        ("Python", "from fastapi"),
+        ("TypeScript", "from 'hono'"),
+        ("Go", "package main"),
+    ]:
+        page.get_by_role("button", name=name, exact=True).click()
+        expect(page.locator(".code-block")).to_contain_text(source)
+        expect(page.get_by_label("课程笔记")).to_have_value("相同 API 契约，不同框架")
+        expect(page.get_by_role("checkbox").first).to_be_checked()
+        expect(page.get_by_role("radio").first).to_be_checked()
+    page.reload()
+    expect(page.get_by_role("button", name="Go", exact=True)).to_have_attribute(
+        "aria-pressed", "true"
+    )
+    expect(page.get_by_label("课程笔记")).to_have_value("相同 API 契约，不同框架")
+    page.set_viewport_size({"width": 375, "height": 812})
+    assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
+
+
 def test_demo_workflow_history_and_cancellation(page):
     goto(page, "/playground")
     page.get_by_label("任务描述").fill("MCP 工具应该如何处理授权和幂等？")
@@ -112,6 +136,10 @@ def test_real_stream_partial_failures_and_truncation_do_not_enter_history(page, 
     assert "test-access" not in json.dumps(stored)
     if ending == "done":
         expect(page.get_by_text("实验已完成", exact=True)).to_be_visible()
+        expect(page.get_by_text("供应商未返回用量", exact=True)).to_be_visible()
+        page.reload()
+        page.get_by_role("button", name="运行历史", exact=False).click()
+        page.locator(".run-history button").first.click()
         expect(page.get_by_text("供应商未返回用量", exact=True)).to_be_visible()
     else:
         expect(page.get_by_role("alert")).to_be_visible()

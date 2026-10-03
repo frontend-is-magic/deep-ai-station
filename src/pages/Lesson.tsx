@@ -93,6 +93,29 @@ export default function LessonPage({ tracks }: { tracks: Track[] }) {
               </li>
             ))}
           </ol>
+          {track.id === 'fullstack' && (
+            <div className="language-selector">
+              <div>
+                <strong>对照其他语言的实现</strong>
+                <p>围绕同一课程比较框架；切换时保留本课笔记与验收选择。</p>
+              </div>
+              <div className="segmented-control" role="group" aria-label="本课参考语言">
+                {track.languages.map((value) => (
+                  <button
+                    key={value}
+                    aria-pressed={language === value}
+                    className={language === value ? 'selected' : ''}
+                    onClick={() => {
+                      setProgress((p) => ({ ...p, language: value }));
+                      setCopyState('');
+                    }}
+                  >
+                    {languageNames[value]}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="code-heading">
             <h2>
               {track.id === 'agent' ? '本课 Python 参考' : `${languageNames[language]} 服务端参考`}

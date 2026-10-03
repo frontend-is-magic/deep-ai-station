@@ -66,9 +66,12 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
   const [trace, setTrace] = useState<Trace[]>([]);
   const [output, setOutput] = useState('');
   const [error, setError] = useState('');
-  const [runInfo, setRunInfo] = useState<{ id: string; duration: number; usage: unknown } | null>(
-    null,
-  );
+  const [runInfo, setRunInfo] = useState<{
+    id: string;
+    duration: number;
+    usage: unknown;
+    provider: string;
+  } | null>(null);
   const [history, setHistory] = useState(false);
   const [language, setLanguage] = useState<Language>(
     trackId === 'agent' ? 'python' : progress.language,
@@ -164,7 +167,7 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
               return;
             }
             const duration = Number(event.data.duration_ms);
-            setRunInfo({ id, duration, usage: event.data.usage });
+            setRunInfo({ id, duration, usage: event.data.usage, provider });
             setProgress((p) => ({
               ...p,
               runs: [
@@ -317,7 +320,12 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
                   setPrompt(record.prompt);
                   setOutput(record.answer);
                   setTrace([]);
-                  setRunInfo({ id: record.id, duration: record.duration_ms, usage: null });
+                  setRunInfo({
+                    id: record.id,
+                    duration: record.duration_ms,
+                    usage: null,
+                    provider: record.provider,
+                  });
                   setError('');
                   setHistory(false);
                 }}
@@ -528,7 +536,7 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
                   <span>
                     {runInfo.usage
                       ? '供应商已返回 usage'
-                      : provider === 'demo'
+                      : runInfo.provider === 'demo'
                         ? '未调用模型'
                         : '供应商未返回用量'}
                   </span>
