@@ -74,6 +74,11 @@ export interface EvidenceRecord {
   pending: string;
   updated_at: string;
 }
+export interface PracticeRecord {
+  lesson_id: string;
+  language: Language;
+  completed_at: string;
+}
 export interface Progress {
   version: 1;
   completed: string[];
@@ -83,6 +88,7 @@ export interface Progress {
   language: Language;
   runs: RunRecord[];
   evidence?: EvidenceRecord[];
+  practice?: PracticeRecord[];
 }
 export interface Capabilities {
   providers: { id: string; name: string; enabled: boolean; model: string | null }[];
