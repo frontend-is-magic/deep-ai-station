@@ -1,0 +1,27 @@
+name: 质量检查
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.32.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          version: '0.12.22'
+      - run: pnpm install --frozen-lockfile
+      - run: uv sync --locked
+      - run: pnpm check
+      - run: uv run ruff check backend api tests
+      - run: uv run ruff format --check backend api tests
+      - run: uv run pytest -m 'not e2e'
