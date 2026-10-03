@@ -2,6 +2,7 @@ import io
 import shutil
 import subprocess
 import zipfile
+from pathlib import Path
 
 import pytest
 
@@ -144,3 +145,64 @@ def test_symlink_metadata_is_checked_without_reading_its_target(repository, caps
     output = capsys.readouterr()
     assert "1 index blobs, 1 worktree files" in output.out
     assert "provider-key" not in output.out
+
+
+SQLITE_SIDECARS = [
+    f"data/progress.{extension}-{suffix}"
+    for extension in ("sqlite", "sqlite3", "db")
+    for suffix in ("wal", "shm", "journal")
+]
+
+
+@pytest.mark.parametrize(
+    "ignore_template",
+    [".gitignore", "starters/shared/.gitignore", "labs/api-contract/shared/.gitignore"],
+)
+def test_sqlite_sidecars_are_ignored_but_force_tracked_copies_are_rejected(
+    repository, capsys, ignore_template
+):
+    root, git = repository
+    template = Path(__file__).resolve().parents[1] / ignore_template
+    (root / ".gitignore").write_bytes(template.read_bytes())
+    (root / "data").mkdir()
+    contents = b"test-only SQLite transaction pages"
+    for name in SQLITE_SIDECARS:
+        (root / name).write_bytes(contents)
+        # Check each real path separately: check-ignore with several paths can
+        # succeed when only one matched, masking a missing sidecar pattern.
+        git("check-ignore", "--", name)
+    scanner.main()
+    ignored = capsys.readouterr()
+    assert "sensitive-path" not in ignored.out
+    git("add", ".gitignore")
+    git("add", "-f", "--", *SQLITE_SIDECARS)
+    with pytest.raises(SystemExit):
+        scanner.main()
+    output = capsys.readouterr()
+    for name in SQLITE_SIDECARS:
+        assert f"sensitive-path: index:{name}" in output.out
+        assert f"sensitive-path: worktree:{name}" in output.out
+    assert contents.decode() not in output.out + output.err
+
+
+def test_staged_zip_rejects_sqlite_sidecars_after_worktree_archive_is_cleaned(repository, capsys):
+    root, git = repository
+    archive_path = root / "lesson.zip"
+    contents = b"test-only SQLite transaction pages"
+    with zipfile.ZipFile(archive_path, "w") as archive:
+        for name in SQLITE_SIDECARS:
+            archive.writestr(name, contents)
+        archive.writestr("README.md", "safe lesson guide")
+    assert scan("lesson.zip", archive_path.read_bytes()) == [
+        (f"lesson.zip!{name}", "sensitive-path") for name in SQLITE_SIDECARS
+    ]
+    git("add", "lesson.zip")
+    with zipfile.ZipFile(archive_path, "w") as archive:
+        archive.writestr("README.md", "safe lesson guide")
+    with pytest.raises(SystemExit):
+        scanner.main()
+    output = capsys.readouterr()
+    for name in SQLITE_SIDECARS:
+        assert f"sensitive-path: index:lesson.zip!{name}" in output.out
+    assert "sensitive-path: worktree:" not in output.out
+    assert contents.decode() not in output.out + output.err
