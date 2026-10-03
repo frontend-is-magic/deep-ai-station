@@ -5,9 +5,10 @@ AI Agent 与 AI 全栈工程的学习空间，连接路线、官方信息源和�
 - 两条路线，各 8 个阶段、24 节课；课时包含原理、实践、验收、测验、官方资料与笔记。
 - 96 份逐课参考代码及可下载练习包，包含实践目标、验收条件和证据记录模板。
 - Agent 结构化输出与工具契约两课支持[免费工具契约实验](docs/tool-contract.md)，手动提交原始JSON，观察真实只读工具成功/拒绝，并将实际结果追加到本课笔记。
+- Agent 工具安全课另有 [Python 工具审批与幂等实验](labs/agent-write-safety/shared/README.md)，连接 React / FastAPI / SQLite，练习完整差异批准、原请求者执行、唯一回执与结果不明后的查询恢复。
 - 本课导师绑定课程目标与验收项，完整实验可追加到本课笔记；历史记录保留课程归属，教学回答不自动完成验收。
 - 全栈路线支持 TypeScript / Hono、Go / Gin、Python / FastAPI 参考实现。
-- 九节课提供三语言可运行实验：API 契约、SQLite 数据/迁移、会话与授权、受限文本上传、SSE 流式与取消，含冻结依赖、启动入口、可注入依赖和共同成功/失败契约；独立下载无需真实账号或模型凭据。
+- 九节全栈课提供三语言可运行实验：API 契约、SQLite 数据/迁移、会话与授权、受限文本上传、SSE 流式与取消，含冻结依赖、启动入口、可注入依赖和共同成功/失败契约；独立下载无需真实账号或模型凭据。
 - 全栈毕业课可下载三套完整项目骨架，共用 React 前端与接口契约，包含对应后端、依赖锁文件、固定资料、测试和验收模板；默认演示不调用模型。
 - Agent 毕业课可下载独立研究助手：固定资料检索、批量读取、原生工具循环、实际已读引用校验与三类评测案例；并可跟读独立公开仓库的[云端毕业项目](docs/cloud-capstone.md)，查看源码、开发记录与实际验收证据。
 - 官方 RSS / Atom 信息流、明确来源状态、筛选与收藏；8 条精选资料可直达配套课程与指定语言，并查看独立实践状态，收藏快照保留课程入口。
@@ -18,7 +19,7 @@ AI Agent 与 AI 全栈工程的学习空间，连接路线、官方信息源和�
 - Jotai 保存每条路线的实际学习位置、进度、笔记和收藏，支持导出/导入；首页与路线页分别恢复上次课时，已完成课提供回顾，下一节未完成课单独推荐。当前不包含账号与跨设备同步。
 - [测验回顾清单](docs/quiz-review.md)要求显式检查答案，答错课时进入学习库、复答正确后移出；跨语言共用，保留旧完成记录，随 v1 备份保存。
 - 课程完成与语言实践分别记录：全栈按 TS / Go / Python、Agent 按 Python 自行确认成功和失败样例，路线页独立计数；旧备份不自动推断语言实践。
-- 九节实验课和六节毕业课提供[按课程与语言分别保存的实践证据卡](docs/practice-evidence.md)，记录代码版本、命令、成功/失败结果与未验证事项，可导出 Markdown，也随学习记录备份；48 条容量共享，清空五项内容可移除当前记录。内容由学习者填写，不自动证明验收通过。
+- 十节实验课和六节毕业课提供[按课程与语言分别保存的实践证据卡](docs/practice-evidence.md)，记录代码版本、命令、成功/失败结果与未验证事项，可导出 Markdown，也随学习记录备份；48 条容量共享，清空五项内容可移除当前记录。内容由学习者填写，不自动证明验收通过。
 
 ## 本地运行
 
@@ -73,6 +74,8 @@ uv run python -m scripts.compile_go_examples
 课程验证覆盖 48 份 Python AST、24 份 TypeScript 严格类型检查（含锁定的 Hono 依赖）、24 份 Go 编译（含锁定的 Gin module）。Go 检查使用 `go test -c -mod=readonly`，只编译维护者提供的参考，不运行程序或测试；这仍不代替业务行为验收。
 
 路由、输入校验、SQLite 数据/迁移、会话/授权及受限文本上传实验的运行说明见 [课程实验](labs/README.md)。`python3 scripts/build_course_labs.py --check` 比较源码与 ZIP；`python3 scripts/verify_course_labs.py` 在仓库之外解包，冻结安装、运行各语言测试并启动实际 HTTP 服务验证共同案例，结束后确认自有监听已释放。`python3 scripts/verify_sqlite_labs.py` 在独立临时目录验证三语言真实 SQLite CLI、迁移及故障回滚。`python3 scripts/verify_session_labs.py` 验证假会话、权限隔离、CSRF、原始重复头及进程重启；服务端Cookie属性测试不代表真实HTTPS浏览器验收。`python3 scripts/verify_upload_labs.py` 验证真实UTF-8字节上传、owner范围、原子配额和附件下载，重启确认内存数据清空。维护者脚本只运行仓库固定代码。
+
+`python3 scripts/verify_agent_write_lab.py` 在独立解包环境冻结安装，检查工具审批的真实 SQLite / HTTP、重启、提交后 503 与断连恢复；`--browser` 另验 React 到实际后端的流程。教学身份为公开假值，不产生模型费用或外部发布。
 
 SSE 实验另附共享 React 客户端，比较三种后端的增量、失败、总 deadline、真实 HTTP 断连与并发隔离。`python3 scripts/verify_stream_labs.py --browser` 从仓库外解包、冻结安装并验证实际浏览器到三后端的流；原生测试观察 Producer 取消和一次清理，页面停止不替代服务端证据。详见[流式实验](labs/sse-stream/shared/README.md)。
 
