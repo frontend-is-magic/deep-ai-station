@@ -4,6 +4,7 @@ import copy
 import json
 import os
 from pathlib import Path
+from uuid import UUID
 
 import pytest
 from playwright.sync_api import expect, sync_playwright
@@ -102,6 +103,7 @@ def preferences(page):
 
 
 def upload(page, data, accepted=True):
+    before = stored(page)
     dialog = preferences(page)
     dialog.locator('input[type="file"]').set_input_files(
         {
@@ -114,6 +116,15 @@ def upload(page, data, accepted=True):
         "学习记录已导入" if accepted else "学习记录格式不正确"
     )
     page.keyboard.press("Escape")
+    current = stored(page)
+    if accepted:
+        epoch = current["history_reset_id"]
+        assert str(UUID(epoch)) == epoch and UUID(epoch).version == 4
+        assert epoch not in (before.get("history_reset_id"), data.get("history_reset_id"))
+        assert current == {**data, "history_reset_id": epoch}
+    else:
+        assert current == before
+    return current
 
 
 def test_explicit_check_is_required_and_correctness_does_not_auto_complete(page):
@@ -216,16 +227,16 @@ def test_review_backup_round_trip_and_old_v1_reset(page):
     try:
         restored = fresh.new_page()
         goto(restored, "/library")
-        upload(restored, data)
+        imported = upload(restored, data)
         restored.get_by_role("button", name="测验回顾", exact=True).click()
         expect(
             queue(restored).get_by_role("article", name=LESSONS[LESSON]["title"], exact=True)
         ).to_be_visible()
-        assert stored(restored) == data
+        assert stored(restored) == imported
         assert restored.evaluate("document.documentElement.scrollWidth <= innerWidth")
         legacy = {key: value for key, value in data.items() if key != "quizReview"}
-        upload(restored, legacy)
-        assert stored(restored) == legacy
+        replacement = upload(restored, legacy)
+        assert stored(restored) == replacement
         expect(queue(restored).get_by_role("article")).to_have_count(0)
     finally:
         fresh.close()

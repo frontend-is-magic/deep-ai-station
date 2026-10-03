@@ -6,6 +6,7 @@ import os
 import re
 from datetime import UTC, datetime
 from pathlib import Path
+from uuid import UUID
 
 import pytest
 from playwright.sync_api import expect, sync_playwright
@@ -39,6 +40,7 @@ def goto(page, path):
     page.goto(os.getenv("E2E_BASE_URL", "http://127.0.0.1:5173") + path)
     expect(page.get_by_role("main")).to_be_visible()
     expect(page.get_by_role("heading", level=1)).to_be_visible()
+    page.wait_for_load_state("networkidle")
 
 
 def stored(page):
@@ -60,6 +62,7 @@ def close_preferences(page):
 
 
 def import_progress(page, data, accepted=True):
+    before = stored(page)
     dialog = preferences(page)
     dialog.locator('input[type="file"]').set_input_files(
         {
@@ -72,6 +75,15 @@ def import_progress(page, data, accepted=True):
         "学习记录已导入" if accepted else "学习记录格式不正确"
     )
     close_preferences(page)
+    current = stored(page)
+    if accepted:
+        epoch = current["history_reset_id"]
+        assert str(UUID(epoch)) == epoch and UUID(epoch).version == 4
+        assert epoch not in (before.get("history_reset_id"), data.get("history_reset_id"))
+        assert current == {**data, "history_reset_id": epoch}
+    else:
+        assert current == before
+    return current
 
 
 def legacy_progress():
@@ -180,15 +192,15 @@ def test_legacy_backup_visits_preserve_progress_and_invalid_lessons_do_not_recor
         }
     ]
     goto(page, "/")
-    import_progress(page, backup)
-    assert stored(page) == backup
+    imported = import_progress(page, backup)
+    assert stored(page) == imported
     expect(page.get_by_role("region", name="上次学习", exact=True)).to_have_count(0)
     goto(page, "/lesson/fullstack-integration")
     expect(page.get_by_label("课程笔记", exact=True)).to_have_value("原有笔记")
     page.wait_for_function(
         "key => Boolean(JSON.parse(localStorage.getItem(key)).resume)", arg=STORAGE_KEY
     )
-    assert {key: value for key, value in stored(page).items() if key != "resume"} == backup
+    assert {key: value for key, value in stored(page).items() if key != "resume"} == imported
     before = stored(page)
     goto(page, "/lesson/fullstack-not-a-real-lesson")
     expect(page.get_by_role("heading", name="课时不存在", exact=True)).to_be_visible()
@@ -196,10 +208,10 @@ def test_legacy_backup_visits_preserve_progress_and_invalid_lessons_do_not_recor
     goto(page, "/")
     expect_resume(page, "fullstack-integration")
     # A replacement old backup clears the new optional location without changing old fields.
-    import_progress(page, backup)
+    replacement = import_progress(page, backup)
     page.reload()
     expect(page.get_by_role("region", name="上次学习", exact=True)).to_have_count(0)
-    assert stored(page) == backup
+    assert stored(page) == replacement
 
 
 def test_positions_export_import_and_invalid_backup_does_not_replace_current_state(page):
@@ -218,15 +230,15 @@ def test_positions_export_import_and_invalid_backup_does_not_replace_current_sta
         restored = context.new_page()
         restored.on("pageerror", lambda error: errors.append(str(error)))
         goto(restored, "/")
-        import_progress(restored, backup)
+        imported = import_progress(restored, backup)
         expect_resume(restored, "agent-agent-loop")
         restored.reload()
         expect_resume(restored, "agent-agent-loop")
-        assert stored(restored) == backup
+        assert stored(restored) == imported
         invalid = copy.deepcopy(backup)
         invalid["resume"]["positions"]["agent"]["visited_at"] = "2026-02-30T00:00:00.000Z"
         import_progress(restored, invalid, accepted=False)
-        assert stored(restored) == backup
+        assert stored(restored) == imported
         expect_resume(restored, "agent-agent-loop")
         assert restored.evaluate("document.documentElement.scrollWidth <= innerWidth")
         goto(restored, "/roadmap/fullstack")
@@ -258,11 +270,11 @@ def test_stale_and_mismatched_positions_fall_back_without_losing_notes(page):
         )
     ).to_be_visible()
     backup["resume"]["positions"]["fullstack"]["lesson_id"] = "agent-agent-loop"
-    import_progress(page, backup)
+    imported = import_progress(page, backup)
     expect(region.get_by_role("link")).to_have_count(0)
     goto(page, "/")
     expect_resume(page, "agent-agent-loop")
-    assert stored(page) == backup
+    assert stored(page) == imported
 
 
 def test_completed_routes_offer_review_without_inventing_a_next_lesson(page):

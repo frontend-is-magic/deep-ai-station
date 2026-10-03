@@ -5,6 +5,7 @@ import json
 import os
 from datetime import datetime
 from pathlib import Path
+from uuid import UUID
 
 import pytest
 from playwright.sync_api import expect, sync_playwright
@@ -241,13 +242,18 @@ def test_practice_backup_round_trip_in_fresh_context_rejects_duplicate_records(p
         assert not stored(restored).get("practice")
         expect(restored.get_by_label("课程笔记", exact=True)).to_have_value("")
         dialog = preferences(restored)
+        before_import = stored(restored)
         upload(dialog, backup)
         expect(dialog.get_by_role("status")).to_contain_text("学习记录已导入")
         close_preferences(restored)
         expect(
             practice(restored).get_by_role("button", name="撤销 Python 实践记录", exact=True)
         ).to_be_visible()
-        assert stored(restored) == backup
+        imported = stored(restored)
+        epoch = imported["history_reset_id"]
+        assert str(UUID(epoch)) == epoch and UUID(epoch).version == 4
+        assert epoch not in (before_import.get("history_reset_id"), backup.get("history_reset_id"))
+        assert imported == {**backup, "history_reset_id": epoch}
         expect(restored.get_by_label("课程笔记", exact=True)).to_have_value(NOTE)
         restored.get_by_role("button", name="Go", exact=True).click()
         expect(
