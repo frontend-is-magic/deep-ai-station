@@ -1,5 +1,8 @@
 """Equivalent engineering concepts across Python, TypeScript and Go."""
 
+# ruff: noqa: E101
+# gofmt tabs belong to embedded Go strings; executable Python uses spaces.
+
 from backend.examples import code
 
 
