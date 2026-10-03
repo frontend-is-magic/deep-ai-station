@@ -35,6 +35,17 @@ interface CheckResult {
   passed: boolean;
   notice: string;
 }
+interface ExecutionResult {
+  run_id: string;
+  passed: boolean;
+  status: string;
+  stdout: string;
+  stderr: string;
+  truncated: boolean;
+  cleanup: string;
+  duration_ms: number;
+  notice: string;
+}
 
 export default function Playground({ tracks }: { tracks: Track[] }) {
   const [params, setParams] = useSearchParams();
@@ -64,12 +75,13 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
   );
   const selectedLesson = tracks
     .flatMap((t) => t.lessons)
-    .find((x) => x.id === params.get('lesson'));
+    .find((x) => x.id === params.get('lesson') && x.track === trackId);
   const track = tracks.find((x) => x.id === trackId)!;
   const initialCode =
     selectedLesson?.snippets[language] || track.lessons[0].snippets[language] || '';
   const [code, setCode] = useState(initialCode);
   const [checkResult, setCheckResult] = useState<CheckResult | null>(null);
+  const [execution, setExecution] = useState<ExecutionResult | null>(null);
   const controller = useRef<AbortController | null>(null);
   const mounted = useRef(true);
   useEffect(() => {
@@ -85,11 +97,12 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
     };
   }, []);
   useEffect(() => {
-    const lesson = tracks.flatMap((t) => t.lessons).find((x) => x.id === params.get('lesson'));
+    const lesson = tracks.flatMap((t) => t.lessons).find((x) => x.id === selectedLesson?.id);
     const current = tracks.find((x) => x.id === trackId)!;
     setCode(lesson?.snippets[language] || current.lessons[0].snippets[language] || '');
     setCheckResult(null);
-  }, [language, trackId, tracks, params]);
+    setExecution(null);
+  }, [language, trackId, tracks, selectedLesson?.id]);
   function switchMode(next: string) {
     setMode(next);
     setError('');
@@ -185,6 +198,7 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
   async function check() {
     setRunning(true);
     setError('');
+    setExecution(null);
     const c = new AbortController();
     controller.current = c;
     try {
@@ -196,12 +210,40 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
       });
       if (mounted.current) setCheckResult(result);
     } catch (e) {
-      if (mounted.current) setError(e instanceof Error ? e.message : '检查失败');
+      if (mounted.current)
+        setError(c.signal.aborted ? '检查已停止' : e instanceof Error ? e.message : '检查失败');
     } finally {
       if (mounted.current) setRunning(false);
       controller.current = null;
     }
   }
+  async function executeCode() {
+    if (running || !code.trim() || !token) return;
+    const c = new AbortController();
+    controller.current = c;
+    setRunning(true);
+    setError('');
+    setExecution(null);
+    setCheckResult(null);
+    try {
+      const result = await api<ExecutionResult>('/playground/execute', {
+        method: 'POST',
+        signal: c.signal,
+        headers: { 'Content-Type': 'application/json', 'X-Playground-Token': token },
+        body: JSON.stringify({ language, code }),
+      });
+      if (mounted.current) setExecution(result);
+    } catch (e) {
+      if (mounted.current)
+        setError(
+          c.signal.aborted ? '隔离运行已停止' : e instanceof Error ? e.message : '隔离运行失败',
+        );
+    } finally {
+      if (mounted.current) setRunning(false);
+      if (controller.current === c) controller.current = null;
+    }
+  }
+  const canExecute = cap?.sandbox?.languages.includes(language) || false;
   const templates =
     trackId === 'agent'
       ? [
@@ -486,7 +528,7 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
             <Terminal size={18} />
             <span>
               静态检查模式：不运行代码。Python 检查语法；TS / Go
-              检查基础文本结构，业务行为仍需独立测试。
+              检查基础文本结构。隔离运行需托管沙箱配置与访问码，运行会产生沙箱费用。
             </span>
           </div>
           {selectedLesson && (
@@ -520,6 +562,7 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
                   onClick={() => {
                     setCode(initialCode);
                     setCheckResult(null);
+                    setExecution(null);
                   }}
                 >
                   恢复示例
@@ -533,6 +576,20 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
                 spellCheck={false}
                 onChange={(e) => setCode(e.target.value)}
               />
+              {canExecute && (
+                <label className="field-label sandbox-access">
+                  实验访问码
+                  <input
+                    aria-label="沙箱访问码"
+                    type="password"
+                    autoComplete="off"
+                    value={token}
+                    onChange={(e) => setToken(e.target.value)}
+                    placeholder="只保留在当前页面会话"
+                    disabled={running}
+                  />
+                </label>
+              )}
               <div className="code-editor-footer">
                 <span>
                   {code.split('\n').length} 行 · {code.length} 字符
@@ -541,7 +598,29 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
                   {running ? <Loader2 size={15} className="animate-spin" /> : <Play size={15} />}
                   检查代码
                 </Button>
+                {running ? (
+                  <Button variant="outline" onClick={() => controller.current?.abort()}>
+                    <Square size={15} />
+                    停止运行
+                  </Button>
+                ) : (
+                  <Button
+                    variant="dark"
+                    disabled={!canExecute || !token || !code.trim()}
+                    onClick={() => void executeCode()}
+                  >
+                    <Play size={15} />
+                    隔离运行
+                  </Button>
+                )}
               </div>
+              <p className="sandbox-help">
+                {canExecute
+                  ? '独立沙箱 · 出站网络关闭 · 12 秒运行上限 · 不传入应用密钥'
+                  : language === 'go' && cap?.sandbox?.enabled
+                    ? 'Go 运行需要预装编译器的沙箱模板。'
+                    : '隔离运行尚未配置，静态检查可以直接使用。'}
+              </p>
             </section>
             <section className="check-output">
               <div className="panel-heading">
@@ -553,7 +632,33 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
                   {error}
                 </div>
               )}
-              {checkResult ? (
+              {execution ? (
+                <div className="check-results">
+                  <h3>
+                    {execution.passed
+                      ? '隔离运行完成'
+                      : execution.status === 'timeout'
+                        ? '运行超时'
+                        : execution.status === 'output-limit'
+                          ? '输出达到上限'
+                          : '隔离运行未通过'}
+                  </h3>
+                  <pre className="sandbox-output">{execution.stdout || '没有标准输出'}</pre>
+                  {execution.stderr && (
+                    <pre className="sandbox-output sandbox-stderr">{execution.stderr}</pre>
+                  )}
+                  <p>{execution.notice}</p>
+                  <span className="badge">
+                    {execution.cleanup === 'expiry-fallback'
+                      ? '清理未确认，等待 45 秒存活上限到期'
+                      : '沙箱已销毁或已过期'}
+                  </span>
+                  <div className="run-metadata">
+                    <span>{(execution.duration_ms / 1000).toFixed(2)}s</span>
+                    <code>run / {execution.run_id.slice(0, 8)}</code>
+                  </div>
+                </div>
+              ) : checkResult ? (
                 <div className="check-results">
                   <h3>{checkResult.passed ? '基础检查通过' : '还有需要修改的地方'}</h3>
                   {checkResult.checks.map((item, i) => (
@@ -572,7 +677,7 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
                   <p>
                     修改代码后点击检查。
                     <br />
-                    这个环境不会执行用户代码。
+                    配置隔离沙箱后，可独立运行并查看输出。
                   </p>
                 </div>
               )}

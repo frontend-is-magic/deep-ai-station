@@ -61,5 +61,6 @@ export interface Progress {
 export interface Capabilities {
   providers: { id: string; name: string; enabled: boolean; model: string | null }[];
   code_execution: string;
+  sandbox?: { enabled: boolean; languages: Language[]; timeout_seconds: number; network: string };
   live_requires_access_token: boolean;
 }
