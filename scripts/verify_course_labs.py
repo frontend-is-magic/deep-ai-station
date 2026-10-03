@@ -48,10 +48,14 @@ def request(base, case):
             raise RuntimeError(f"{case['id']}: JSON response does not match the shared contract")
 
 
-def verify_http(args, folder, env, port):
+def verify_http(args, folder, env, port, request_case=request, cases_override=None):
     with socket.socket() as check:
         check.bind(("127.0.0.1", port))
-    cases = json.loads((folder / "contract-cases.json").read_text())
+    cases = (
+        json.loads((folder / "contract-cases.json").read_text())
+        if cases_override is None
+        else cases_override
+    )
     base = f"http://127.0.0.1:{port}"
     with tempfile.TemporaryFile() as log:
         process = subprocess.Popen(  # noqa: S603 - fixed maintainer server entry
@@ -67,14 +71,14 @@ def verify_http(args, folder, env, port):
                 if process.poll() is not None:
                     raise RuntimeError("Course lab server exited before health check")
                 try:
-                    request(base, cases[0])
+                    request_case(base, cases[0])
                     break
                 except (URLError, TimeoutError, ConnectionError):
                     time.sleep(0.1)
             else:
                 raise RuntimeError("Course lab server did not become healthy")
             for case in cases:
-                request(base, case)
+                request_case(base, case)
         finally:
             if process.poll() is None:
                 os.killpg(process.pid, signal.SIGTERM)
@@ -93,7 +97,7 @@ def verify_http(args, folder, env, port):
     raise RuntimeError("Owned course lab listener has not closed")
 
 
-def verify(language, port):
+def verify(language, port, lab="api-contract", request_case=request, restart_cases=None):
     # Deliberately omit provider keys and authentication material from child processes.
     allowed = {
         "PATH",
@@ -119,7 +123,7 @@ def verify(language, port):
         folder = Path(temporary).resolve()
         if folder.is_relative_to(ROOT):
             raise RuntimeError("Archive checks must run outside the repository")
-        with zipfile.ZipFile(DESTINATION / f"api-contract-{language}.zip") as archive:
+        with zipfile.ZipFile(DESTINATION / f"{lab}-{language}.zip") as archive:
             archive.extractall(folder)
         if language == "python":
             uv = shutil.which("uv")
@@ -139,6 +143,7 @@ def verify(language, port):
                 "127.0.0.1",
                 "--port",
                 str(port),
+                "--no-access-log",
             ]
         elif language == "typescript":
             command(["pnpm", "install", "--frozen-lockfile"], folder, env)
@@ -159,14 +164,28 @@ def verify(language, port):
             )
             if unformatted.strip():
                 raise RuntimeError("Go lab is not formatted")
-            command(["go", "test", "-mod=readonly", "./..."], folder, env)
+            go_tests = ["go", "test", "-mod=readonly"]
+            if lab == "session-authorization":
+                go_tests.append("-race")
+            command([*go_tests, "./..."], folder, env)
             command(["go", "build", "-mod=readonly", "-o", "lab-server", "."], folder, env)
             server = [str(folder / "lab-server")]
-        count = verify_http(server, folder, env, port)
+        count = verify_http(server, folder, env, port, request_case)
+        restart_count = 0
+        if restart_cases:
+            with socket.socket() as listener:
+                listener.bind(("127.0.0.1", 0))
+                restart_port = listener.getsockname()[1]
+            restart_server = [str(restart_port) if item == str(port) else item for item in server]
+            restart_count = verify_http(
+                restart_server, folder, env, restart_port, request_case, restart_cases
+            )
         print(
             json.dumps(
                 {
                     "language": language,
+                    "lab": lab,
+                    "restart_cases": restart_count,
                     "archive": "verified",
                     "http_cases": count,
                     "listener_released": True,

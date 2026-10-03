@@ -22,6 +22,11 @@ LABS = {
         "version": "sqlite-storage-v1",
         "lessons": ("fullstack-database", "fullstack-migrations"),
     },
+    "session-authorization": {
+        "title": "可运行会话与授权实验",
+        "version": "session-authorization-v1",
+        "lessons": ("fullstack-auth", "fullstack-app-security"),
+    },
 }
 LANGUAGES = [
     ("Python", "python", "example.py"),
@@ -41,6 +46,27 @@ API_FILES = {
         "tsconfig.json",
     },
     "go": {"app.go", "service.go", "repository.go", "main.go", "app_test.go", "go.mod", "go.sum"},
+}
+SESSION_FILES = {
+    "python": {
+        "app.py",
+        "auth.py",
+        "errors.py",
+        "repository.py",
+        "resources.py",
+        "service.py",
+        "test_app.py",
+    },
+    "typescript": {
+        "src/app.ts",
+        "src/auth.ts",
+        "src/repository.ts",
+        "src/request.ts",
+        "src/service.ts",
+        "src/server.ts",
+        "src/app.test.ts",
+    },
+    "go": {"app.go", "store.go", "main.go", "app_test.go"},
 }
 DEPENDENCY_FILES = {
     "python": {"pyproject.toml", "uv.lock"},
@@ -121,6 +147,39 @@ def assert_api_contract_archive(archive, language, files):
     assert any(case["id"] == "unicode-whitespace" for case in cases)
 
 
+def assert_session_archive(archive, language, files):
+    assert SESSION_FILES[language] | {"fixtures.json", "contract-cases.json"} <= files
+    fixtures = json.loads(archive.read("fixtures.json"))
+    assert {session["user_id"] for session in fixtures["sessions"]} >= {"alice", "bob"}
+    assert any(not session["can_write"] for session in fixtures["sessions"])
+    assert any(session["revoked"] for session in fixtures["sessions"])
+    assert any(session["expires_after_seconds"] == 0 for session in fixtures["sessions"])
+    assert {document["owner"] for document in fixtures["documents"]} >= {"alice", "bob"}
+    cases = json.loads(archive.read("contract-cases.json"))
+    assert {case["status"] for case in cases} >= {200, 400, 401, 403, 404, 405, 413, 415, 422}
+    assert {case["id"] for case in cases} >= {
+        "auth-expired",
+        "auth-revoked",
+        "foreign-detail",
+        "missing-detail",
+        "readonly-own",
+        "spoof-header-only",
+        "query-owner",
+        "body-escaped-duplicate",
+        "auth-before-body",
+        "csrf-cross-session",
+        "csrf-duplicate-origin",
+        "csrf-duplicate-x-csrf-token",
+        "invalid-auth-no-cookie-fallback",
+        "auth-duplicate-lines",
+        "cookie-duplicate-lines",
+        "logout-csrf-failure",
+        "logout-cookie",
+        "logout-cookie-replay",
+        "other-session-still-valid",
+    }
+
+
 def assert_standalone_archive(path, lab_id, language, lesson_id):
     source = ROOT / "labs" / lab_id
     with zipfile.ZipFile(path) as archive:
@@ -158,6 +217,8 @@ def assert_standalone_archive(path, lab_id, language, lesson_id):
         assert lesson_id in manifest["lessons"] and language in manifest["languages"]
         if lab_id == "api-contract":
             assert_api_contract_archive(archive, language, files)
+        elif lab_id == "session-authorization":
+            assert_session_archive(archive, language, files)
         else:
             assert {"migrations/001.sql", "migrations/002.sql", "contract-cases.json"} <= files
             cases = json.loads(archive.read("contract-cases.json"))
@@ -191,6 +252,13 @@ def test_course_lab_downloads_follow_language_and_preserve_reference_bundle(
     if lab_id == "sqlite-storage":
         expect(card).to_contain_text("v1→v2 迁移")
         expect(card).to_contain_text("owner 只是教学输入，不代表登录认证")
+    elif lab_id == "session-authorization":
+        expect(card).to_contain_text("会话过期与撤销")
+        expect(card).to_contain_text("owner 隔离")
+        expect(card).to_contain_text("Cookie CSRF")
+        expect(card).to_contain_text("公开假会话仅用于独立本地教学")
+        expect(card).to_contain_text("不得填入真实凭据")
+        expect(card).to_contain_text("真实登录与 HTTPS Cookie 行为需另行验收")
     for other in LABS:
         if other != lab_id:
             expect(lab(page, other)).to_have_count(0)

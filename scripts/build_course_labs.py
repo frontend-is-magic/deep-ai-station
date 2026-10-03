@@ -55,9 +55,45 @@ STORAGE_SHARED = [
     "migrations/001.sql",
     "migrations/002.sql",
 ]
+AUTH_FILES = {
+    "python": [
+        "app.py",
+        "auth.py",
+        "errors.py",
+        "repository.py",
+        "resources.py",
+        "service.py",
+        "test_app.py",
+        "pyproject.toml",
+        "uv.lock",
+    ],
+    "typescript": [
+        "src/app.ts",
+        "src/auth.ts",
+        "src/repository.ts",
+        "src/request.ts",
+        "src/service.ts",
+        "src/server.ts",
+        "src/app.test.ts",
+        "package.json",
+        "pnpm-lock.yaml",
+        "tsconfig.json",
+    ],
+    "go": ["app.go", "store.go", "main.go", "app_test.go", "go.mod", "go.sum"],
+}
+AUTH_SHARED = [
+    "README.md",
+    "CONTRACT.md",
+    "EVIDENCE.md",
+    "AGENTS.md",
+    ".gitignore",
+    "fixtures.json",
+    "contract-cases.json",
+]
 LABS = {
     "api-contract": (FILES, SHARED),
     "sqlite-storage": (STORAGE_FILES, STORAGE_SHARED),
+    "session-authorization": (AUTH_FILES, AUTH_SHARED),
 }
 
 
