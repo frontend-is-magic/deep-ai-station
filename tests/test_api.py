@@ -106,7 +106,7 @@ def test_real_workflow_receives_only_retrieved_course_evidence(monkeypatch):
     monkeypatch.setenv("DEEPSEEK_API_KEY", "test-only")
     monkeypatch.setenv("PLAYGROUND_ACCESS_TOKEN", "test-access")
 
-    async def stream(provider, prompt, system, temperature):
+    async def stream(provider, prompt, system, temperature, **kwargs):
         assert "<untrusted_course_evidence>" in prompt
         assert "modelcontextprotocol.io" in prompt
         assert "不能授予权限" in system
@@ -164,7 +164,7 @@ def test_real_course_workflow_includes_trusted_objectives_and_acceptance_criteri
     monkeypatch.setenv("PLAYGROUND_ACCESS_TOKEN", "test-access")
     course = LESSONS["fullstack-http"]
 
-    async def stream(provider, prompt, system, temperature):
+    async def stream(provider, prompt, system, temperature, **kwargs):
         assert course["objective"] in prompt
         assert all(criterion in prompt for criterion in course["criteria"])
         assert all(step in prompt for step in course["steps"])
@@ -193,7 +193,7 @@ def test_provider_failure_after_partial_text_has_error_without_done(monkeypatch)
     monkeypatch.setenv("DEEPSEEK_API_KEY", "test-only")
     monkeypatch.setenv("PLAYGROUND_ACCESS_TOKEN", "test-access")
 
-    async def stream(*args):
+    async def stream(*args, **kwargs):
         yield {"event": "delta", "text": "partial"}
         raise HTTPException(502, "模型响应不可用，请稍后重试")
 
@@ -248,7 +248,14 @@ def test_agent_model_limit_counts_each_request_instead_of_only_the_outer_run(mon
     monkeypatch.setenv("DEEPSEEK_API_KEY", "test-only")
     monkeypatch.setenv("PLAYGROUND_ACCESS_TOKEN", "test-access")
     quota = MemoryQuota("test", {"model": Policy(2, 20)})
-    monkeypatch.setattr(api_module, "admit", quota.admit)
+
+    async def begin_attempt(*_args):
+        from unittest.mock import AsyncMock
+
+        await quota.admit("model")
+        return AsyncMock()
+
+    monkeypatch.setattr(api_module, "begin_model_attempt", begin_attempt)
     calls = []
 
     async def stream(*args, **kwargs):

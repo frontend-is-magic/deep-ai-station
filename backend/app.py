@@ -18,13 +18,13 @@ from backend.curriculum import LESSONS, TRACKS
 from backend.exercises import exercise_bundle
 from backend.feed import get_feed
 from backend.middleware import RequestLimits
-from backend.providers import PROVIDERS, Provider, capabilities, stream_generate
-from backend.quota import admit
+from backend.model_usage import begin_model_attempt
+from backend.providers import PROVIDERS, Provider, capabilities, provider_model, stream_generate
 from backend.retrieval import retrieve
 from backend.retrieval_evaluation import RetrievalEvaluationRequest, evaluate_retrieval
 from backend.sandbox import execute_code
 from backend.tool_contract import router as tool_contract_router
-from backend.usage import UsageTracker
+from backend.usage import ModelRequest, UsageTracker
 
 app = FastAPI(
     title="Deep AI Station", version="0.1.0", docs_url="/api/docs", openapi_url="/api/openapi.json"
@@ -129,17 +129,29 @@ async def run(
         raise HTTPException(404, "课时不存在")
     if course and course["track"] != body.track:
         raise HTTPException(422, "课时与学习方向不匹配")
+    run_id = str(uuid4())
+    attempt = None
+    model = None
     if body.provider != "demo":
         if not os.getenv(PROVIDERS[body.provider]["key"]):
             raise HTTPException(503, "该模型尚未配置")
         authorize_live(x_playground_token)
+        model = provider_model(body.provider)
         if body.workflow != "agent":
-            await admit("model")
-    run_id = str(uuid4())
+            attempt = await begin_model_attempt(run_id, 1, body.provider, model)
 
     async def events():
-        start = time.monotonic()
         usage_tracker = UsageTracker()
+        lifecycle = ModelRequest(usage_tracker, attempt)
+        try:
+            async with aclosing(run_events(usage_tracker, lifecycle)) as stream:
+                async for event in stream:
+                    yield event
+        finally:
+            await lifecycle.cancel_if_open()
+
+    async def run_events(usage_tracker, lifecycle):
+        start = time.monotonic()
         yield sse("start", {"run_id": run_id, "mode": body.provider, "lesson_id": body.lesson_id})
         yield sse(
             "trace",
@@ -161,7 +173,9 @@ async def run(
                         body.track,
                         body.lesson_id,
                         run_id,
-                        charge=lambda: admit("model"),
+                        start_attempt=lambda step, selected_model: begin_model_attempt(
+                            run_id, step, body.provider, selected_model
+                        ),
                         usage_tracker=usage_tracker,
                     )
                 ) as stream:
@@ -302,24 +316,26 @@ async def run(
                     + body.system
                 )
                 result = None
-                request_usage = usage_tracker.begin()
-                async with aclosing(
-                    stream_generate(body.provider, augmented, system, body.temperature)
-                ) as stream:
-                    async for event in stream:
-                        if await request.is_disconnected():
-                            return
-                        if event["event"] == "delta":
-                            yield sse("delta", {"text": event["text"]})
-                        elif event["event"] == "usage":
-                            usage_tracker.observe(request_usage, event.get("usage"))
-                            yield sse("usage", {"run_id": run_id, **usage_tracker.snapshot()})
-                        elif event["event"] == "done":
-                            result = event
-                            usage_tracker.observe(request_usage, event.get("usage"))
-                if result is None:
-                    raise HTTPException(502, "模型响应未完成")
-                usage_tracker.finish(request_usage, result)
+                async with lifecycle:
+                    async with aclosing(
+                        stream_generate(
+                            body.provider, augmented, system, body.temperature, model=model
+                        )
+                    ) as stream:
+                        async for event in stream:
+                            if event["event"] in {"usage", "done"}:
+                                await lifecycle.observe(event.get("usage"))
+                            if await request.is_disconnected():
+                                return
+                            if event["event"] == "delta":
+                                yield sse("delta", {"text": event["text"]})
+                            elif event["event"] == "usage":
+                                yield sse("usage", {"run_id": run_id, **usage_tracker.snapshot()})
+                            elif event["event"] == "done":
+                                result = event
+                    if result is None:
+                        raise HTTPException(502, "模型响应未完成")
+                    await lifecycle.complete(result)
                 yield sse(
                     "trace",
                     {

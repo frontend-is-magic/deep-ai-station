@@ -221,7 +221,7 @@ def test_quota_http_error_preserves_status_headers_and_zero_model_calls(
     monkeypatch.setenv("PLAYGROUND_ACCESS_TOKEN", "test-access")
     admission = AsyncMock(side_effect=HTTPException(status, quota.UNAVAILABLE, headers=headers))
     provider = Mock(side_effect=AssertionError)
-    monkeypatch.setattr(api, "admit", admission)
+    monkeypatch.setattr(api, "begin_model_attempt", admission)
     monkeypatch.setattr(api, "stream_generate", provider)
     response = TestClient(app).post(
         "/api/playground/run",
@@ -250,7 +250,7 @@ def test_validation_auth_and_demo_never_consume_quota(monkeypatch, body, access,
     monkeypatch.setenv("DEEPSEEK_API_KEY", "test-only")
     monkeypatch.setenv("PLAYGROUND_ACCESS_TOKEN", "test-access")
     admission = AsyncMock(side_effect=AssertionError)
-    monkeypatch.setattr(api, "admit", admission)
+    monkeypatch.setattr(api, "begin_model_attempt", admission)
     response = TestClient(app).post(
         "/api/playground/run", json=body, headers={"X-Playground-Token": access} if access else {}
     )
@@ -341,10 +341,10 @@ def test_model_failure_after_admission_is_not_refunded(monkeypatch):
 
     monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
     monkeypatch.setenv("PLAYGROUND_ACCESS_TOKEN", "test-access")
-    store = MemoryQuota("local", clock=lambda: 86401)
-    monkeypatch.setattr(api, "admit", store.admit)
+    monkeypatch.setenv("AI_QUOTA_MODE", "memory")
+    store = quota._store(quota.configuration())
 
-    async def failure(*args):
+    async def failure(*args, **kwargs):
         raise HTTPException(502, "model failed")
         yield
 
@@ -433,8 +433,9 @@ async def test_setup_requires_postgres_and_uses_only_fixed_migration(monkeypatch
     connection = FakeConnection()
     monkeypatch.setattr(psycopg.AsyncConnection, "connect", AsyncMock(return_value=connection))
     await setup_quota.setup()
-    assert len(connection.statements) == 1
+    assert len(connection.statements) == 2
     assert "CREATE TABLE IF NOT EXISTS public.ai_request_quota_v1" in connection.statements[0][0]
+    assert "CREATE TABLE IF NOT EXISTS public.ai_model_usage_v1" in connection.statements[1][0]
     assert connection.closed
 
 

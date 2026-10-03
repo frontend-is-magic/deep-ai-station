@@ -10,9 +10,9 @@ from fastapi import HTTPException
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 from backend.curriculum import LESSONS
-from backend.providers import close_client, stream_generate
+from backend.providers import provider_model, stream_generate
 from backend.retrieval import retrieve
-from backend.usage import UsageTracker
+from backend.usage import ModelRequest, UsageTracker
 
 MAX_ROUNDS = 3
 TOTAL_TIMEOUT = 45
@@ -140,7 +140,10 @@ async def stream_agent(
     client: httpx.AsyncClient | None = None,
     charge: Callable[[], Awaitable[None]] | None = None,
     usage_tracker: UsageTracker | None = None,
+    start_attempt: Callable[[int, str], Awaitable[object]] | None = None,
 ):
+    if charge is not None and start_attempt is not None:
+        raise ValueError("Only one model admission callback is allowed")
     if provider == "demo":
         async with aclosing(demo_loop(prompt, track, lesson_id, run_id)) as demo:
             async for event in demo:
@@ -162,61 +165,63 @@ async def stream_agent(
     tool_count = 0
     total_output = 0
     active_request = None
-    own_client = client is None
-    client = client or httpx.AsyncClient(timeout=40)
+    model = provider_model(provider)
+    deadline = asyncio.timeout(TOTAL_TIMEOUT)
     try:
-        async with asyncio.timeout(TOTAL_TIMEOUT):
+        async with deadline:
             for step in range(1, MAX_ROUNDS + 1):
                 if charge:
                     await charge()
-                active_request = (step, f"{run_id}:model:{step}")
-                yield trace(
-                    f"模型请求 {step} / {MAX_ROUNDS}",
-                    "观察课程资料并选择一个工具或最终回答",
-                    "running",
-                    f"{run_id}:model:{step}",
-                )
-                text = ""
-                result = None
-                request_usage = usage_tracker.begin()
-                async with aclosing(
-                    stream_generate(
-                        provider,
-                        "",
-                        system,
-                        temperature,
-                        client,
-                        messages=messages,
-                        tools=TOOLS,
-                        tool_choice="none" if step == MAX_ROUNDS else "auto",
+                attempt = await start_attempt(step, model) if start_attempt else None
+                async with ModelRequest(usage_tracker, attempt, deadline=deadline) as lifecycle:
+                    active_request = (step, f"{run_id}:model:{step}")
+                    yield trace(
+                        f"模型请求 {step} / {MAX_ROUNDS}",
+                        "观察课程资料并选择一个工具或最终回答",
+                        "running",
+                        f"{run_id}:model:{step}",
                     )
-                ) as stream:
-                    async for event in stream:
-                        if event["event"] == "delta":
-                            total_output += len(event["text"])
-                            if total_output > 20000:
-                                raise HTTPException(502, "Agent 输出超过上限，请缩小任务")
-                            text += event["text"]
-                            yield event
-                        elif event["event"] == "usage":
-                            usage_tracker.observe(request_usage, event.get("usage"))
-                            yield {"event": "usage", **usage_tracker.snapshot()}
-                        elif event["event"] == "done":
-                            result = event
-                            usage_tracker.observe(request_usage, event.get("usage"))
-                            # Retain compatibility with providers that report usage only
-                            # in done; this is still a running snapshot, never success.
-                            yield {"event": "usage", **usage_tracker.snapshot()}
-                if result is None:
-                    raise HTTPException(502, "Agent 模型响应未完成")
-                usage_tracker.finish(request_usage, result)
-                yield trace(
-                    f"模型请求 {step} / {MAX_ROUNDS}",
-                    "供应商响应已完成",
-                    "success",
-                    f"{run_id}:model:{step}",
-                )
-                active_request = None
+                    text = ""
+                    result = None
+                    async with aclosing(
+                        stream_generate(
+                            provider,
+                            "",
+                            system,
+                            temperature,
+                            client,
+                            messages=messages,
+                            tools=TOOLS,
+                            tool_choice="none" if step == MAX_ROUNDS else "auto",
+                            model=model,
+                        )
+                    ) as stream:
+                        async for event in stream:
+                            if event["event"] == "delta":
+                                total_output += len(event["text"])
+                                if total_output > 20000:
+                                    raise HTTPException(502, "Agent 输出超过上限，请缩小任务")
+                                text += event["text"]
+                                yield event
+                            elif event["event"] == "usage":
+                                await lifecycle.observe(event.get("usage"))
+                                yield {"event": "usage", **usage_tracker.snapshot()}
+                            elif event["event"] == "done":
+                                result = event
+                                await lifecycle.observe(event.get("usage"))
+                                # Retain compatibility with providers that report usage only
+                                # in done; this is still a running snapshot, never success.
+                                yield {"event": "usage", **usage_tracker.snapshot()}
+                    if result is None:
+                        raise HTTPException(502, "Agent 模型响应未完成")
+                    await lifecycle.complete(result)
+                    yield trace(
+                        f"模型请求 {step} / {MAX_ROUNDS}",
+                        "供应商响应已完成",
+                        "success",
+                        f"{run_id}:model:{step}",
+                    )
+                    active_request = None
                 calls = result.get("tool_calls", [])
                 if result.get("truncated") or not calls:
                     if not result.get("truncated") and not text:
@@ -302,10 +307,3 @@ async def stream_agent(
                 active_request[1],
             )
         raise
-    finally:
-        if own_client:
-            try:
-                await close_client(client)
-            except HTTPException:
-                usage_tracker.cleanup_failed()
-                raise

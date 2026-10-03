@@ -7,6 +7,7 @@ import threading
 import time
 from contextlib import aclosing, contextmanager
 from pathlib import Path
+from unittest.mock import AsyncMock
 
 import httpx
 import pytest
@@ -136,13 +137,15 @@ def test_usage_survives_actual_browser_api_failure_and_disconnect(monkeypatch, e
                 async for event in stream:
                     yield event
 
-    async def admit(resource):
-        assert resource == "model"
-        admissions.append(resource)
+    async def begin_attempt(run_id, request_index, provider, model):
+        assert provider == "deepseek" and request_index == len(admissions) + 1
+        admissions.append((run_id, request_index, provider, model))
         if ending == "quota" and len(admissions) == 2:
             raise HTTPException(429, "共享请求额度已用完", headers={"Retry-After": "30"})
 
-    monkeypatch.setattr(api_module, "admit", admit)
+        return AsyncMock()
+
+    monkeypatch.setattr(api_module, "begin_model_attempt", begin_attempt)
     monkeypatch.setattr(api_module, "stream_generate", generate)
     monkeypatch.setattr(agent_loop, "stream_generate", generate)
 

@@ -14,9 +14,10 @@ async def setup():
     config = configuration()
     if config.mode != "postgres":
         raise ValueError("PostgreSQL is required")
-    sql = (
-        Path(__file__).resolve().parents[1] / "backend/migrations/001_request_quota.sql"
-    ).read_text()
+    migrations = Path(__file__).resolve().parents[1] / "backend/migrations"
+    statements = tuple(
+        (migrations / name).read_text() for name in ("001_request_quota.sql", "002_model_usage.sql")
+    )
     connection = None
     try:
         async with asyncio.timeout(10):
@@ -25,7 +26,8 @@ async def setup():
                 connect_timeout=3,
                 options="-c statement_timeout=5000 -c lock_timeout=1000 -c idle_in_transaction_session_timeout=6000",
             )
-            await connection.execute(sql)
+            for sql in statements:
+                await connection.execute(sql)
             await connection.commit()
     finally:
         if connection is not None and not connection.closed:

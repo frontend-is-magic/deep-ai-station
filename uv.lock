@@ -96,6 +96,7 @@ name = "deep-ai-station"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "anyio" },
     { name = "defusedxml" },
     { name = "e2b-code-interpreter" },
     { name = "fastapi" },
@@ -114,6 +115,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "anyio", specifier = ">=4.15,<5" },
     { name = "defusedxml", specifier = ">=0.7,<0.8" },
     { name = "e2b-code-interpreter", specifier = ">=2.4,<3" },
     { name = "fastapi", specifier = ">=0.135,<0.136" },

@@ -117,4 +117,4 @@ jobs:
           enable-cache: true
       - run: uv sync --locked
       - run: uv run python -c "import os; assert os.environ.get('TEST_QUOTA_DATABASE_URL')"
-      - run: uv run pytest tests/test_quota_postgres.py -q -rs
+      - run: uv run pytest tests/test_quota_postgres.py tests/test_model_usage_postgres.py tests/test_model_usage_api_postgres.py -q -rs

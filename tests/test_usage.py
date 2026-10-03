@@ -294,7 +294,12 @@ async def test_agent_api_preserves_prior_and_current_known_usage_without_false_s
     quota = MemoryQuota(
         "test", {"model": Policy(1 if ending == "quota" else 10, 100)}, clock=lambda: 86401
     )
-    monkeypatch.setattr(api, "admit", quota.admit)
+
+    async def begin_attempt(*_args):
+        await quota.admit("model")
+        return AsyncMock()
+
+    monkeypatch.setattr(api, "begin_model_attempt", begin_attempt)
     async with httpx.AsyncClient(transport=httpx.MockTransport(response)) as provider_client:
 
         def stream(*args, **kwargs):
@@ -335,7 +340,7 @@ async def test_agent_api_preserves_prior_and_current_known_usage_without_false_s
 async def test_retrieval_has_the_same_snapshot_and_terminal_contract(monkeypatch, ending):
     import backend.app as api
 
-    monkeypatch.setattr(api, "admit", AsyncMock())
+    monkeypatch.setattr(api, "begin_model_attempt", AsyncMock())
     payload = completion(done=ending != "incomplete")
     if ending == "truncated":
         payload = payload.replace(b'"finish_reason": "stop"', b'"finish_reason": "length"')
@@ -343,12 +348,12 @@ async def test_retrieval_has_the_same_snapshot_and_terminal_contract(monkeypatch
         transport=httpx.MockTransport(lambda _: httpx.Response(200, content=payload))
     ) as provider_client:
 
-        def stream(*args):
-            return providers.stream_generate(*args, client=provider_client)
+        def stream(*args, **kwargs):
+            return providers.stream_generate(*args, **kwargs, client=provider_client)
 
         if ending == "legacy":
 
-            async def stream(*args):
+            async def stream(*args, **kwargs):
                 yield {"event": "delta", "text": "legacy answer"}
                 yield {"event": "done", "model": "mock", "usage": FULL}
 
@@ -419,13 +424,13 @@ async def test_response_close_failure_keeps_known_usage_but_never_marks_it_compl
             raise httpx.ReadError("private close diagnostic")
 
     remote = CloseFailure([completion()])
-    monkeypatch.setattr(api, "admit", AsyncMock())
+    monkeypatch.setattr(api, "begin_model_attempt", AsyncMock())
     async with httpx.AsyncClient(
         transport=httpx.MockTransport(lambda _: httpx.Response(200, stream=remote))
     ) as provider_client:
 
-        def model_stream(*args):
-            return providers.stream_generate(*args, client=provider_client)
+        def model_stream(*args, **kwargs):
+            return providers.stream_generate(*args, **kwargs, client=provider_client)
 
         def agent_stream(*args, **kwargs):
             return agent_loop.stream_agent(*args, **kwargs, client=provider_client)

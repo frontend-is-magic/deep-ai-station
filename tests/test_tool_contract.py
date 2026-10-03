@@ -41,7 +41,7 @@ def client(monkeypatch):
         (application, "execute_code"),
         (sandbox, "execute_code"),
         (quota, "admit"),
-        (application, "admit"),
+        (application, "begin_model_attempt"),
     ]:
         mock = Mock(
             side_effect=AssertionError("Free tool experiment cannot call external execution")

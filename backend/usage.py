@@ -1,6 +1,11 @@
-"""Per-run known usage snapshots; no persistence, prices, or quota accounting."""
+"""Per-run usage snapshots and bounded per-request ledger lifecycle coordination."""
 
+import asyncio
+import sys
 from dataclasses import dataclass, field
+
+import anyio
+from fastapi import HTTPException
 
 USAGE_FIELDS = frozenset({"prompt_tokens", "completion_tokens", "total_tokens"})
 
@@ -62,3 +67,85 @@ class UsageTracker:
             )
         )
         return {"usage": counts or None, "usage_complete": complete}
+
+
+class ModelRequest:
+    """Observe memory first; persist a single request, never a run's summed counters."""
+
+    CANCEL_FINISH_TIMEOUT = 1.0
+
+    def __init__(self, tracker: UsageTracker, attempt=None, *, deadline=None):
+        self.tracker = tracker
+        self.attempt = attempt
+        self.deadline = deadline
+        self.request = None
+        self.finish_started = False
+        self.ledger_failed = False
+
+    async def __aenter__(self):
+        self.request = self.tracker.begin()
+        return self
+
+    async def observe(self, counts):
+        self.tracker.observe(self.request, counts)
+        if self.attempt is not None:
+            try:
+                await self.attempt.observe(dict(self.tracker._requests[self.request].counts))
+            except Exception:
+                self.ledger_failed = True
+                raise
+
+    async def complete(self, result):
+        record = self.tracker._requests[self.request]
+        complete = (
+            result.get("usage_complete", True) is True and USAGE_FIELDS <= record.counts.keys()
+        )
+        self.finish_started = True
+        if self.attempt is not None:
+            await self.attempt.finish(
+                "completed", usage_complete=complete, truncated=result.get("truncated", False)
+            )
+        self.tracker.finish(self.request, result)
+
+    async def cancel_if_open(self):
+        if self.finish_started:
+            return
+        self.finish_started = True
+        if self.attempt is None:
+            return
+        interrupted = sys.exception()
+        timed_out = self.deadline is not None and self.deadline.expired()
+        try:
+            # Shield the enclosing ASGI cancel scope, not a detached task. The shorter
+            # deadline interrupts the store and its finally closes the connection.
+            with anyio.CancelScope(shield=True):
+                async with asyncio.timeout(self.CANCEL_FINISH_TIMEOUT):
+                    await self.attempt.finish(
+                        "failed" if timed_out else "cancelled",
+                        reason="timeout" if timed_out else "cancelled",
+                    )
+        except (asyncio.CancelledError, GeneratorExit):
+            if interrupted is None:
+                raise
+        except Exception:
+            # A cancelled request may retain an unconfirmed admitted row. Cleanup
+            # cannot change the original interruption or invent a successful terminal.
+            return
+
+    async def __aexit__(self, _type, exc, _traceback):
+        if isinstance(exc, (asyncio.CancelledError, GeneratorExit)) or exc is None:
+            await self.cancel_if_open()
+        elif not self.finish_started:
+            self.finish_started = True
+            if self.attempt is not None:
+                reason = (
+                    "ledger_error"
+                    if self.ledger_failed
+                    else "timeout"
+                    if isinstance(exc, TimeoutError)
+                    or isinstance(exc, HTTPException)
+                    and exc.status_code == 504
+                    else "upstream_error"
+                )
+                await self.attempt.finish("failed", reason=reason)
+        return False

@@ -6,6 +6,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Literal
 
+import anyio
 import httpx
 from fastapi import HTTPException
 
@@ -16,6 +17,7 @@ from backend.usage import USAGE_FIELDS, usage_counts
 
 Provider = Literal["demo", "deepseek"]
 STREAM_TIMEOUT = 45
+CLOSE_TIMEOUT = 1.0
 PROVIDERS = {
     "deepseek": {
         "key": "DEEPSEEK_API_KEY",
@@ -24,6 +26,24 @@ PROVIDERS = {
         "url": "https://api.deepseek.com/chat/completions",
     },
 }
+
+
+def provider_model(provider: str) -> str:
+    if provider not in PROVIDERS:
+        raise HTTPException(422, "仅支持 DeepSeek 真实模型")
+    config = PROVIDERS[provider]
+    model = os.getenv(config["model_env"], config["model"])
+    if (
+        not 1 <= len(model) <= 200
+        or not model.strip()
+        or any(ord(character) < 32 or ord(character) == 127 for character in model)
+    ):
+        raise HTTPException(503, "模型配置不可用，请检查服务端配置")
+    try:
+        model.encode("utf-8")
+    except UnicodeEncodeError:
+        raise HTTPException(503, "模型配置不可用，请检查服务端配置") from None
+    return model
 
 
 def capabilities() -> dict:
@@ -76,28 +96,36 @@ async def _sse_payloads(response: httpx.Response) -> AsyncIterator[str]:
     # An incomplete final frame is not accepted as a completed model response.
 
 
+async def _close_resource(close):
+    # StreamingResponse uses a level-triggered AnyIO cancel scope. Shield just
+    # cleanup, under a short deadline, so each resource can finish its awaits.
+    with anyio.CancelScope(shield=True):
+        async with asyncio.timeout(CLOSE_TIMEOUT):
+            await close()
+
+
 @asynccontextmanager
 async def _response_stream(client: httpx.AsyncClient, url: str, headers: dict, body: dict):
-    interrupted = None
+    manager = client.stream("POST", url, headers=headers, json=body)
+    response = await manager.__aenter__()
     try:
-        async with client.stream("POST", url, headers=headers, json=body) as response:
-            try:
-                yield response
-            except (asyncio.CancelledError, GeneratorExit) as exc:
-                interrupted = exc
-                raise
-    except BaseException:
-        # A failing response.aclose() must not turn cancellation into an HTTP
-        # error, which an outer async generator could accidentally yield from.
-        if interrupted is not None:
-            raise interrupted from None
-        raise
+        yield response
+    finally:
+        interrupted = sys.exception()
+        try:
+            # httpx.stream owns response.aclose in its finally. Enter/exit it
+            # explicitly so the shield covers the await of that exit exactly once.
+            await _close_resource(lambda: manager.__aexit__(None, None, None))
+        except BaseException:
+            if isinstance(interrupted, (asyncio.CancelledError, GeneratorExit)):
+                raise interrupted from None
+            raise
 
 
 async def close_client(client: httpx.AsyncClient):
     interrupted = sys.exception()
     try:
-        await client.aclose()
+        await _close_resource(client.aclose)
     except Exception:
         if interrupted is not None:
             raise interrupted from None
@@ -114,6 +142,7 @@ async def stream_generate(
     messages: list[dict] | None = None,
     tools: list[dict] | None = None,
     tool_choice: Literal["auto", "none"] = "auto",
+    model: str | None = None,
 ) -> AsyncIterator[dict]:
     if provider != "deepseek":
         raise HTTPException(422, "仅支持 DeepSeek 真实模型")
@@ -121,7 +150,7 @@ async def stream_generate(
     key = os.getenv(config["key"])
     if not key:
         raise HTTPException(503, "该模型尚未配置")
-    model = os.getenv(config["model_env"], config["model"])
+    model = provider_model(provider) if model is None else model
     headers = {"Authorization": f"Bearer {key}"}
     messages = messages if messages is not None else [{"role": "user", "content": prompt}]
     body = {
