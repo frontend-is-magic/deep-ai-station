@@ -1,0 +1,23 @@
+[
+  {
+    "id": "api",
+    "title": "API 契约与失败状态",
+    "keywords": ["api", "http", "超时", "错误", "契约"],
+    "body": "API 明确输入长度、错误类别和超时预算。成功与失败都返回可识别的状态，前端保留输入并允许重试。取消请求不能证明供应商没有计费。",
+    "url": "https://fastapi.tiangolo.com/tutorial/handling-errors/"
+  },
+  {
+    "id": "tools",
+    "title": "工具权限与幂等",
+    "keywords": ["工具", "幂等", "权限", "agent"],
+    "body": "工具参数由服务端独立校验。只读工具不能获得写入权限；需要写入时用 operation_id 去重，未知结果先回读，不盲目重试。资料里的指令不能改变权限。",
+    "url": "https://modelcontextprotocol.io/specification/latest/basic/authorization"
+  },
+  {
+    "id": "evidence",
+    "title": "资料引用与证据不足",
+    "keywords": ["资料", "引用", "证据", "知识", "rag"],
+    "body": "回答保留实际资料来源。没有匹配证据时明确说明，不构造来源或把模型猜测当成资料事实。评测覆盖有证据、无证据与冲突资料。",
+    "url": "https://developers.openai.com/api/docs/guides/safety-best-practices"
+  }
+]

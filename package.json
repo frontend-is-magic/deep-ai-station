@@ -10,9 +10,9 @@
     "build": "tsc -b && vite build",
     "vercel-build": "pnpm build",
     "preview": "vite preview --host 127.0.0.1",
-    "format": "prettier --write src tests docs scripts/*.mjs *.json *.md *.ts *.html .github",
-    "format:check": "prettier --check src tests docs scripts/*.mjs *.json *.md *.ts *.html .github",
-    "test": "vitest run",
+    "format": "prettier --write src tests docs starters scripts/*.mjs *.json *.md *.ts *.html .github",
+    "format:check": "prettier --check src tests docs starters scripts/*.mjs *.json *.md *.ts *.html .github",
+    "test": "vitest run tests/",
     "check": "pnpm format:check && pnpm test && pnpm build",
     "test:e2e": "uv run pytest -m e2e"
   },

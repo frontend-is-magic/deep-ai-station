@@ -1,0 +1,20 @@
+@import 'tailwindcss';
+body {
+  margin: 0;
+  background: #f8faf5;
+  color: #17201b;
+  font-family: system-ui, sans-serif;
+}
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+a:focus-visible {
+  outline: 2px solid #638734;
+  outline-offset: 3px;
+}

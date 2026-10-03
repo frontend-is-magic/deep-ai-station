@@ -1,0 +1,43 @@
+[
+  {
+    "name": "demo-evidence",
+    "body": { "prompt": "API 超时", "mode": "demo" },
+    "status": 200,
+    "mode": "demo",
+    "source": "api"
+  },
+  {
+    "name": "default-demo",
+    "body": { "prompt": "工具权限" },
+    "status": 200,
+    "mode": "demo",
+    "source": "tools"
+  },
+  {
+    "name": "no-evidence",
+    "body": { "prompt": "zzzz unmatched" },
+    "status": 200,
+    "mode": "no-evidence"
+  },
+  {
+    "name": "unicode-input",
+    "body": { "prompt": "引用😀" },
+    "status": 200,
+    "mode": "demo",
+    "source": "evidence"
+  },
+  { "name": "blank", "body": { "prompt": " " }, "status": 422 },
+  { "name": "null-prompt", "body": { "prompt": null }, "status": 422 },
+  { "name": "array-prompt", "body": { "prompt": [] }, "status": 422 },
+  {
+    "name": "extra-field",
+    "body": { "prompt": "API", "url": "https://example.com" },
+    "status": 422
+  },
+  { "name": "uppercase-field", "body": { "Prompt": "API" }, "status": 422 },
+  { "name": "unknown-mode", "body": { "prompt": "API", "mode": "arbitrary" }, "status": 422 },
+  { "name": "null-mode", "body": { "prompt": "API", "mode": null }, "status": 422 },
+  { "name": "empty-mode", "body": { "prompt": "API", "mode": "" }, "status": 422 },
+  { "name": "object-mode", "body": { "prompt": "API", "mode": {} }, "status": 422 },
+  { "name": "protected-live", "body": { "prompt": "API", "mode": "openai" }, "status": 401 }
+]
