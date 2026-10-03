@@ -2,13 +2,14 @@ import { useEffect, useState } from 'react';
 import { useAtom } from 'jotai';
 import { ArrowUpRight, Bookmark, Check, Radio, RefreshCw, Search } from 'lucide-react';
 import { api } from '@/lib/api';
-import type { FeedResponse } from '@/lib/types';
+import type { FeedResponse, Track } from '@/lib/types';
 import { progressAtom, toggleBookmark } from '@/lib/state';
 import { formatDate } from '@/lib/utils';
 import { ErrorPanel, Loading, PageHeading } from '@/components/common';
 import { Button } from '@/components/ui/button';
+import FeedCourseLink from '@/components/FeedCourseLink';
 
-export default function Feed() {
+export default function Feed({ tracks }: { tracks: Track[] }) {
   const [feed, setFeed] = useState<FeedResponse | null>(null);
   const [refresh, setRefresh] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -155,6 +156,7 @@ export default function Feed() {
                       <span key={tag}>{tag}</span>
                     ))}
                   </div>
+                  <FeedCourseLink item={item} tracks={tracks} />
                 </article>
               );
             })}

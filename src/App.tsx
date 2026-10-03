@@ -238,7 +238,7 @@ export default function App() {
               <Route path="/" element={<Home tracks={tracks} />} />
               <Route path="/roadmap/:trackId" element={<Roadmap tracks={tracks} />} />
               <Route path="/lesson/:lessonId" element={<LessonPage tracks={tracks} />} />
-              <Route path="/feed" element={<Feed />} />
+              <Route path="/feed" element={<Feed tracks={tracks} />} />
               <Route
                 path="/playground"
                 element={

@@ -14,6 +14,7 @@ import { progressAtom } from '@/lib/state';
 import type { FeedResponse, Track } from '@/lib/types';
 import { PageHeading } from '@/components/common';
 import { Button } from '@/components/ui/button';
+import FeedCourseLink from '@/components/FeedCourseLink';
 
 export default function Library({ tracks }: { tracks: Track[] }) {
   const progress = useAtomValue(progressAtom);
@@ -117,15 +118,23 @@ export default function Library({ tracks }: { tracks: Track[] }) {
       {tab === 'bookmarks' && (
         <div className="library-list">
           {saved.map((item) => (
-            <a href={item.url} target="_blank" rel="noreferrer" key={item.id}>
-              <Bookmark size={20} />
-              <div>
-                <span>{item.source}</span>
-                <h2>{item.title}</h2>
-                <p>{item.summary}</p>
-              </div>
-              <ExternalLink size={17} />
-            </a>
+            <article className="library-bookmark" key={item.id}>
+              <a
+                className="library-bookmark-source"
+                href={item.url}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <Bookmark size={20} aria-hidden="true" />
+                <div>
+                  <span>{item.source}</span>
+                  <h2>{item.title}</h2>
+                  <p>{item.summary}</p>
+                </div>
+                <ExternalLink size={17} aria-hidden="true" />
+              </a>
+              <FeedCourseLink item={item} tracks={tracks} />
+            </article>
           ))}
           {!saved.length && (
             <Empty

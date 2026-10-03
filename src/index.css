@@ -2143,6 +2143,64 @@ hr {
   color: #6d7a5f;
   margin: 0;
 }
+.library-list > .library-bookmark {
+  min-width: 0;
+  border: 1px solid #dfe8d2;
+  border-radius: 10px;
+  background: #fff;
+  padding: 20px;
+}
+.library-bookmark-source {
+  display: flex;
+  align-items: center;
+  gap: 17px;
+  color: #617645;
+}
+.library-bookmark-source > div {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.library-bookmark-source > svg {
+  flex-shrink: 0;
+}
+.feed-course {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid #e7eddc;
+  min-width: 0;
+}
+.feed-course-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #496334;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.feed-course-link > svg {
+  flex-shrink: 0;
+}
+.feed-course-link > span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: inherit;
+  font-size: inherit;
+}
+.feed-course-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.feed-course .feed-course-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 7px 0 0;
+  color: #657057;
+  font-size: 11px;
+  line-height: 1.7;
+}
 .notes-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -2801,7 +2859,8 @@ hr {
   .docs-grid section {
     padding: 23px;
   }
-  .library-list > a {
+  .library-list > a,
+  .library-list > .library-bookmark {
     padding: 17px;
   }
   .library-list h2 {

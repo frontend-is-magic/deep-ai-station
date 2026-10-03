@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAtom } from 'jotai';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft,
   ArrowRight,
@@ -24,6 +24,7 @@ import LanguagePractice from '@/components/LanguagePractice';
 
 export default function LessonPage({ tracks }: { tracks: Track[] }) {
   const { lessonId } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const track = tracks.find((x) => x.lessons.some((l) => l.id === lessonId));
   const lesson = track?.lessons.find((x) => x.id === lessonId);
   const [progress, setProgress] = useAtom(progressAtom);
@@ -33,6 +34,21 @@ export default function LessonPage({ tracks }: { tracks: Track[] }) {
   const visitedLesson = useRef<string | undefined>(undefined);
   const validLessonId = lesson?.id;
   const validTrackId = track?.id;
+  const requestedLanguages = searchParams.getAll('language');
+  const requestedLanguage =
+    track?.id === 'fullstack' && lesson?.track === 'fullstack' && requestedLanguages.length === 1
+      ? track.languages.find(
+          (value) => value === requestedLanguages[0] && lesson.snippets[value]?.trim(),
+        )
+      : undefined;
+  // An explicit course link selects its language once; ordinary visits preserve preferences.
+  useEffect(() => {
+    if (!requestedLanguage) return;
+    setProgress((value) =>
+      value.language === requestedLanguage ? value : { ...value, language: requestedLanguage },
+    );
+    setCopyState('');
+  }, [validLessonId, requestedLanguage, setProgress]);
   useEffect(() => {
     if (!validLessonId || !validTrackId) {
       visitedLesson.current = undefined;
@@ -59,7 +75,7 @@ export default function LessonPage({ tracks }: { tracks: Track[] }) {
     );
   const completed = progress.completed.includes(lesson.id);
   const index = track.lessons.findIndex((x) => x.id === lesson.id);
-  const language = track.id === 'agent' ? 'python' : progress.language;
+  const language = track.id === 'agent' ? 'python' : requestedLanguage || progress.language;
   const code = lesson.snippets[language] || '';
   const courseLab = track.id === 'fullstack' ? courseLabFor(lesson.id) : undefined;
   const ready = checks.length === lesson.criteria.length && answer === lesson.quiz.answer;
@@ -128,6 +144,16 @@ export default function LessonPage({ tracks }: { tracks: Track[] }) {
                     className={language === value ? 'selected' : ''}
                     onClick={() => {
                       setProgress((p) => ({ ...p, language: value }));
+                      if (searchParams.has('language')) {
+                        setSearchParams(
+                          (params) => {
+                            const next = new URLSearchParams(params);
+                            next.set('language', value);
+                            return next;
+                          },
+                          { replace: true },
+                        );
+                      }
                       setCopyState('');
                     }}
                   >

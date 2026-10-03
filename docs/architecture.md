@@ -25,6 +25,8 @@ flowchart LR
 
 两条路线各 24 节课，每条路线 8 个阶段。课程不强制解锁，完成标记要求通过测验与用户验收确认。实际学习位置、个人笔记、收藏与最近 20 次运行保存在 `deep-ai-station:v1`，导入时校验版本和结构。可选 `resume` 按路线保存最后课时与规范 ISO 时间，并显式记录最后路线；相同时间或设备时钟倒退不改变访问顺序。未知或路线不匹配的课时只影响恢复入口，不丢弃其他学习记录。旧备份无位置时推荐未完成课；实际访问不自动完成课程或语言实践。
 
+信息流与收藏通过[精选资料关联表](learning-links.md)连接课程。关联只接受明确的资料 ID、原始 URL、路线和 guide 类型，同时验证当前课表和语言；RSS 不自动推断。全栈语言写入课程链接，Agent 入口固定 Python，Jotai 公共前端保留服务端偏好。关联本身不写学习数据，访问课程只更新原学习位置及显式选择的语言。
+
 课程内容位于 `backend/curriculum.py`，专属测验与参考代码分别位于 `backend/quizzes.py`、`backend/examples.py`、`backend/fullstack_examples.py`。48 节课共 96 份专属示例：Agent 24 份 Python，全栈 24 份 Python、24 份 TypeScript、24 份 Go。修改课程需检查 ID 唯一性、阶段引用、官方链接与三语言语法。
 
 React 界面统一使用 TypeScript；Go/Python 对应服务契约与工程机制。TS 示例覆盖 Hono、React、Jotai，Go 包含 net/http 与 Gin，Python 包含 FastAPI、Pydantic。片段中的 Provider / Repository / Database 接口由调用方注入；框架依赖与数据库驱动须在独立练习项目安装。
