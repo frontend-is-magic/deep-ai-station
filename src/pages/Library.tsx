@@ -16,12 +16,13 @@ import { PageHeading } from '@/components/common';
 import { Button } from '@/components/ui/button';
 import FeedCourseLink from '@/components/FeedCourseLink';
 import QuizReviewList from '@/components/QuizReviewList';
+import EvidenceLibrary from '@/components/EvidenceLibrary';
 
 export default function Library({ tracks }: { tracks: Track[] }) {
   const progress = useAtomValue(progressAtom);
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedTab = searchParams.get('tab');
-  const tab = ['notes', 'bookmarks', 'quiz-review'].includes(requestedTab || '')
+  const tab = ['notes', 'bookmarks', 'quiz-review', 'evidence'].includes(requestedTab || '')
     ? requestedTab
     : 'completed';
   function selectTab(value: string) {
@@ -78,6 +79,7 @@ export default function Library({ tracks }: { tracks: Track[] }) {
           ['notes', '我的笔记'],
           ['bookmarks', '收藏资料'],
           ['quiz-review', '测验回顾'],
+          ['evidence', '实践证据'],
         ].map(([id, name]) => (
           <button
             className={tab === id ? 'selected' : ''}
@@ -90,6 +92,7 @@ export default function Library({ tracks }: { tracks: Track[] }) {
         ))}
       </div>
       {tab === 'quiz-review' && <QuizReviewList tracks={tracks} />}
+      {tab === 'evidence' && <EvidenceLibrary tracks={tracks} />}
       {tab === 'completed' && (
         <div className="library-list">
           {completed.map((lesson) => (
