@@ -76,4 +76,38 @@ describe('import boundary', () => {
       expect(validateProgress({ ...emptyProgress, runs: [{ ...run, lesson_id }] })).toBe(false);
     }
   });
+  it('keeps bounded agent traces while rejecting unknown workflow and trace fields', () => {
+    const run: RunRecord = {
+      id: 'run-1',
+      prompt: 'MCP',
+      answer: '结果',
+      provider: 'demo',
+      track: 'agent',
+      date: '2026-10-03T00:00:00Z',
+      duration_ms: 10,
+      workflow: 'agent',
+      usage: { total_tokens: 12 },
+      usage_complete: false,
+      steps: 3,
+      tool_count: 2,
+      trace: [
+        { id: 'run-1:model:1', title: '模型请求 1', detail: '供应商响应已完成', status: 'success' },
+      ],
+    };
+    expect(validateProgress({ ...emptyProgress, runs: [run] })).toBe(true);
+    for (const invalid of [
+      { ...run, workflow: 'arbitrary' },
+      { ...run, trace: [{ ...run.trace![0], token: 'must-not-import' }] },
+      { ...run, trace: Array(13).fill(run.trace![0]) },
+      { ...run, trace: [{ ...run.trace![0], status: 'arbitrary' }] },
+      { ...run, usage: { token: 'must-not-import' } },
+      { ...run, usage: { total_tokens: -1 } },
+      { ...run, usage: { total_tokens: 300_000_001 } },
+      { ...run, usage: { total_tokens: true } },
+      { ...run, usage_complete: 'true' },
+      { ...run, steps: 4 },
+      { ...run, tool_count: 3 },
+    ])
+      expect(validateProgress({ ...emptyProgress, runs: [invalid] })).toBe(false);
+  });
 });

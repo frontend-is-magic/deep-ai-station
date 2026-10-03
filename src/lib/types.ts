@@ -1,5 +1,12 @@
 export type TrackId = 'agent' | 'fullstack';
 export type Language = 'typescript' | 'python' | 'go';
+export type RunWorkflow = 'retrieval' | 'agent';
+export interface RunTrace {
+  id?: string;
+  title: string;
+  detail: string;
+  status: 'running' | 'success' | 'error';
+}
 export interface Lesson {
   id: string;
   track: TrackId;
@@ -47,6 +54,12 @@ export interface RunRecord {
   provider: string;
   track: TrackId;
   lesson_id?: string;
+  workflow?: RunWorkflow;
+  trace?: RunTrace[];
+  usage?: Record<string, number> | null;
+  usage_complete?: boolean;
+  steps?: number;
+  tool_count?: number;
   date: string;
   duration_ms: number;
 }

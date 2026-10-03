@@ -7,7 +7,7 @@ AI Agent 与 AI 全栈工程的学习空间，连接路线、官方信息源和�
 - 本课导师绑定课程目标与验收项，完整实验可追加到本课笔记；历史记录保留课程归属，教学回答不自动完成验收。
 - 全栈路线支持 TypeScript / Hono、Go / Gin、Python / FastAPI 参考实现。
 - 官方 RSS / Atom 信息流、明确来源状态、筛选与收藏。
-- Agent 工作流教学演示、OpenAI / Anthropic / DeepSeek 原生流式适配器、SSE 事件、停止与运行历史。
+- 课程检索与有界 Agent 循环两种工作流，支持 OpenAI / Anthropic / DeepSeek 原生流式工具调用、可观察轨迹、停止与历史恢复；演示模式明确标为预设流程。
 - 代码实验支持静态检查，以及配置后的 E2B 隔离运行。Python/TS 使用独立 Code Interpreter，Go 使用预装编译器的受信模板；未配置时明确禁用运行。
 - 最近 20 组代码编辑按课程与语言保留在页面会话中，支持下载当前代码；刷新会清空会话编辑，学习记录导出不包含代码草稿。
 - Jotai 浏览器进度、笔记和收藏，支持导出/导入；当前不包含账号与跨设备同步。
@@ -37,6 +37,8 @@ pnpm dev
 本地通过受保护的 shell 环境传入配置；线上使用 Vercel 托管 Environment Variables。当前程序不会自动读取 `.env`。不要把密钥写进源码、VITE_ 变量、聊天或文档。
 
 `PLAYGROUND_ACCESS_TOKEN` 与供应商密钥同时配置后才启用真实调用。访问码只在页面内存中使用。服务内部限流是单实例保护；公开大规模使用前应配置共享限流与供应商费用上限。
+
+Playground 默认使用课程检索和一次回答；可选择“有界 Agent 循环”，让模型选择 `knowledge_search` / `lesson_read` 只读课程工具。每次实验最多 3 次模型请求、2 次工具请求，每轮最多输出 1200 tokens，总时间 45 秒；费用与限流按实际模型请求累计。教学演示使用固定工具顺序，不调用模型。完整协议、边界与验证方式见 [Agent 工作流](docs/agent-workflow.md)。
 
 隔离代码运行配置见 [沙箱说明](docs/sandbox.md)，由 `E2B_API_KEY` 与访问码启用；Go 另外需要 `E2B_GO_TEMPLATE`。没有向应用主机、模板或用户沙箱传入模型密钥。
 

@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   ChevronDown,
   Code2,
+  Clock3,
   Download,
   FlaskConical,
   History,
@@ -19,18 +20,21 @@ import {
   XCircle,
 } from 'lucide-react';
 import { api, streamRun } from '@/lib/api';
-import { progressAtom } from '@/lib/state';
+import { progressAtom, readRunUsage } from '@/lib/state';
 import { codeDraftsAtom, updateDraft } from '@/lib/drafts';
 import { languageNames } from '@/lib/utils';
-import type { Capabilities, Language, Lesson, Track, TrackId } from '@/lib/types';
+import type {
+  Capabilities,
+  Language,
+  Lesson,
+  RunTrace,
+  RunWorkflow,
+  Track,
+  TrackId,
+} from '@/lib/types';
 import { PageHeading } from '@/components/common';
 import { Button } from '@/components/ui/button';
 
-interface Trace {
-  title: string;
-  detail: string;
-  status: string;
-}
 interface CheckResult {
   mode: string;
   executed: boolean;
@@ -38,6 +42,15 @@ interface CheckResult {
   passed: boolean;
   notice: string;
 }
+const usageLabels: Record<string, string> = {
+  prompt_tokens: '输入',
+  completion_tokens: '输出',
+  total_tokens: '总量',
+  input_tokens: '输入',
+  output_tokens: '输出',
+  cache_creation_input_tokens: '缓存写入',
+  cache_read_input_tokens: '缓存读取',
+};
 interface ExecutionResult {
   run_id: string;
   passed: boolean;
@@ -75,6 +88,9 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
   );
   const [mode, setMode] = useState(params.get('mode') === 'code' ? 'code' : 'agent');
   const [provider, setProvider] = useState('demo');
+  const [workflow, setWorkflow] = useState<RunWorkflow>(
+    params.get('workflow') === 'agent' ? 'agent' : 'retrieval',
+  );
   const selectedLesson = tracks
     .flatMap((t) => t.lessons)
     .find((x) => x.id === params.get('lesson') && x.track === trackId);
@@ -92,17 +108,21 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
   const [token, setToken] = useState('');
   const [cap, setCap] = useState<Capabilities | null>(null);
   const [running, setRunning] = useState(false);
-  const [trace, setTrace] = useState<Trace[]>([]);
+  const [trace, setTrace] = useState<RunTrace[]>([]);
   const [output, setOutput] = useState('');
   const [error, setError] = useState('');
   const [runInfo, setRunInfo] = useState<{
     id: string;
     duration: number;
-    usage: unknown;
+    usage: Record<string, number> | null;
     provider: string;
     lessonId?: string;
     prompt: string;
     date: string;
+    workflow?: RunWorkflow;
+    steps?: number;
+    toolCount?: number;
+    usageComplete?: boolean;
   } | null>(null);
   const [history, setHistory] = useState(false);
   const [language, setLanguage] = useState<Language>(
@@ -158,7 +178,7 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
   function switchTrack(value: TrackId) {
     setTrackId(value);
     setLanguage(value === 'agent' ? 'python' : progress.language);
-    setParams({ track: value, mode }, { replace: true });
+    setParams({ track: value, mode, workflow }, { replace: true });
     setOutput('');
     setTrace([]);
     setError('');
@@ -181,6 +201,7 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
     let answer = '';
     let id = '';
     let completed = false;
+    const observed: RunTrace[] = [];
     try {
       await streamRun(
         {
@@ -189,6 +210,7 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
           provider,
           track: trackId,
           temperature,
+          workflow,
           ...(selectedLesson ? { lesson_id: selectedLesson.id } : {}),
         },
         token,
@@ -196,7 +218,13 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
         (event) => {
           if (c.signal.aborted || !mounted.current) return;
           if (event.event === 'start') id = String(event.data.run_id);
-          if (event.event === 'trace') setTrace((x) => [...x, event.data as unknown as Trace]);
+          if (event.event === 'trace') {
+            const step = event.data as unknown as RunTrace;
+            const index = step.id ? observed.findIndex((item) => item.id === step.id) : -1;
+            if (index >= 0) observed[index] = step;
+            else observed.push(step);
+            setTrace([...observed]);
+          }
           if (event.event === 'delta') {
             answer += String(event.data.text);
             setOutput(answer);
@@ -212,14 +240,26 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
             }
             const duration = Number(event.data.duration_ms);
             const date = new Date().toISOString();
+            const usage = readRunUsage(event.data.usage);
+            const steps = typeof event.data.steps === 'number' ? event.data.steps : undefined;
+            const toolCount =
+              typeof event.data.tool_count === 'number' ? event.data.tool_count : undefined;
+            const usageComplete =
+              typeof event.data.usage_complete === 'boolean'
+                ? event.data.usage_complete
+                : undefined;
             setRunInfo({
               id,
               duration,
-              usage: event.data.usage,
+              usage,
               provider,
               lessonId: selectedLesson?.id,
               prompt,
               date,
+              workflow,
+              steps,
+              toolCount,
+              usageComplete,
             });
             setProgress((p) => ({
               ...p,
@@ -232,6 +272,12 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
                   track: trackId,
                   ...(selectedLesson ? { lesson_id: selectedLesson.id } : {}),
                   date,
+                  workflow,
+                  trace: observed.slice(0, 12),
+                  usage,
+                  steps,
+                  tool_count: toolCount,
+                  usage_complete: usageComplete,
                   duration_ms: duration,
                 },
                 ...p.runs,
@@ -307,7 +353,7 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
   const canExecute = cap?.sandbox?.languages.includes(language) || false;
   const noteMarker = runInfo ? `### 实验记录 ${runInfo.id}` : '';
   const noteEntry = runInfo
-    ? `${noteMarker}\n\n${runInfo.provider === 'demo' ? '教学演示' : runInfo.provider} · ${new Date(runInfo.date).toLocaleString('zh-CN')}\n\n任务：${runInfo.prompt}\n\n${output}\n\n以上是学习参考，请另行记录实践输入、实际结果与验收证据。`
+    ? `${noteMarker}\n\n${runInfo.provider === 'demo' ? '教学演示' : runInfo.provider} · ${runInfo.workflow === 'agent' ? 'Agent 循环 · ' : ''}${new Date(runInfo.date).toLocaleString('zh-CN')}\n\n任务：${runInfo.prompt}\n\n${output}\n\n以上是学习参考，请另行记录实践输入、实际结果与验收证据。`
     : '';
   const canSaveNote = Boolean(selectedLesson && runInfo?.lessonId === selectedLesson.id);
   const currentNote = selectedLesson ? progress.notes[selectedLesson.id] || '' : '';
@@ -388,26 +434,32 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
                   const lesson = trackLesson(tracks, record.track, record.lesson_id);
                   setTrackId(record.track);
                   setMode('agent');
+                  setWorkflow(record.workflow || 'retrieval');
                   setLanguage(record.track === 'agent' ? 'python' : progress.language);
                   setParams(
                     {
                       track: record.track,
                       mode: 'agent',
+                      workflow: record.workflow || 'retrieval',
                       ...(lesson ? { lesson: lesson.id } : {}),
                     },
                     { replace: true },
                   );
                   setPrompt(record.prompt);
                   setOutput(record.answer);
-                  setTrace([]);
+                  setTrace(record.trace || []);
                   setRunInfo({
                     id: record.id,
                     duration: record.duration_ms,
-                    usage: null,
+                    usage: record.usage ?? null,
                     provider: record.provider,
                     lessonId: lesson?.id,
                     prompt: record.prompt,
                     date: record.date,
+                    workflow: record.workflow,
+                    steps: record.steps,
+                    toolCount: record.tool_count,
+                    usageComplete: record.usage_complete,
                   });
                   setError('');
                   setHistory(false);
@@ -415,6 +467,7 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
               >
                 <span>
                   {record.provider === 'demo' ? '教学演示' : record.provider}
+                  {record.workflow === 'agent' && ' · Agent 循环'}
                   {record.lesson_id &&
                     ` · ${trackLesson(tracks, record.track, record.lesson_id)?.title || '课程实验'}`}
                 </span>
@@ -433,8 +486,12 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
             <FlaskConical size={18} />
             <span>
               {provider === 'demo'
-                ? '教学演示：确定性课程检索，不调用模型、不产生模型费用。'
-                : '真实模型：逐步显示供应商流式输出。需要实验访问码，调用会产生费用；停止会关闭上游连接。'}
+                ? workflow === 'agent'
+                  ? '教学演示：预设课程工具调用顺序，没有模型决策或模型费用。'
+                  : '教学演示：确定性课程检索，不调用模型、不产生模型费用。'
+                : workflow === 'agent'
+                  ? '真实 Agent：模型可选择两个只读课程工具，最多 3 次模型请求、2 次工具请求。45 秒总上限，调用会产生费用。'
+                  : '真实模型：逐步显示供应商流式输出。需要实验访问码，调用会产生费用；停止会关闭上游连接。'}
             </span>
           </div>
           <div className="lab-grid">
@@ -461,6 +518,32 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
                       </option>
                     ))}
                 </select>
+              </label>
+              <label className="field-label">
+                工作流
+                <select
+                  aria-label="工作流"
+                  value={workflow}
+                  disabled={running}
+                  onChange={(e) => {
+                    const value = e.target.value as RunWorkflow;
+                    setWorkflow(value);
+                    setParams(
+                      (p) => {
+                        p.set('workflow', value);
+                        return p;
+                      },
+                      { replace: true },
+                    );
+                  }}
+                >
+                  <option value="retrieval">课程检索 · 单次回答</option>
+                  <option value="agent">有界 Agent 循环 · 最多三轮</option>
+                </select>
+                <small>
+                  仅提供 knowledge_search /
+                  lesson_read。工具参数由服务端校验，限流按每次真实模型请求计数。
+                </small>
               </label>
               <label className="field-label">
                 任务描述
@@ -592,8 +675,18 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
                 <div className="trace-list">
                   <p className="eyebrow">EXECUTION TRACE / 可观察事件</p>
                   {trace.map((step, i) => (
-                    <div key={i}>
-                      <CheckCircle2 size={17} />
+                    <div key={step.id || i}>
+                      {step.status === 'error' ? (
+                        <XCircle size={17} />
+                      ) : step.status === 'running' ? (
+                        running ? (
+                          <Loader2 size={17} className="animate-spin" />
+                        ) : (
+                          <Clock3 size={17} />
+                        )
+                      ) : (
+                        <CheckCircle2 size={17} />
+                      )}
                       <div>
                         <strong>{step.title}</strong>
                         <p>{step.detail}</p>
@@ -632,11 +725,30 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
                   <span>完成 · {(runInfo.duration / 1000).toFixed(2)}s</span>
                   <span>
                     {runInfo.usage
-                      ? '供应商已返回 usage'
+                      ? runInfo.usageComplete === false
+                        ? '部分模型轮次未返回用量'
+                        : '供应商已返回 usage'
                       : runInfo.provider === 'demo'
                         ? '未调用模型'
                         : '供应商未返回用量'}
                   </span>
+                  {runInfo.usage && (
+                    <span>
+                      tokens ·{' '}
+                      {Object.entries(runInfo.usage)
+                        .map(
+                          ([key, count]) => `${usageLabels[key]} ${count.toLocaleString('zh-CN')}`,
+                        )
+                        .join(' / ')}
+                    </span>
+                  )}
+                  {runInfo.workflow === 'agent' && runInfo.steps !== undefined && (
+                    <span>
+                      {runInfo.steps}
+                      {runInfo.provider === 'demo' ? ' 步预设流程' : ' 轮模型请求'} ·{' '}
+                      {runInfo.toolCount} 次工具请求
+                    </span>
+                  )}
                   <code>run / {runInfo.id.slice(0, 8)}</code>
                 </div>
               )}

@@ -134,6 +134,141 @@ def test_course_mentor_does_not_overwrite_a_full_note(page):
     assert progress["notes"]["agent-mcp"] == "已有记录" * 2400
 
 
+def test_demo_agent_loop_uses_the_selected_course_and_restores_trace_metrics_and_notes(page):
+    goto(page, "/playground?track=agent&lesson=agent-mcp&workflow=agent")
+    expect(page.get_by_label("工作流", exact=True)).to_have_value("agent")
+    expect(page.get_by_text("预设课程工具调用顺序", exact=False)).to_be_visible()
+    page.get_by_role("button", name="运行实验", exact=True).click()
+    expect(page.get_by_text("实验已完成", exact=True)).to_be_visible()
+    expect(page.locator(".trace-list")).to_contain_text("lesson_read")
+    expect(page.locator(".markdown-output")).to_contain_text("MCP")
+    expect(page.get_by_text("3 步预设流程 · 2 次工具请求", exact=True)).to_be_visible()
+    expect(page.get_by_text("未调用模型", exact=True)).to_be_visible()
+    page.reload()
+    page.get_by_role("button", name="运行历史", exact=False).click()
+    page.locator(".run-history button").first.click()
+    expect(page.get_by_text("3 步预设流程 · 2 次工具请求", exact=True)).to_be_visible()
+    expect(page.locator(".trace-list")).to_contain_text("lesson_read")
+    expect(page.get_by_label("工作流", exact=True)).to_have_value("agent")
+    page.get_by_role("button", name="写入本课笔记", exact=True).click()
+    stored = json.loads(page.evaluate("localStorage.getItem('deep-ai-station:v1')"))
+    assert stored["runs"][0]["workflow"] == "agent" and stored["runs"][0]["steps"] == 3
+    assert "Agent 循环" in stored["notes"]["agent-mcp"] and stored["completed"] == []
+    page.set_viewport_size({"width": 375, "height": 812})
+    assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
+
+
+@pytest.mark.parametrize("ending", ["done", "error"])
+def test_agent_native_trace_updates_and_partial_usage_are_honest_in_history(page, ending):
+    page.route(
+        "**/api/capabilities",
+        lambda route: route.fulfill(
+            json={
+                "providers": [
+                    {"id": "openai", "name": "OpenAI", "enabled": True, "model": "test-model"}
+                ],
+                "sandbox": {"languages": []},
+            }
+        ),
+    )
+
+    def run(route):
+        assert json.loads(route.request.post_data)["workflow"] == "agent"
+        assert route.request.headers["x-playground-token"] == "test-access"
+        events = [("start", {"run_id": "mock-agent-run"})]
+        for step in range(1, 4):
+            data = {
+                "id": f"run:model:{step}",
+                "title": f"模型请求 {step} / 3",
+                "detail": "选择只读课程工具",
+                "status": "running",
+            }
+            events.append(("trace", data))
+            failed = ending == "error" and step == 3
+            events.append(
+                (
+                    "trace",
+                    {
+                        **data,
+                        "detail": "供应商响应未完成" if failed else "供应商响应已完成",
+                        "status": "error" if failed else "success",
+                    },
+                )
+            )
+            if step < 3:
+                events.append(
+                    (
+                        "trace",
+                        {
+                            "id": f"run:tool:{step}",
+                            "title": "knowledge_search" if step == 1 else "lesson_read",
+                            "detail": "实际课程资料",
+                            "status": "success",
+                        },
+                    )
+                )
+        events.append(("delta", {"text": "依据课程验收项回答"}))
+        events.append(
+            ("error", {"message": "模型响应不可用，请稍后重试"})
+            if ending == "error"
+            else (
+                "done",
+                {
+                    "duration_ms": 10,
+                    "usage": {"total_tokens": 12},
+                    "usage_complete": False,
+                    "steps": 3,
+                    "tool_count": 2,
+                },
+            )
+        )
+        route.fulfill(
+            content_type="text/event-stream",
+            body="".join(
+                f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+                for event, data in events
+            ),
+        )
+
+    page.route("**/api/playground/run", run)
+    goto(page, "/playground?workflow=agent")
+    page.get_by_label("模型服务").select_option("openai")
+    page.get_by_text("高级配置", exact=True).click()
+    page.get_by_label("实验访问码").fill("test-access")
+    page.get_by_role("button", name="运行实验", exact=True).click()
+    expect(page.locator(".markdown-output")).to_contain_text("依据课程验收项回答")
+    for step in range(1, 4):
+        assert (
+            page.locator(".trace-list").get_by_text(f"模型请求 {step} / 3", exact=True).count() == 1
+        )
+    stored = json.loads(
+        page.evaluate("localStorage.getItem('deep-ai-station:v1')") or '{"runs":[]}'
+    )
+    assert len(stored["runs"]) == (1 if ending == "done" else 0)
+    assert "test-access" not in json.dumps(stored)
+    if ending == "done":
+        expect(page.get_by_text("部分模型轮次未返回用量", exact=True)).to_be_visible()
+        expect(page.get_by_text("tokens · 总量 12", exact=True)).to_be_visible()
+        expect(page.get_by_text("3 轮模型请求 · 2 次工具请求", exact=True)).to_be_visible()
+        assert stored["runs"][0]["usage"] == {"total_tokens": 12}
+        assert len(stored["runs"][0]["trace"]) == 5
+        page.get_by_label("工作流", exact=True).select_option("retrieval")
+        page.reload()
+        page.get_by_role("button", name="运行历史", exact=False).click()
+        page.locator(".run-history button").first.click()
+        expect(page.get_by_label("工作流", exact=True)).to_have_value("agent")
+        expect(page.get_by_text("部分模型轮次未返回用量", exact=True)).to_be_visible()
+        expect(page.get_by_text("tokens · 总量 12", exact=True)).to_be_visible()
+        expect(page.get_by_text("3 轮模型请求 · 2 次工具请求", exact=True)).to_be_visible()
+        page.get_by_label("模型服务").select_option("openai")
+        page.get_by_text("高级配置", exact=True).click()
+        assert page.get_by_label("实验访问码").input_value() == ""
+    else:
+        expect(page.get_by_role("alert")).to_contain_text("模型响应不可用")
+        expect(page.locator(".trace-list")).to_contain_text("供应商响应未完成")
+        expect(page.get_by_text("运行未完成", exact=True)).to_be_visible()
+
+
 @pytest.mark.parametrize("ending", ["done", "error", "truncated"])
 def test_real_stream_partial_failures_and_truncation_do_not_enter_history(page, ending):
     image_requests = []
