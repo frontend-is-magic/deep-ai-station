@@ -1,0 +1,6 @@
+{
+  "id": "agent-write-safety",
+  "version": "agent-write-safety-v1",
+  "lessons": ["agent-tool-safety"],
+  "languages": ["python"]
+}

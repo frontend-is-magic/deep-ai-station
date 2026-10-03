@@ -1,0 +1,66 @@
+[
+  {
+    "token": "fixture-alice-agent",
+    "owner_id": "alice",
+    "requester_id": "agent-alice",
+    "capabilities": ["read", "prepare", "execute"],
+    "expires_after_seconds": 3600,
+    "revoked": false
+  },
+  {
+    "token": "fixture-alice-approver",
+    "owner_id": "alice",
+    "requester_id": "approver-alice",
+    "capabilities": ["read", "approve"],
+    "expires_after_seconds": 3600,
+    "revoked": false
+  },
+  {
+    "token": "fixture-alice-peer",
+    "owner_id": "alice",
+    "requester_id": "agent-alice-peer",
+    "capabilities": ["read", "prepare", "execute"],
+    "expires_after_seconds": 3600,
+    "revoked": false
+  },
+  {
+    "token": "fixture-alice-reader",
+    "owner_id": "alice",
+    "requester_id": "reader-alice",
+    "capabilities": ["read"],
+    "expires_after_seconds": 3600,
+    "revoked": false
+  },
+  {
+    "token": "fixture-bob-agent",
+    "owner_id": "bob",
+    "requester_id": "agent-bob",
+    "capabilities": ["read", "prepare", "execute"],
+    "expires_after_seconds": 3600,
+    "revoked": false
+  },
+  {
+    "token": "fixture-bob-approver",
+    "owner_id": "bob",
+    "requester_id": "approver-bob",
+    "capabilities": ["read", "approve"],
+    "expires_after_seconds": 3600,
+    "revoked": false
+  },
+  {
+    "token": "fixture-expired",
+    "owner_id": "alice",
+    "requester_id": "agent-alice",
+    "capabilities": ["read", "prepare", "execute"],
+    "expires_after_seconds": 0,
+    "revoked": false
+  },
+  {
+    "token": "fixture-revoked",
+    "owner_id": "alice",
+    "requester_id": "agent-alice",
+    "capabilities": ["read", "prepare", "execute"],
+    "expires_after_seconds": 3600,
+    "revoked": true
+  }
+]

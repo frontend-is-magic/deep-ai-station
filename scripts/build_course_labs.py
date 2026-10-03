@@ -159,12 +159,47 @@ STREAM_SHARED = [
     "client/src/stream.d.mts",
     "client/src/stream.test.mjs",
 ]
+WRITE_FILES = {
+    "python": [
+        "app.py",
+        "auth.py",
+        "errors.py",
+        "repository.py",
+        "resources.py",
+        "service.py",
+        "test_app.py",
+        "pyproject.toml",
+        "uv.lock",
+    ],
+}
+WRITE_SHARED = [
+    "README.md",
+    "CONTRACT.md",
+    "EVIDENCE.md",
+    "AGENTS.md",
+    ".gitignore",
+    "fixtures.json",
+    "migrations/001.sql",
+    "client/package.json",
+    "client/pnpm-lock.yaml",
+    "client/tsconfig.json",
+    "client/vite.config.ts",
+    "client/index.html",
+    "client/src/main.tsx",
+    "client/src/style.css",
+    "client/src/components/ui/button.tsx",
+    "client/src/protocol.mjs",
+    "client/src/protocol.d.mts",
+    "client/src/protocol.test.mjs",
+    "client/src/fixtures.json",
+]
 LABS = {
     "api-contract": (FILES, SHARED),
     "sqlite-storage": (STORAGE_FILES, STORAGE_SHARED),
     "session-authorization": (AUTH_FILES, AUTH_SHARED),
     "text-upload": (UPLOAD_FILES, UPLOAD_SHARED),
     "sse-stream": (STREAM_FILES, STREAM_SHARED),
+    "agent-write-safety": (WRITE_FILES, WRITE_SHARED),
 }
 
 
