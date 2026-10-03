@@ -97,11 +97,11 @@ Vite 框架构建与 `functions` 配置共同使用，避免 `builds` / `functio
 
 生产集成参考：[Vercel Python Runtime](https://vercel.com/docs/functions/runtimes/python)、[FastAPI](https://fastapi.tiangolo.com/)、[Jotai Storage](https://jotai.org/docs/utilities/storage)、[shadcn/ui](https://ui.shadcn.com/docs)。
 
-## 毕业实践证据
+## 按课时和语言记录实践证据
 
-毕业阶段的证据卡按 lesson_id 与 language 分别保存于原 version 1 学习记录的可选 evidence 数组；旧备份无该字段仍可导入。Agent 固定 Python，全栈沿用所选语言。最多 24 条记录，代码版本最多 200 字符，命令、成功/失败结果和未验证事项各 2000 字符；拒绝额外字段、重复组合和非法时间。
+九节可运行实验课与六节毕业课的[证据卡](practice-evidence.md)按 lesson_id 与 language 分别保存于原 version 1 学习记录的可选 evidence 数组；旧备份无该字段仍可导入。Agent 固定 Python，全栈沿用所选语言。最多 48 条记录（共用单一容量常量），代码版本最多 200 字符，命令、成功/失败结果和未验证事项各 2000 字符；拒绝额外字段、重复组合和非法时间。
 
-保存只更新对应记录，不更改笔记、测验或完成状态；存储失败仍通过全局提示要求备份。Markdown 导出以动态长度文本围栏包住填写内容，防止用户文本逃逸成 HTML 或其他 Markdown 结构，并注明未经平台核验。该功能不上传云端、不调用模型；只保存学习者手动填写的实际证据，禁止填写密钥或访问码。
+保存前读取最新有效存储并只更新对应字段；本地写入失败时保留内存，迟到 storage 事件重新读取当前存储，不回退到旧事件载荷。清空五个内容字段移除当前记录，释放容量；未填写的新记录不占位。它不提供跨标签事务，真正同时写入仍可能由最后写入覆盖。保存不更改笔记、测验或完成状态；存储失败仍通过全局提示要求备份。Markdown 导出以动态长度文本围栏包住填写内容，防止用户文本逃逸成 HTML 或其他 Markdown 结构，并注明未经平台核验。实验 Markdown 额外标注实验名称，毕业标题保持兼容。JSON 导入仍限 2,000,000 字节；完整导出超过该限制时明确提示不能直接导回，不静默截断，也不改当前记录。该功能不上传云端、不调用模型；只保存学习者手动填写的实际证据，禁止填写密钥或访问码。
 
 ## 按语言记录实践
 
