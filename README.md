@@ -77,6 +77,8 @@ uv run python -m scripts.compile_go_examples
 
 `python3 scripts/verify_agent_write_lab.py` 在独立解包环境冻结安装，检查工具审批的真实 SQLite / HTTP、重启、提交后 503 与断连恢复；`--browser` 另验 React 到实际后端的流程。教学身份为公开假值，不产生模型费用或外部发布。
 
+`python3 scripts/verify_mcp_lab.py` 验证 [MCP 只读协议实验](labs/mcp-readonly/shared/README.md)：官方 Python SDK 的真实 stdio 两进程、工具与资源发现、严格参数、超时取消和断连清理。下载包独立冻结依赖，只访问固定课程资料；平台不会运行修改后的代码。
+
 SSE 实验另附共享 React 客户端，比较三种后端的增量、失败、总 deadline、真实 HTTP 断连与并发隔离。`python3 scripts/verify_stream_labs.py --browser` 从仓库外解包、冻结安装并验证实际浏览器到三后端的流；原生测试观察 Producer 取消和一次清理，页面停止不替代服务端证据。详见[流式实验](labs/sse-stream/shared/README.md)。
 
 完整毕业骨架的启动与校验见 [多语言项目](starters/README.md) 与 [Agent 研究助手](starters/agent/README.md)。三种语言使用共用固定契约；研究助手另有证据存在、证据不足和合成冲突案例。四个项目分别验证 React 到实际后端的演示请求；维护者脚本不接受学习者代码。真实 DeepSeek adapter 仅经过 mock 验证，账号、上传、数据库和生产发布仍是后续实践任务。

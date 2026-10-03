@@ -14,7 +14,9 @@
 
 `agent-write-safety-v1` 对应 Agent 工具安全课，提供一个 Python / FastAPI / SQLite 包与 React 客户端：完整意图批准、原 requester 执行、原子发布回执、并发幂等及提交后结果不明的查询恢复。[运行](agent-write-safety/shared/README.md) · [契约](agent-write-safety/shared/CONTRACT.md)。只有本地教学写入，没有外部发布或模型调用。
 
-每个实验的 `shared/` 放契约、案例与说明，语言子目录放完整实现，manifest 记录版本/课时/语言。SQLite 的共享 SQL 在 `shared/migrations/`。`public/labs/` 为固定白名单生成的确定性 ZIP，不包含依赖缓存、数据文件或秘密配置。
+`mcp-readonly-v1` 对应 Agent MCP 课，提供 Python 官方 SDK 的实际 stdio 客户端与服务端：发现工具 schema、读取固定资源、严格参数、错误分层、超时取消和断连退出。[运行](mcp-readonly/shared/README.md) · [契约](mcp-readonly/shared/CONTRACT.md)。只有包内固定只读资料，不开放远端地址、任意命令或模型调用。
+
+每个实验的 `shared/` 放契约、案例与说明，语言子目录放完整实现，manifest 记录版本/课时/语言。SQLite 的共享 SQL 在 `shared/migrations/`。当前共 17 个下载包。`public/labs/` 为固定白名单生成的确定性 ZIP，不包含依赖缓存、数据文件或秘密配置。
 
 ```sh
 python3 scripts/build_course_labs.py
@@ -26,6 +28,7 @@ python3 scripts/verify_upload_labs.py
 python3 scripts/verify_stream_labs.py --browser
 python3 scripts/verify_agent_write_lab.py
 python3 scripts/verify_agent_write_lab.py --browser
+python3 scripts/verify_mcp_lab.py
 # 三语言实验的验证脚本可选择一种语言
 python3 scripts/verify_sqlite_labs.py --language go
 ```
