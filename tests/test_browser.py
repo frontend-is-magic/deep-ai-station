@@ -49,6 +49,32 @@ def test_lesson_download_uses_selected_language(page):
     assert download.value.suggested_filename == "fullstack-http-go.zip"
 
 
+def test_capstone_project_downloads_include_the_selected_server_and_locked_frontend(page):
+    import zipfile
+
+    goto(page, "/lesson/fullstack-integration")
+    expect(page.get_by_role("region", name="毕业项目骨架")).to_be_visible()
+    for label, language, entry, lock in [
+        ("Python", "python", "backend/app.py", "backend/uv.lock"),
+        ("TypeScript", "typescript", "backend/src/app.ts", "backend/pnpm-lock.yaml"),
+        ("Go", "go", "backend/main.go", "backend/go.sum"),
+    ]:
+        page.get_by_role("button", name=label, exact=True).click()
+        with page.expect_download() as download:
+            page.get_by_role("link", name=f"下载完整项目骨架 · {label}", exact=True).click()
+        assert download.value.suggested_filename == f"fullstack-{language}.zip"
+        with zipfile.ZipFile(download.value.path()) as archive:
+            files = archive.namelist()
+            assert entry in files and lock in files
+            assert "frontend/pnpm-lock.yaml" in files and "frontend/src/main.tsx" in files
+            assert "AGENTS.md" in files and "EVIDENCE.md" in files
+            assert not any(
+                "node_modules" in name or ".venv" in name or name.endswith(".env") for name in files
+            )
+    page.set_viewport_size({"width": 375, "height": 812})
+    assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+
+
 def test_inline_lesson_language_comparison_keeps_notes_and_checkpoint(page):
     goto(page, "/lesson/fullstack-http")
     page.get_by_label("课程笔记").fill("相同 API 契约，不同框架")

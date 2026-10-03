@@ -152,6 +152,27 @@ export default function LessonPage({ tracks }: { tracks: Track[] }) {
               下载本课练习资料
             </a>
           </Button>
+          {track.id === 'fullstack' && lesson.stage === 'ship' && (
+            <section
+              aria-label="毕业项目骨架"
+              className="my-7 space-y-3 rounded-xl border border-lime-200 bg-lime-50 p-5"
+            >
+              <h2>把前后端联成一个项目</h2>
+              <p>
+                下载 React + TypeScript 前端与 {languageNames[language]} 服务端，共用固定资料、API
+                契约和成功/失败测试，包含依赖锁文件、运行说明与验收记录模板。
+              </p>
+              <Button variant="outline" asChild>
+                <a href={`/starters/fullstack-${language}.zip`} download>
+                  <Download size={16} />
+                  下载完整项目骨架 · {languageNames[language]}
+                </a>
+              </Button>
+              <p className="text-sm text-slate-600">
+                默认演示无需模型费用；真实模型须服务端托管配置。账号、上传、持久化与生产发布仍是毕业实践任务。
+              </p>
+            </section>
+          )}
           <h2>检查你的理解</h2>
           <div className="quiz-box">
             <p>{lesson.quiz.question}</p>
