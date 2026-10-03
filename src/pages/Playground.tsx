@@ -20,7 +20,8 @@ import {
   XCircle,
 } from 'lucide-react';
 import { api, streamRun } from '@/lib/api';
-import { progressAtom, readRunUsage } from '@/lib/state';
+import { progressAtom } from '@/lib/state';
+import { incompleteRunUsage, updateRunUsage, type RunUsageSnapshot } from '@/lib/run-usage';
 import { codeDraftsAtom, updateDraft } from '@/lib/drafts';
 import { languageNames } from '@/lib/utils';
 import { providerForReplay, providerLabel } from '@/lib/providers';
@@ -134,6 +135,9 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
     usageComplete?: boolean;
     restored?: boolean;
   } | null>(null);
+  const [liveUsage, setLiveUsage] = useState<(RunUsageSnapshot & { provider: string }) | null>(
+    null,
+  );
   const [history, setHistory] = useState(false);
   const [language, setLanguage] = useState<Language>(
     trackId === 'agent' ? 'python' : progress.language,
@@ -186,6 +190,9 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
     );
   }
   function switchTrack(value: TrackId) {
+    controller.current?.abort();
+    controller.current = null;
+    setLiveUsage(null);
     setTrackId(value);
     setLanguage(value === 'agent' ? 'python' : progress.language);
     setParams({ track: value, mode, workflow }, { replace: true });
@@ -199,6 +206,19 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
         : '如何用 FastAPI 构建一个可靠的 AI 问答接口？',
     );
   }
+  function stopRun() {
+    const active = controller.current;
+    if (!active) return;
+    // Invalidate before abort: even a transport ignoring AbortSignal cannot alter a new run.
+    controller.current = null;
+    active.abort();
+    setLiveUsage((previous) => ({
+      ...incompleteRunUsage(previous),
+      provider: previous?.provider ?? provider,
+    }));
+    setRunning(false);
+    setError('运行已停止，部分结果未计入历史。');
+  }
   async function run() {
     if (running || !prompt.trim()) return;
     const c = new AbortController();
@@ -208,10 +228,24 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
     setTrace([]);
     setError('');
     setRunInfo(null);
+    setLiveUsage({ usage: null, usageComplete: false, provider });
     let answer = '';
     let id = '';
-    let completed = false;
+    let terminal = false;
+    let usageSnapshot: RunUsageSnapshot | null = null;
     const observed: RunTrace[] = [];
+    const current = () => mounted.current && controller.current === c;
+    function finish() {
+      terminal = true;
+      controller.current = null;
+      setRunning(false);
+      c.abort();
+    }
+    function snapshot(data: Record<string, unknown>, final = false) {
+      usageSnapshot = updateRunUsage(usageSnapshot, data, final);
+      setLiveUsage({ ...usageSnapshot, provider });
+      return usageSnapshot;
+    }
     try {
       await streamRun(
         {
@@ -226,8 +260,10 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
         token,
         c.signal,
         (event) => {
-          if (c.signal.aborted || !mounted.current) return;
+          if (!current() || c.signal.aborted || terminal) return;
+          if (typeof event.data.run_id === 'string' && id && event.data.run_id !== id) return;
           if (event.event === 'start') id = String(event.data.run_id);
+          if (event.event === 'usage') snapshot(event.data);
           if (event.event === 'trace') {
             const step = event.data as unknown as RunTrace;
             const index = step.id ? observed.findIndex((item) => item.id === step.id) : -1;
@@ -240,24 +276,33 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
             setOutput(answer);
           }
           if (event.event === 'error') {
+            snapshot(
+              {
+                ...event.data,
+                usage_complete:
+                  typeof event.data.usage_complete === 'boolean'
+                    ? event.data.usage_complete
+                    : false,
+              },
+              true,
+            );
             setError(String(event.data.message));
+            finish();
           }
           if (event.event === 'done') {
-            completed = true;
+            const finalUsage = snapshot(event.data, true);
+            finish();
             if (event.data.truncated === true) {
               setError('输出达到模型上限，内容可能未完成，未写入运行历史。请缩小任务后重试。');
               return;
             }
             const duration = Number(event.data.duration_ms);
             const date = new Date().toISOString();
-            const usage = readRunUsage(event.data.usage);
+            const usage = finalUsage.usage;
             const steps = typeof event.data.steps === 'number' ? event.data.steps : undefined;
             const toolCount =
               typeof event.data.tool_count === 'number' ? event.data.tool_count : undefined;
-            const usageComplete =
-              typeof event.data.usage_complete === 'boolean'
-                ? event.data.usage_complete
-                : undefined;
+            const usageComplete = finalUsage.usageComplete;
             setRunInfo({
               id,
               duration,
@@ -296,10 +341,15 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
           }
         },
       );
-      if (!completed && !c.signal.aborted && mounted.current)
-        setError((previous) => previous || '运行未完成，请重试');
+      if (current() && !terminal) {
+        terminal = true;
+        setLiveUsage({ ...incompleteRunUsage(usageSnapshot), provider });
+        setError('运行未完成，请重试');
+      }
     } catch (e) {
-      if (mounted.current)
+      if (current() && !terminal) {
+        terminal = true;
+        setLiveUsage({ ...incompleteRunUsage(usageSnapshot), provider });
         setError(
           c.signal.aborted
             ? '运行已停止，部分结果未计入历史。'
@@ -307,9 +357,12 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
               ? e.message
               : '运行失败',
         );
+      }
     } finally {
-      if (mounted.current) setRunning(false);
-      if (controller.current === c) controller.current = null;
+      if (current()) {
+        setRunning(false);
+        controller.current = null;
+      }
     }
   }
   async function check() {
@@ -360,6 +413,11 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
       if (controller.current === c) controller.current = null;
     }
   }
+  const displayedUsage =
+    liveUsage ??
+    (runInfo
+      ? { usage: runInfo.usage, usageComplete: runInfo.usageComplete, provider: runInfo.provider }
+      : null);
   const canExecute = cap?.sandbox?.languages.includes(language) || false;
   const noteMarker = runInfo ? `### 实验记录 ${runInfo.id}` : '';
   const noteEntry = runInfo
@@ -451,6 +509,9 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
                 disabled={running}
                 onClick={() => {
                   const lesson = trackLesson(tracks, record.track, record.lesson_id);
+                  controller.current?.abort();
+                  controller.current = null;
+                  setLiveUsage(null);
                   setTrackId(record.track);
                   setMode('agent');
                   setWorkflow(record.workflow || 'retrieval');
@@ -644,7 +705,7 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
               </details>
               <div className="lab-actions">
                 {running ? (
-                  <Button variant="dark" onClick={() => controller.current?.abort()}>
+                  <Button variant="dark" onClick={stopRun}>
                     <Square size={15} />
                     停止运行
                   </Button>
@@ -666,6 +727,7 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
                     setTrace([]);
                     setError('');
                     setRunInfo(null);
+                    setLiveUsage(null);
                   }}
                 >
                   <RotateCcw size={16} />
@@ -756,25 +818,6 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
                     {providerLabel(runInfo.provider)}
                   </span>
                   <span>完成 · {(runInfo.duration / 1000).toFixed(2)}s</span>
-                  <span>
-                    {runInfo.usage
-                      ? runInfo.usageComplete === false
-                        ? '部分模型轮次未返回用量'
-                        : '供应商已返回 usage'
-                      : runInfo.provider === 'demo'
-                        ? '未调用模型'
-                        : '供应商未返回用量'}
-                  </span>
-                  {runInfo.usage && (
-                    <span>
-                      tokens ·{' '}
-                      {Object.entries(runInfo.usage)
-                        .map(
-                          ([key, count]) => `${usageLabels[key]} ${count.toLocaleString('zh-CN')}`,
-                        )
-                        .join(' / ')}
-                    </span>
-                  )}
                   {runInfo.workflow === 'agent' && runInfo.steps !== undefined && (
                     <span>
                       {runInfo.steps}
@@ -784,6 +827,37 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
                   )}
                   <code>run / {runInfo.id.slice(0, 8)}</code>
                 </div>
+              )}
+              {displayedUsage && (
+                <section aria-label="模型用量" className="run-metadata">
+                  <span>
+                    {displayedUsage.usage
+                      ? running
+                        ? '已知用量 · 运行尚未结束'
+                        : displayedUsage.usageComplete === false
+                          ? runInfo
+                            ? '部分模型轮次未返回用量'
+                            : '已知用量 · 本次统计不完整'
+                          : displayedUsage.usageComplete === true && !runInfo
+                            ? '已知用量 · 已发出请求均已统计'
+                            : '供应商已返回 usage'
+                      : runInfo
+                        ? displayedUsage.provider === 'demo'
+                          ? '未调用模型'
+                          : '供应商未返回用量'
+                        : '用量未知 · 未收到可用统计'}
+                  </span>
+                  {displayedUsage.usage && (
+                    <span>
+                      tokens ·{' '}
+                      {Object.entries(displayedUsage.usage)
+                        .map(
+                          ([key, count]) => `${usageLabels[key]} ${count.toLocaleString('zh-CN')}`,
+                        )
+                        .join(' / ')}
+                    </span>
+                  )}
+                </section>
               )}
               {canSaveNote && selectedLesson && (
                 <div className="lab-note-action">

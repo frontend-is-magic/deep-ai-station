@@ -50,6 +50,6 @@ scope 是运维管理的稳定命名空间，不来自客户端、IP、访问码
 
 CI 的独立 `shared-quota` job 使用 PostgreSQL 17 临时服务及公开测试密码，运行真实竞争、重启后计数、事务回滚、锁超时和策略冲突测试；其他测试使用显式本地内存模式或 mock。实际执行回执见 [验证记录](verification.md)。本地无 PostgreSQL 的 skip 不代表通过；真实生产数据库、DeepSeek、E2B 和原生 Browser 验收各自记录。
 
-课程 Agent 的失败/取消目前可能丢失前序已知 usage 展示，集中用量账本与全局并发限制仍待实现；请求准入不解决这些问题。
+课程 Agent 与单次回答通过 [流式用量快照](stream-usage.md) 保留已收到的计数；取消可能错过尚未发送的帧，当前页面快照不持久保存。集中用量账本与全局并发限制仍待实现。
 
 参考：[PostgreSQL INSERT / ON CONFLICT](https://www.postgresql.org/docs/current/sql-insert.html)、[Psycopg async connections](https://www.psycopg.org/psycopg3/docs/advanced/async.html)。

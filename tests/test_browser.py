@@ -515,7 +515,7 @@ def test_legacy_results_keep_their_source_and_replay_with_current_provider(
     label = "OpenAI" if legacy_provider == "openai" else "Anthropic"
     expect(page.get_by_label("模型服务")).to_have_value(expected)
     expect(page.locator(".markdown-output")).to_contain_text("旧供应商的原始结果")
-    expect(page.locator(".run-metadata")).to_contain_text(label + "（历史供应商）")
+    expect(page.get_by_text(f"历史结果来源：{label}（历史供应商）", exact=True)).to_be_visible()
     assert requested == []
     if deepseek_enabled:
         page.get_by_text("高级配置", exact=True).click()
