@@ -64,6 +64,23 @@ def main():
     )
     node = shutil.which("node")
     go = shutil.which("go") or str(ROOT / ".tools/go/bin/go")
+    executable = cache / "knowledge-api"
+    # A cold CI module cache can outlast HTTP readiness; compile before opening test servers.
+    build = subprocess.Popen(  # noqa: S603 - fixed maintainer-owned source
+        [go, "build", "-mod=readonly", "-o", str(executable), "."],
+        cwd=ROOT / "starters/go",
+        env=env,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True,
+    )
+    try:
+        if build.wait(timeout=180) != 0:
+            raise RuntimeError("Maintainer Go starter build failed")
+    finally:
+        stop(build)
+    if not all(port_free(port) for port in (8010, 5174)):
+        raise RuntimeError("Starter ports acquired during compilation; existing processes retained")
     commands = [
         (
             "python",
@@ -80,7 +97,7 @@ def main():
             ],
         ),
         ("typescript", "hono", [node, "dist/server.js"]),
-        ("go", "gin", [go, "run", "-mod=readonly", "."]),
+        ("go", "gin", [str(executable)]),
     ]
     frontend = subprocess.Popen(  # noqa: S603 - fixed maintainer-owned source
         [
@@ -167,7 +184,6 @@ def main():
                             context.close()
                     finally:
                         stop(api)
-                        # go run owns a compiler wrapper and a serving child; killing the wrapper alone is insufficient.
                         if not port_free(8010):
                             raise RuntimeError("Owned starter API did not release its port")
             finally:
