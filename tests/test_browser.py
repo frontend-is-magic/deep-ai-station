@@ -67,12 +67,64 @@ def test_capstone_project_downloads_include_the_selected_server_and_locked_front
             files = archive.namelist()
             assert entry in files and lock in files
             assert "frontend/pnpm-lock.yaml" in files and "frontend/src/main.tsx" in files
+            assert "frontend/src/response.ts" in files
+            assert "frontend/src/response.test.mjs" in files
             assert "AGENTS.md" in files and "EVIDENCE.md" in files
             assert not any(
                 "node_modules" in name or ".venv" in name or name.endswith(".env") for name in files
             )
     page.set_viewport_size({"width": 375, "height": 812})
     assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+
+
+def test_agent_capstone_download_contains_its_own_evidence_and_locked_project(page):
+    import zipfile
+
+    goto(page, "/lesson/agent-research-agent")
+    expect(page.get_by_role("region", name="Agent 毕业项目骨架")).to_be_visible()
+    project = page.get_by_role("link", name="下载 Agent 研究助手骨架", exact=True)
+    expect(project).to_have_attribute("href", "/starters/agent-research.zip")
+    with page.expect_download() as download:
+        project.click()
+    assert download.value.suggested_filename == "agent-research.zip"
+    with zipfile.ZipFile(download.value.path()) as archive:
+        files = archive.namelist()
+        required = {
+            "frontend/pnpm-lock.yaml",
+            "frontend/src/main.tsx",
+            "frontend/src/response.ts",
+            "frontend/src/response.test.mjs",
+            "backend/app.py",
+            "backend/engine.py",
+            "backend/test_app.py",
+            "backend/pyproject.toml",
+            "backend/uv.lock",
+            "backend/documents.json",
+            "backend/eval-cases.json",
+            "README.md",
+            "AGENTS.md",
+            "EVIDENCE.md",
+            ".gitignore",
+        }
+        assert required.issubset(files)
+        source = Path(__file__).resolve().parents[1] / "starters" / "agent"
+        for name in ("documents.json", "eval-cases.json"):
+            assert archive.read(f"backend/{name}") == (source / name).read_bytes()
+        assert archive.read("README.md") == (source / "README.md").read_bytes()
+        assert "backend/contract-cases.json" not in files
+        assert not any(
+            part in {"node_modules", ".venv", "dist", ".git", "__pycache__"}
+            or part.startswith(".env")
+            for name in files
+            for part in Path(name).parts
+        )
+    page.set_viewport_size({"width": 375, "height": 812})
+    expect(project).to_be_visible()
+    assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+    for lesson in ("agent-research-workflow", "agent-research-release"):
+        goto(page, f"/lesson/{lesson}")
+        expect(page.get_by_role("link", name="下载 Agent 研究助手骨架", exact=True)).to_be_visible()
+        assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
 
 
 def test_inline_lesson_language_comparison_keeps_notes_and_checkpoint(page):

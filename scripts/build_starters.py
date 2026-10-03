@@ -16,6 +16,8 @@ FRONTEND = [
     "vite.config.ts",
     "index.html",
     "src/main.tsx",
+    "src/response.ts",
+    "src/response.test.mjs",
     "src/style.css",
     "src/components/ui/button.tsx",
 ]
@@ -30,6 +32,15 @@ BACKENDS = {
         "src/server.ts",
     ],
     "go": ["main.go", "main_test.go", "go.mod", "go.sum"],
+    "agent": [
+        "app.py",
+        "engine.py",
+        "test_app.py",
+        "pyproject.toml",
+        "uv.lock",
+        "documents.json",
+        "eval-cases.json",
+    ],
 }
 
 
@@ -38,11 +49,13 @@ def bundle(language):
     files.update(
         {f"backend/{name}": (SOURCE / language / name).read_bytes() for name in BACKENDS[language]}
     )
-    for name in ("documents.json", "contract-cases.json"):
-        files[f"backend/{name}"] = (SOURCE / "shared" / name).read_bytes()
+    if language != "agent":
+        for name in ("documents.json", "contract-cases.json"):
+            files[f"backend/{name}"] = (SOURCE / "shared" / name).read_bytes()
     for name in ("AGENTS.md", "EVIDENCE.md", ".gitignore"):
         files[name] = (SOURCE / "shared" / name).read_bytes()
-    files["README.md"] = (SOURCE / "README.md").read_bytes()
+    readme = SOURCE / "agent" / "README.md" if language == "agent" else SOURCE / "README.md"
+    files["README.md"] = readme.read_bytes()
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_STORED) as archive:
         for name, data in sorted(files.items()):
@@ -59,7 +72,8 @@ def main():
     parser.add_argument("--check", action="store_true")
     arguments = parser.parse_args()
     for language in BACKENDS:
-        for name in ("documents.json", "contract-cases.json"):
+        shared_fixtures = () if language == "agent" else ("documents.json", "contract-cases.json")
+        for name in shared_fixtures:
             expected = (SOURCE / "shared" / name).read_bytes()
             target = SOURCE / language / name
             if arguments.check:
@@ -67,7 +81,8 @@ def main():
                     raise SystemExit(f"Shared fixture mismatch: {language}/{name}")
             else:
                 target.write_bytes(expected)
-        output = DESTINATION / f"fullstack-{language}.zip"
+        filename = "agent-research.zip" if language == "agent" else f"fullstack-{language}.zip"
+        output = DESTINATION / filename
         expected = bundle(language)
         if arguments.check:
             if not output.is_file() or output.read_bytes() != expected:

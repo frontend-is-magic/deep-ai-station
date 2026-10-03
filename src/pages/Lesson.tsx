@@ -173,6 +173,27 @@ export default function LessonPage({ tracks }: { tracks: Track[] }) {
               </p>
             </section>
           )}
+          {track.id === 'agent' && lesson.stage === 'capstone' && (
+            <section
+              aria-label="Agent 毕业项目骨架"
+              className="my-7 space-y-3 rounded-xl border border-lime-200 bg-lime-50 p-5"
+            >
+              <h2>构建有证据的研究助手</h2>
+              <p>
+                下载 React + TypeScript 前端与 Python / FastAPI 服务端，包含只读资料工具、有界 Agent
+                循环、实际读取资料的引用校验、固定评测集、依赖锁文件与验收记录模板。
+              </p>
+              <Button variant="outline" asChild>
+                <a href="/starters/agent-research.zip" download>
+                  <Download size={16} />
+                  下载 Agent 研究助手骨架
+                </a>
+              </Button>
+              <p className="text-sm text-slate-600">
+                默认预设演示无需模型费用；真实模式需要服务端托管配置。引用校验不等于事实核验，真实调用与生产发布仍须验收。
+              </p>
+            </section>
+          )}
           <h2>检查你的理解</h2>
           <div className="quiz-box">
             <p>{lesson.quiz.question}</p>

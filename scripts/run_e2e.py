@@ -1,5 +1,6 @@
 """CI-owned local server lifecycle for headless browser tests."""
 
+import errno
 import os
 import signal
 import socket
@@ -18,8 +19,10 @@ logs = []
 def require_available(port):
     try:
         connection = socket.create_connection(("127.0.0.1", port), timeout=0.2)
-    except OSError:
-        return
+    except OSError as exc:
+        if exc.errno == errno.ECONNREFUSED:
+            return
+        raise RuntimeError(f"Cannot verify availability of port {port}") from exc
     connection.close()
     raise RuntimeError(f"Port {port} already in use; use pytest -m e2e with existing servers")
 

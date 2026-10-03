@@ -13,6 +13,7 @@ ZIP 包含 `frontend/`、`backend/`、`README.md`、`AGENTS.md`、`EVIDENCE.md` 
 ```sh
 pnpm install --frozen-lockfile
 pnpm check
+node --test src/response.test.mjs
 pnpm dev
 ```
 
@@ -69,4 +70,4 @@ go run .
 
 ## 维护者生成与验证
 
-平台源码位于 [Deep AI Station](https://github.com/frontend-is-magic/deep-ai-station) 的 `starters/`，共享固定资料与契约来自 `starters/shared/`。在平台仓库中，`uv run python scripts/build_starters.py` 同步共享 fixture 并生成三个可复现 ZIP；`--check` 只比较已提交产物，不修改文件。CI 校验下载包与源码一致，分别运行三个后端测试和共用前端构建，再用 `uv run python scripts/run_starter_e2e.py` 验证 React → FastAPI / Hono / Gin 的实际演示链路。该脚本只运行维护者固定代码，以 headless 模式使用自有 8010 / 5174 端口；已有服务占用时拒绝启动，结束后关闭自己的进程组。
+平台源码位于 [Deep AI Station](https://github.com/frontend-is-magic/deep-ai-station) 的 `starters/`，共享固定资料与契约来自 `starters/shared/`。在平台仓库中，`uv run python scripts/build_starters.py` 同步共享 fixture 并生成三份全栈骨架及一份 Agent 研究助手的可复现 ZIP；`--check` 只比较已提交产物，不修改文件。CI 校验下载包与源码一致，分别运行三个后端测试和共用前端构建，再用 `uv run python scripts/run_starter_e2e.py` 验证 React → FastAPI / Hono / Gin 以及独立 Agent FastAPI 的实际演示链路。该脚本只运行维护者固定代码，以 headless 模式使用自有 8010 / 5174 端口；已有服务占用时拒绝启动，结束后关闭自己的进程组。
