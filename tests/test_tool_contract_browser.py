@@ -149,6 +149,12 @@ def change_lesson_in_place(page, lesson_id):
         }""",
         lesson_id,
     )
+    # pushState is synchronous, but React may not have committed the new keyed session yet.
+    current_lesson = page.locator(f'.linked-lesson a[href="/lesson/{lesson_id}"]')
+    expect(current_lesson).to_be_visible()
+    expect(lab(page).get_by_role("region", name="工具 schema", exact=True)).to_contain_text(
+        "本次笔记始终归属「" + current_lesson.inner_text() + "」"
+    )
 
 
 def real_report(page, lesson_id):
@@ -460,6 +466,7 @@ def test_late_response_ignoring_abort_cannot_cross_courses_or_be_saved(page):
     hold_next_response(page)
     change_lesson_in_place(page, LESSONS[1])
     assert_no_report(page)
+    page.wait_for_function("window.heldToolResponse.signal.aborted", timeout=5000)
     assert page.evaluate("window.heldToolResponse.signal.aborted")
     configure(page)
     current = run(page)
@@ -694,6 +701,7 @@ def test_history_navigation_aborts_hidden_agent_stream_and_ignores_late_frames(p
     assert page.evaluate("window.heldAgentStream.payload.lesson_id") == LESSONS[0]
     page.go_back()
     expect(lab(page)).to_contain_text("请从支持的课程开始工具实验")
+    page.wait_for_function("window.heldAgentStream.signal.aborted", timeout=5000)
     assert page.evaluate("window.heldAgentStream.signal.aborted"), (
         "历史导航已隐藏 Agent 的停止按钮，但旧 Agent 请求未取消"
     )
@@ -756,6 +764,7 @@ def test_late_code_check_cannot_replace_new_context_or_release_its_pending_reque
         expect(page.get_by_label("学习方向", exact=True)).to_have_value("agent")
     else:
         page.get_by_role("button", name="停止运行", exact=True).click()
+    page.wait_for_function("window.heldCodeChecks[0].signal.aborted", timeout=5000)
     assert page.evaluate("window.heldCodeChecks[0].signal.aborted"), (
         "切换课程或停止后，旧的代码检查请求必须取消"
     )
