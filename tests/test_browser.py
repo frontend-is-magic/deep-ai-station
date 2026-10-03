@@ -40,6 +40,15 @@ def test_course_completion_and_notes_survive_refresh(page):
     expect(page.get_by_role("heading", name="从聊天到 Agent 循环", exact=True)).to_be_visible()
 
 
+def test_lesson_download_uses_selected_language(page):
+    goto(page, "/roadmap/fullstack")
+    page.get_by_role("button", name="Go", exact=True).click()
+    page.get_by_role("link", name="HTTP 与 API 契约", exact=False).click()
+    with page.expect_download() as download:
+        page.get_by_role("link", name="下载本课练习资料", exact=True).click()
+    assert download.value.suggested_filename == "fullstack-http-go.zip"
+
+
 def test_demo_workflow_history_and_cancellation(page):
     goto(page, "/playground")
     page.get_by_label("任务描述").fill("MCP 工具应该如何处理授权和幂等？")

@@ -1,5 +1,7 @@
 import ast
+import io
 import json
+import zipfile
 
 import httpx
 import pytest
@@ -38,6 +40,34 @@ def test_health_and_missing_lesson():
     assert response.json()["status"] == "ok"
     assert response.headers["x-content-type-options"] == "nosniff"
     assert client.get("/api/lessons/missing").status_code == 404
+
+
+def test_every_course_bundle_contains_the_correct_source_and_evidence_template():
+    for lesson in LESSONS.values():
+        for language, source in lesson["snippets"].items():
+            response = client.get(
+                f"/api/lessons/{lesson['id']}/exercise.zip", params={"language": language}
+            )
+            assert (
+                response.status_code == 200
+                and response.headers["content-type"] == "application/zip"
+            )
+            filename = {"python": "example.py", "typescript": "example.ts", "go": "main.go"}[
+                language
+            ]
+            with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
+                assert set(archive.namelist()) == {filename, "README.md", "EVIDENCE.md"}
+                assert archive.read(filename).decode() == source
+                guide = archive.read("README.md").decode()
+                assert lesson["title"] in guide and all(step in guide for step in lesson["steps"])
+                assert "失败输入与实际结果" in archive.read("EVIDENCE.md").decode()
+            assert "attachment" in response.headers["content-disposition"]
+
+
+def test_course_download_rejects_unknown_lesson_or_language():
+    assert client.get("/api/lessons/missing/exercise.zip?language=python").status_code == 404
+    assert client.get("/api/lessons/agent-mcp/exercise.zip?language=go").status_code == 404
+    assert client.get("/api/lessons/agent-mcp/exercise.zip?language=rust").status_code == 422
 
 
 def test_search_respects_track_and_empty_results():

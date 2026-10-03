@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   Clipboard,
   Clock3,
+  Download,
   ExternalLink,
   FlaskConical,
 } from 'lucide-react';
@@ -114,6 +115,12 @@ export default function LessonPage({ tracks }: { tracks: Track[] }) {
               <FlaskConical size={16} />
               在实验空间编辑
             </Link>
+          </Button>
+          <Button variant="ghost" asChild>
+            <a href={`/api/lessons/${lesson.id}/exercise.zip?language=${language}`} download>
+              <Download size={16} />
+              下载本课练习资料
+            </a>
           </Button>
           <h2>检查你的理解</h2>
           <div className="quiz-box">

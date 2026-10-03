@@ -10,10 +10,11 @@ from uuid import uuid4
 
 from fastapi import FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from backend.curriculum import LESSONS, TRACKS
+from backend.exercises import exercise_bundle
 from backend.feed import get_feed
 from backend.middleware import RequestLimits
 from backend.providers import PROVIDERS, Provider, capabilities, generate
@@ -49,6 +50,16 @@ def lesson(lesson_id: str):
     if lesson_id not in LESSONS:
         raise HTTPException(404, "课时不存在")
     return LESSONS[lesson_id]
+
+
+@app.get("/api/lessons/{lesson_id}/exercise.zip")
+def download_exercise(lesson_id: str, language: Literal["python", "typescript", "go"]):
+    data = exercise_bundle(lesson_id, language)
+    return Response(
+        data,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{lesson_id}-{language}.zip"'},
+    )
 
 
 @app.get("/api/search")

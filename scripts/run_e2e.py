@@ -2,6 +2,7 @@
 
 import os
 import signal
+import socket
 import subprocess
 import sys
 import tempfile
@@ -12,6 +13,15 @@ from urllib.request import urlopen
 ROOT = Path(__file__).resolve().parents[1]
 processes = []
 logs = []
+
+
+def require_available(port):
+    try:
+        connection = socket.create_connection(("127.0.0.1", port), timeout=0.2)
+    except OSError:
+        return
+    connection.close()
+    raise RuntimeError(f"Port {port} already in use; use pytest -m e2e with existing servers")
 
 
 def ready(url):
@@ -26,6 +36,8 @@ def ready(url):
 
 
 try:
+    require_available(8000)
+    require_available(5173)
     for command in [
         [
             sys.executable,
