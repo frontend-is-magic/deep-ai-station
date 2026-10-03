@@ -1,0 +1,1532 @@
+[
+  {
+    "id": "health",
+    "method": "GET",
+    "path": "/health",
+    "status": 200,
+    "expected": {
+      "status": "ok",
+      "lab": "text-upload-v1"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "initially-empty",
+    "method": "GET",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session"
+    },
+    "status": 200,
+    "expected": {
+      "documents": []
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "auth-missing",
+    "method": "GET",
+    "path": "/documents",
+    "headers": {},
+    "status": 401,
+    "expected": {
+      "error": "authentication_required"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff",
+      "WWW-Authenticate": "Bearer realm=\"text-upload\""
+    }
+  },
+  {
+    "id": "auth-unknown",
+    "method": "GET",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-unknown-session"
+    },
+    "status": 401,
+    "expected": {
+      "error": "authentication_required"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff",
+      "WWW-Authenticate": "Bearer realm=\"text-upload\""
+    }
+  },
+  {
+    "id": "auth-expired",
+    "method": "GET",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-expired-session"
+    },
+    "status": 401,
+    "expected": {
+      "error": "authentication_required"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff",
+      "WWW-Authenticate": "Bearer realm=\"text-upload\""
+    }
+  },
+  {
+    "id": "auth-revoked",
+    "method": "GET",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-revoked-session"
+    },
+    "status": 401,
+    "expected": {
+      "error": "authentication_required"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff",
+      "WWW-Authenticate": "Bearer realm=\"text-upload\""
+    }
+  },
+  {
+    "id": "auth-before-size",
+    "method": "POST",
+    "path": "/documents",
+    "headers": {},
+    "repeat_body": {
+      "character": "a",
+      "count": 4097
+    },
+    "status": 401,
+    "expected": {
+      "error": "authentication_required"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff",
+      "WWW-Authenticate": "Bearer realm=\"text-upload\""
+    }
+  },
+  {
+    "id": "readonly-before-body",
+    "method": "POST",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-readonly-session"
+    },
+    "repeat_body": {
+      "character": "a",
+      "count": 4097
+    },
+    "status": 403,
+    "expected": {
+      "error": "forbidden"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "cookie-only",
+    "method": "GET",
+    "path": "/documents",
+    "headers": {
+      "Cookie": "__Host-lab_session=lab-alice-session"
+    },
+    "status": 401,
+    "expected": {
+      "error": "authentication_required"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff",
+      "WWW-Authenticate": "Bearer realm=\"text-upload\""
+    }
+  },
+  {
+    "id": "ambiguous-auth-lines",
+    "method": "GET",
+    "path": "/documents",
+    "header_pairs": [
+      ["Authorization", "Bearer lab-alice-session"],
+      ["Authorization", "Bearer lab-alice-session"]
+    ],
+    "status": 400,
+    "expected": {
+      "error": "ambiguous_credentials"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "ambiguous-auth-comma",
+    "method": "GET",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session, Bearer lab-bob-session"
+    },
+    "status": 400,
+    "expected": {
+      "error": "ambiguous_credentials"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "ambiguous-auth-cookie",
+    "method": "GET",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session",
+      "Cookie": "__Host-lab_session=lab-alice-session"
+    },
+    "status": 400,
+    "expected": {
+      "error": "ambiguous_credentials"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "duplicate-target-cookie",
+    "method": "GET",
+    "path": "/documents",
+    "headers": {
+      "Cookie": "__Host-lab_session=a; __Host-lab_session=b"
+    },
+    "status": 400,
+    "expected": {
+      "error": "ambiguous_credentials"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "spoof-owner-only",
+    "method": "GET",
+    "path": "/documents",
+    "headers": {
+      "X-User-Id": "alice",
+      "X-Owner": "alice"
+    },
+    "status": 401,
+    "expected": {
+      "error": "authentication_required"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff",
+      "WWW-Authenticate": "Bearer realm=\"text-upload\""
+    }
+  },
+  {
+    "id": "query-owner",
+    "method": "GET",
+    "path": "/documents?owner=bob",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session"
+    },
+    "status": 422,
+    "expected": {
+      "error": "invalid_input"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "unknown-route",
+    "method": "GET",
+    "path": "/unknown",
+    "status": 404,
+    "expected": {
+      "error": "route_not_found"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "known-wrong-method",
+    "method": "PATCH",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session"
+    },
+    "status": 405,
+    "expected": {
+      "error": "method_not_allowed"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "upload-1",
+    "method": "POST",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session",
+      "Content-Type": "TeXt/PlAiN ; CHARSET = \"UTF-8\"",
+      "X-Filename": "notes.txt",
+      "X-Owner": "bob",
+      "Cookie": "theme=dark"
+    },
+    "raw": "公开笔记\r\nA\tB",
+    "status": 201,
+    "expected": {
+      "id": "doc-000001",
+      "filename": "notes.txt",
+      "media_type": "text/plain",
+      "size_bytes": 17,
+      "sha256": "ecaa88d3f50b300c69fa1f834515d75356ac38a385a00c70446685ae93792d88"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "upload-2",
+    "method": "POST",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-bob-session",
+      "Content-Type": "text/markdown",
+      "X-Filename": "NOTES.MD"
+    },
+    "raw": "<script>alert(1)</script>\n[link](https://example.test)",
+    "status": 201,
+    "expected": {
+      "id": "doc-000002",
+      "filename": "NOTES.MD",
+      "media_type": "text/markdown",
+      "size_bytes": 54,
+      "sha256": "a0d8fa8e66f0805939d0348785beda3c57602f9ae3bd7499bc13b467eda8162f"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "download-raw-unicode",
+    "method": "GET",
+    "path": "/documents/doc-000001/content",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session"
+    },
+    "expected_body_base64": "5YWs5byA56yU6K6wDQpBCUI=",
+    "response_headers": {
+      "Content-Type": "application/octet-stream",
+      "Content-Disposition": "attachment; filename=\"upload-doc-000001.txt\"",
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    },
+    "status": 200
+  },
+  {
+    "id": "download-inert-markdown",
+    "method": "GET",
+    "path": "/documents/doc-000002/content",
+    "headers": {
+      "Authorization": "Bearer lab-bob-session"
+    },
+    "expected_body_base64": "PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0PgpbbGlua10oaHR0cHM6Ly9leGFtcGxlLnRlc3Qp",
+    "response_headers": {
+      "Content-Type": "application/octet-stream",
+      "Content-Disposition": "attachment; filename=\"upload-doc-000002.md\"",
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    },
+    "status": 200
+  },
+  {
+    "id": "readonly-own-metadata",
+    "method": "GET",
+    "path": "/documents/doc-000001",
+    "headers": {
+      "Authorization": "Bearer lab-alice-readonly-session"
+    },
+    "status": 200,
+    "expected": {
+      "id": "doc-000001",
+      "filename": "notes.txt",
+      "media_type": "text/plain",
+      "size_bytes": 17,
+      "sha256": "ecaa88d3f50b300c69fa1f834515d75356ac38a385a00c70446685ae93792d88"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "foreign-metadata",
+    "method": "GET",
+    "path": "/documents/doc-000002",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session"
+    },
+    "status": 404,
+    "expected": {
+      "error": "document_not_found"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "missing-metadata",
+    "method": "GET",
+    "path": "/documents/doc-999999",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session"
+    },
+    "status": 404,
+    "expected": {
+      "error": "document_not_found"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "foreign-download",
+    "method": "GET",
+    "path": "/documents/doc-000002/content",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session"
+    },
+    "status": 404,
+    "expected": {
+      "error": "document_not_found"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "missing-download",
+    "method": "GET",
+    "path": "/documents/doc-999999/content",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session"
+    },
+    "status": 404,
+    "expected": {
+      "error": "document_not_found"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "media-missing",
+    "method": "POST",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session",
+      "X-Filename": "notes.txt"
+    },
+    "raw": "hello",
+    "status": 415,
+    "expected": {
+      "error": "unsupported_media_type"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "filename-missing",
+    "method": "POST",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session",
+      "Content-Type": "text/plain"
+    },
+    "raw": "hello",
+    "status": 422,
+    "expected": {
+      "error": "invalid_filename"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "media-28",
+    "method": "POST",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session",
+      "Content-Type": "application/json",
+      "X-Filename": "notes.txt"
+    },
+    "raw": "hello",
+    "status": 415,
+    "expected": {
+      "error": "unsupported_media_type"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "media-29",
+    "method": "POST",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session",
+      "Content-Type": "multipart/form-data; boundary=lab",
+      "X-Filename": "notes.txt"
+    },
+    "raw": "hello",
+    "status": 415,
+    "expected": {
+      "error": "unsupported_media_type"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "media-30",
+    "method": "POST",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session",
+      "Content-Type": "text/plain; charset=latin1",
+      "X-Filename": "notes.txt"
+    },
+    "raw": "hello",
+    "status": 415,
+    "expected": {
+      "error": "unsupported_media_type"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "media-31",
+    "method": "POST",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session",
+      "Content-Type": "text/plain; charset=utf-8; extra=1",
+      "X-Filename": "notes.txt"
+    },
+    "raw": "hello",
+    "status": 415,
+    "expected": {
+      "error": "unsupported_media_type"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "media-32",
+    "method": "POST",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session",
+      "Content-Type": "text/plain, text/plain",
+      "X-Filename": "notes.txt"
+    },
+    "raw": "hello",
+    "status": 415,
+    "expected": {
+      "error": "unsupported_media_type"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "compressed-body",
+    "method": "POST",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session",
+      "Content-Type": "text/plain",
+      "X-Filename": "notes.txt",
+      "Content-Encoding": "gzip"
+    },
+    "raw": "hello",
+    "status": 415,
+    "expected": {
+      "error": "unsupported_media_type"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "identity-encoding-refused",
+    "method": "POST",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session",
+      "Content-Type": "text/plain",
+      "X-Filename": "notes.txt",
+      "Content-Encoding": "identity"
+    },
+    "raw": "hello",
+    "status": 415,
+    "expected": {
+      "error": "unsupported_media_type"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "duplicate-filename",
+    "method": "POST",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session",
+      "Content-Type": "text/plain"
+    },
+    "header_pairs": [
+      ["X-Filename", "notes.txt"],
+      ["X-Filename", "notes.txt"]
+    ],
+    "raw": "hello",
+    "status": 400,
+    "expected": {
+      "error": "ambiguous_upload_headers"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "duplicate-content-type",
+    "method": "POST",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session",
+      "X-Filename": "notes.txt"
+    },
+    "header_pairs": [
+      ["Content-Type", "text/plain"],
+      ["Content-Type", "text/plain"]
+    ],
+    "raw": "hello",
+    "status": 400,
+    "expected": {
+      "error": "ambiguous_upload_headers"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "filename-0",
+    "method": "POST",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session",
+      "Content-Type": "text/plain",
+      "X-Filename": "../notes.txt"
+    },
+    "raw": "hello",
+    "status": 422,
+    "expected": {
+      "error": "invalid_filename"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "filename-1",
+    "method": "POST",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session",
+      "Content-Type": "text/plain",
+      "X-Filename": "dir/notes.txt"
+    },
+    "raw": "hello",
+    "status": 422,
+    "expected": {
+      "error": "invalid_filename"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "filename-2",
+    "method": "POST",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session",
+      "Content-Type": "text/plain",
+      "X-Filename": "dir\\notes.txt"
+    },
+    "raw": "hello",
+    "status": 422,
+    "expected": {
+      "error": "invalid_filename"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "filename-3",
+    "method": "POST",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session",
+      "Content-Type": "text/plain",
+      "X-Filename": "%2e%2e%2fnotes.txt"
+    },
+    "raw": "hello",
+    "status": 422,
+    "expected": {
+      "error": "invalid_filename"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "filename-4",
+    "method": "POST",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session",
+      "Content-Type": "text/plain",
+      "X-Filename": "notes.php.txt"
+    },
+    "raw": "hello",
+    "status": 422,
+    "expected": {
+      "error": "invalid_filename"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "filename-5",
+    "method": "POST",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session",
+      "Content-Type": "text/plain",
+      "X-Filename": "notes.txt:stream"
+    },
+    "raw": "hello",
+    "status": 422,
+    "expected": {
+      "error": "invalid_filename"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "filename-6",
+    "method": "POST",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session",
+      "Content-Type": "text/plain",
+      "X-Filename": ".txt"
+    },
+    "raw": "hello",
+    "status": 422,
+    "expected": {
+      "error": "invalid_filename"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "filename-7",
+    "method": "POST",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session",
+      "Content-Type": "text/plain",
+      "X-Filename": "two words.txt"
+    },
+    "raw": "hello",
+    "status": 422,
+    "expected": {
+      "error": "invalid_filename"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "filename-8",
+    "method": "POST",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session",
+      "Content-Type": "text/plain",
+      "X-Filename": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.txt"
+    },
+    "raw": "hello",
+    "status": 422,
+    "expected": {
+      "error": "invalid_filename"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "filename-9",
+    "method": "POST",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session",
+      "Content-Type": "text/plain",
+      "X-Filename": "notes.txt, other.txt"
+    },
+    "raw": "hello",
+    "status": 422,
+    "expected": {
+      "error": "invalid_filename"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "filename-10",
+    "method": "POST",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session",
+      "Content-Type": "text/plain",
+      "X-Filename": "notes.md"
+    },
+    "raw": "hello",
+    "status": 422,
+    "expected": {
+      "error": "invalid_filename"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "text-empty",
+    "method": "POST",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session",
+      "Content-Type": "text/plain",
+      "X-Filename": "notes.txt"
+    },
+    "raw": "",
+    "status": 422,
+    "expected": {
+      "error": "invalid_text"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "text-only-whitespace",
+    "method": "POST",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session",
+      "Content-Type": "text/plain",
+      "X-Filename": "notes.txt"
+    },
+    "raw": " \t\r\n",
+    "status": 422,
+    "expected": {
+      "error": "invalid_text"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "text-nul",
+    "method": "POST",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session",
+      "Content-Type": "text/plain",
+      "X-Filename": "notes.txt"
+    },
+    "raw": "a\u0000b",
+    "status": 422,
+    "expected": {
+      "error": "invalid_text"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "text-escape",
+    "method": "POST",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session",
+      "Content-Type": "text/plain",
+      "X-Filename": "notes.txt"
+    },
+    "raw": "a\u001bb",
+    "status": 422,
+    "expected": {
+      "error": "invalid_text"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "text-del",
+    "method": "POST",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session",
+      "Content-Type": "text/plain",
+      "X-Filename": "notes.txt"
+    },
+    "raw": "ab",
+    "status": 422,
+    "expected": {
+      "error": "invalid_text"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "text-c1",
+    "method": "POST",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session",
+      "Content-Type": "text/plain",
+      "X-Filename": "notes.txt"
+    },
+    "raw": "ab",
+    "status": 422,
+    "expected": {
+      "error": "invalid_text"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "text-bom",
+    "method": "POST",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session",
+      "Content-Type": "text/plain",
+      "X-Filename": "notes.txt"
+    },
+    "raw": "﻿abc",
+    "status": 422,
+    "expected": {
+      "error": "invalid_text"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "text-inner-bom",
+    "method": "POST",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session",
+      "Content-Type": "text/plain",
+      "X-Filename": "notes.txt"
+    },
+    "raw": "a﻿b",
+    "status": 422,
+    "expected": {
+      "error": "invalid_text"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "utf8-invalid",
+    "method": "POST",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session",
+      "Content-Type": "text/plain",
+      "X-Filename": "notes.txt"
+    },
+    "body_base64": "/w==",
+    "status": 422,
+    "expected": {
+      "error": "invalid_text"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "utf8-overlong",
+    "method": "POST",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session",
+      "Content-Type": "text/plain",
+      "X-Filename": "notes.txt"
+    },
+    "body_base64": "wK8=",
+    "status": 422,
+    "expected": {
+      "error": "invalid_text"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "utf8-surrogate",
+    "method": "POST",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session",
+      "Content-Type": "text/plain",
+      "X-Filename": "notes.txt"
+    },
+    "body_base64": "7aCA",
+    "status": 422,
+    "expected": {
+      "error": "invalid_text"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "utf8-truncated",
+    "method": "POST",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session",
+      "Content-Type": "text/plain",
+      "X-Filename": "notes.txt"
+    },
+    "body_base64": "5Lg=",
+    "status": 422,
+    "expected": {
+      "error": "invalid_text"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "too-large",
+    "method": "POST",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session",
+      "Content-Type": "text/plain",
+      "X-Filename": "notes.txt"
+    },
+    "repeat_body": {
+      "character": "a",
+      "count": 4097
+    },
+    "status": 413,
+    "expected": {
+      "error": "request_too_large"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "multibyte-too-large",
+    "method": "POST",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session",
+      "Content-Type": "text/plain",
+      "X-Filename": "notes.txt"
+    },
+    "repeat_body": {
+      "character": "文",
+      "count": 1366
+    },
+    "status": 413,
+    "expected": {
+      "error": "request_too_large"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "size-before-media",
+    "method": "POST",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session",
+      "Content-Type": "application/json",
+      "X-Filename": "bad/notes"
+    },
+    "repeat_body": {
+      "character": "a",
+      "count": 4097
+    },
+    "status": 413,
+    "expected": {
+      "error": "request_too_large"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "query-before-size",
+    "method": "POST",
+    "path": "/documents?owner=bob",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session",
+      "Content-Type": "text/plain",
+      "X-Filename": "notes.txt"
+    },
+    "repeat_body": {
+      "character": "a",
+      "count": 4097
+    },
+    "status": 422,
+    "expected": {
+      "error": "invalid_input"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "failed-uploads-preserve-alice",
+    "method": "GET",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session"
+    },
+    "status": 200,
+    "expected": {
+      "documents": [
+        {
+          "id": "doc-000001",
+          "filename": "notes.txt",
+          "media_type": "text/plain",
+          "size_bytes": 17,
+          "sha256": "ecaa88d3f50b300c69fa1f834515d75356ac38a385a00c70446685ae93792d88"
+        }
+      ]
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "failed-uploads-preserve-bob",
+    "method": "GET",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-bob-session"
+    },
+    "status": 200,
+    "expected": {
+      "documents": [
+        {
+          "id": "doc-000002",
+          "filename": "NOTES.MD",
+          "media_type": "text/markdown",
+          "size_bytes": 54,
+          "sha256": "a0d8fa8e66f0805939d0348785beda3c57602f9ae3bd7499bc13b467eda8162f"
+        }
+      ]
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "failed-uploads-preserve-bytes",
+    "method": "GET",
+    "path": "/documents/doc-000001/content",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session"
+    },
+    "expected_body_base64": "5YWs5byA56yU6K6wDQpBCUI=",
+    "response_headers": {
+      "Content-Type": "application/octet-stream",
+      "Content-Disposition": "attachment; filename=\"upload-doc-000001.txt\"",
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    },
+    "status": 200
+  },
+  {
+    "id": "upload-3",
+    "method": "POST",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session",
+      "Content-Type": "text/plain",
+      "X-Filename": "notes.txt"
+    },
+    "repeat_body": {
+      "character": "a",
+      "count": 4096
+    },
+    "status": 201,
+    "expected": {
+      "id": "doc-000003",
+      "filename": "notes.txt",
+      "media_type": "text/plain",
+      "size_bytes": 4096,
+      "sha256": "c93eee2d0db02f10acc7460d9576e122dcf8cd53c4bf8dfcae1b3e74ebcfff5a"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "total-byte-quota",
+    "method": "POST",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session",
+      "Content-Type": "text/plain",
+      "X-Filename": "notes.txt"
+    },
+    "repeat_body": {
+      "character": "a",
+      "count": 4096
+    },
+    "status": 409,
+    "expected": {
+      "error": "quota_exceeded"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "quota-failure-no-residue",
+    "method": "GET",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session"
+    },
+    "status": 200,
+    "expected": {
+      "documents": [
+        {
+          "id": "doc-000001",
+          "filename": "notes.txt",
+          "media_type": "text/plain",
+          "size_bytes": 17,
+          "sha256": "ecaa88d3f50b300c69fa1f834515d75356ac38a385a00c70446685ae93792d88"
+        },
+        {
+          "id": "doc-000003",
+          "filename": "notes.txt",
+          "media_type": "text/plain",
+          "size_bytes": 4096,
+          "sha256": "c93eee2d0db02f10acc7460d9576e122dcf8cd53c4bf8dfcae1b3e74ebcfff5a"
+        }
+      ]
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "upload-4",
+    "method": "POST",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session",
+      "Content-Type": "text/plain",
+      "X-Filename": "limit.txt"
+    },
+    "repeat_body": {
+      "character": "a",
+      "count": 4079
+    },
+    "status": 201,
+    "expected": {
+      "id": "doc-000004",
+      "filename": "limit.txt",
+      "media_type": "text/plain",
+      "size_bytes": 4079,
+      "sha256": "1978ed28eaf2b261a95da97d93d847cdc67c94769b14cffecabc2ca2f4f64c96"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "quota-at-8192",
+    "method": "POST",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session",
+      "Content-Type": "text/plain",
+      "X-Filename": "notes.txt"
+    },
+    "raw": "hello",
+    "status": 409,
+    "expected": {
+      "error": "quota_exceeded"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "exact-total-8192",
+    "method": "GET",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session"
+    },
+    "status": 200,
+    "expected": {
+      "documents": [
+        {
+          "id": "doc-000001",
+          "filename": "notes.txt",
+          "media_type": "text/plain",
+          "size_bytes": 17,
+          "sha256": "ecaa88d3f50b300c69fa1f834515d75356ac38a385a00c70446685ae93792d88"
+        },
+        {
+          "id": "doc-000003",
+          "filename": "notes.txt",
+          "media_type": "text/plain",
+          "size_bytes": 4096,
+          "sha256": "c93eee2d0db02f10acc7460d9576e122dcf8cd53c4bf8dfcae1b3e74ebcfff5a"
+        },
+        {
+          "id": "doc-000004",
+          "filename": "limit.txt",
+          "media_type": "text/plain",
+          "size_bytes": 4079,
+          "sha256": "1978ed28eaf2b261a95da97d93d847cdc67c94769b14cffecabc2ca2f4f64c96"
+        }
+      ]
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "upload-5",
+    "method": "POST",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-bob-session",
+      "Content-Type": "text/markdown",
+      "X-Filename": "NOTES.MD"
+    },
+    "raw": "# new",
+    "status": 201,
+    "expected": {
+      "id": "doc-000005",
+      "filename": "NOTES.MD",
+      "media_type": "text/markdown",
+      "size_bytes": 5,
+      "sha256": "0b4b698c7a19e1f4ca160277bd3a9a555578fb0f7cd553bf286984e473848eb3"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "upload-6",
+    "method": "POST",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-bob-session",
+      "Content-Type": "text/plain",
+      "X-Filename": "last.txt"
+    },
+    "raw": "last",
+    "status": 201,
+    "expected": {
+      "id": "doc-000006",
+      "filename": "last.txt",
+      "media_type": "text/plain",
+      "size_bytes": 4,
+      "sha256": "3547cb112ac4489af2310c0626cdba6f3097a2ad5a3b42ddd3b59c76c7a079a3"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "document-count-quota",
+    "method": "POST",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-bob-session",
+      "Content-Type": "text/plain",
+      "X-Filename": "fourth.txt"
+    },
+    "raw": "hello",
+    "status": 409,
+    "expected": {
+      "error": "quota_exceeded"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "count-limit-preserved",
+    "method": "GET",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-bob-session"
+    },
+    "status": 200,
+    "expected": {
+      "documents": [
+        {
+          "id": "doc-000002",
+          "filename": "NOTES.MD",
+          "media_type": "text/markdown",
+          "size_bytes": 54,
+          "sha256": "a0d8fa8e66f0805939d0348785beda3c57602f9ae3bd7499bc13b467eda8162f"
+        },
+        {
+          "id": "doc-000005",
+          "filename": "NOTES.MD",
+          "media_type": "text/markdown",
+          "size_bytes": 5,
+          "sha256": "0b4b698c7a19e1f4ca160277bd3a9a555578fb0f7cd553bf286984e473848eb3"
+        },
+        {
+          "id": "doc-000006",
+          "filename": "last.txt",
+          "media_type": "text/plain",
+          "size_bytes": 4,
+          "sha256": "3547cb112ac4489af2310c0626cdba6f3097a2ad5a3b42ddd3b59c76c7a079a3"
+        }
+      ]
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  {
+    "id": "same-name-did-not-overwrite",
+    "method": "GET",
+    "path": "/documents/doc-000002/content",
+    "headers": {
+      "Authorization": "Bearer lab-bob-session"
+    },
+    "expected_body_base64": "PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0PgpbbGlua10oaHR0cHM6Ly9leGFtcGxlLnRlc3Qp",
+    "response_headers": {
+      "Content-Type": "application/octet-stream",
+      "Content-Disposition": "attachment; filename=\"upload-doc-000002.md\"",
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    },
+    "status": 200
+  }
+]

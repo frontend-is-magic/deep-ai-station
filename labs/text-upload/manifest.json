@@ -1,0 +1,6 @@
+{
+  "id": "text-upload",
+  "version": "text-upload-v1",
+  "lessons": ["fullstack-ai-rag"],
+  "languages": ["python", "typescript", "go"]
+}
