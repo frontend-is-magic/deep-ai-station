@@ -125,7 +125,7 @@ export default function App() {
       if (file.size > 2_000_000) throw new Error('文件过大');
       const data: unknown = JSON.parse(await file.text());
       if (!validateProgress(data)) throw new Error('学习记录格式不正确');
-      setProgress(data);
+      setProgress({ ...data, history_reset_id: crypto.randomUUID() });
       setNotice('学习记录已导入');
     } catch (e) {
       setNotice(e instanceof Error ? e.message : '无法导入文件');
@@ -321,18 +321,18 @@ export default function App() {
         open={settings}
         onOpenChange={setSettings}
         title="你的学习空间"
-        description="学习位置、课程进度、语言实践、测验回顾、证据、笔记、收藏与最近 20 次运行记录保存在当前浏览器，可导出备份。"
+        description="学习位置、课程进度、语言实践、测验回顾、证据、笔记、收藏与最近 20 次已结束运行保存在当前浏览器，可导出备份。"
       >
         <div className="settings-content">
           <div className="info-box">
-            学习记录不会跨设备自动同步。实验访问码仅在当前页面内存中使用，不进入导出文件。
+            成功、失败和客户端停止的任务输入、已接收回答与轨迹都会保存。学习记录不会跨设备自动同步；实验访问码仅在当前页面内存中使用，不进入导出文件。
           </div>
           <p>
             已完成 {progress.completed.filter((id) => lessons.some((l) => l.id === id)).length} 节课
             · 已收藏 {progress.bookmarks.length} 条资料
           </p>
           <p id="import-description" className="text-sm text-muted-foreground">
-            导入会替换当前全部学习记录，建议先导出备份。旧备份没有学习位置时推荐下一节未完成课；没有语言实践或测验回顾时对应部分为空，课程完成不会自动证明各语言都已实践。
+            导入会替换当前全部学习记录，并停止当前页面的运行等待、丢弃未结束片段，建议先导出备份。旧备份没有学习位置时推荐下一节未完成课；没有语言实践或测验回顾时对应部分为空，课程完成不会自动证明各语言都已实践。
           </p>
           <div className="flex flex-wrap gap-3">
             <Button onClick={exportProgress}>导出学习记录</Button>
@@ -352,12 +352,12 @@ export default function App() {
           <details>
             <summary>清空当前设备记录</summary>
             <p className="text-sm text-muted-foreground my-3">
-              清空会删除当前浏览器中的学习位置、课程进度、语言实践、测验回顾、证据、笔记、收藏和运行历史。建议先导出备份。
+              清空会删除当前浏览器中的学习位置、课程进度、语言实践、测验回顾、证据、笔记、收藏和运行历史，并停止当前页面的运行等待、丢弃未结束片段。建议先导出备份。
             </p>
             <Button
               variant="outline"
               onClick={() => {
-                setProgress(emptyProgress);
+                setProgress({ ...emptyProgress, history_reset_id: crypto.randomUUID() });
                 setNotice('当前设备学习记录已清空');
               }}
             >

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useAtom } from 'jotai';
+import { useAtom, useStore } from 'jotai';
 import { Link, useSearchParams } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import {
@@ -20,7 +20,13 @@ import {
   XCircle,
 } from 'lucide-react';
 import { api, streamRun } from '@/lib/api';
-import { progressAtom } from '@/lib/state';
+import { latestProgress, progressAtom } from '@/lib/state';
+import {
+  appendTerminalRun,
+  buildTerminalRun,
+  runRecordStatus,
+  validRunRecord,
+} from '@/lib/run-history';
 import { incompleteRunUsage, updateRunUsage, type RunUsageSnapshot } from '@/lib/run-usage';
 import { codeDraftsAtom, updateDraft } from '@/lib/drafts';
 import { languageNames } from '@/lib/utils';
@@ -30,6 +36,9 @@ import type {
   Language,
   Lesson,
   LiveProvider,
+  RunReason,
+  RunRecord,
+  RunStatus,
   RunTrace,
   RunWorkflow,
   Track,
@@ -68,6 +77,26 @@ interface ExecutionResult {
   notice: string;
 }
 
+type CancellationReason = 'user_stop' | 'context_changed';
+interface ActiveRun {
+  resetId: string | undefined;
+  cancel: (reason: CancellationReason, showResult?: boolean) => void;
+  discard: () => void;
+}
+const runStatusLabels: Record<RunStatus, string> = {
+  completed: '实验已完成',
+  failed: '运行失败',
+  cancelled: '客户端已停止',
+};
+const runReasonMessages: Record<RunReason, string> = {
+  server_error: '运行失败，已保留已接收的内容与用量。',
+  transport_error: '连接中断，已保留已接收的内容；统计可能不完整。',
+  stream_ended: '流已结束，但未收到完成确认；已保留已接收的内容。',
+  output_limit: '输出达到模型上限，内容可能未完成。',
+  user_stop: '客户端已停止等待；服务器终态未确认，已知用量可能不完整。',
+  context_changed: '切换页面或实验上下文后，客户端已停止等待；服务器终态未确认。',
+};
+
 function courseTask(lesson: Lesson) {
   return `我正在学习「${lesson.title}」。目标：${lesson.objective}\n请解释核心机制，给出一个成功输入和一个失败输入，并说明如何验证：${lesson.criteria.join('；')}。`;
 }
@@ -87,6 +116,7 @@ function safeOutputLink(href?: string) {
 export default function Playground({ tracks }: { tracks: Track[] }) {
   const [params, setParams] = useSearchParams();
   const [progress, setProgress] = useAtom(progressAtom);
+  const store = useStore();
   const [drafts, setDrafts] = useAtom(codeDraftsAtom);
   const trackId: TrackId = params.get('track') === 'fullstack' ? 'fullstack' : 'agent';
   const requestedMode = params.get('mode');
@@ -117,20 +147,9 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
   const [trace, setTrace] = useState<RunTrace[]>([]);
   const [output, setOutput] = useState('');
   const [error, setError] = useState('');
-  const [runInfo, setRunInfo] = useState<{
-    id: string;
-    duration: number;
-    usage: Record<string, number> | null;
-    provider: string;
-    lessonId?: string;
-    prompt: string;
-    date: string;
-    workflow?: RunWorkflow;
-    steps?: number;
-    toolCount?: number;
-    usageComplete?: boolean;
-    restored?: boolean;
-  } | null>(null);
+  const [runInfo, setRunInfo] = useState<
+    (RunRecord & { restored?: boolean; viewResetId?: string }) | null
+  >(null);
   const [liveUsage, setLiveUsage] = useState<(RunUsageSnapshot & { provider: string }) | null>(
     null,
   );
@@ -145,41 +164,66 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
   const initialCode =
     selectedLesson?.snippets[language] || track.lessons[0].snippets[language] || '';
   const draftKey = `${trackId}:${selectedLesson?.id || 'default'}:${language}`;
+  const requestContext =
+    mode === 'code' ? draftKey : `${trackId}:${selectedLesson?.id || 'default'}`;
   const code = drafts.find((draft) => draft.context === draftKey)?.code ?? initialCode;
   const [checkResult, setCheckResult] = useState<CheckResult | null>(null);
   const [execution, setExecution] = useState<ExecutionResult | null>(null);
   const controller = useRef<AbortController | null>(null);
+  const activeRun = useRef<ActiveRun | null>(null);
   const mounted = useRef(true);
+  const resetId = useRef(progress.history_reset_id);
+  function clearResult() {
+    setRunning(false);
+    setLiveUsage(null);
+    setOutput('');
+    setTrace([]);
+    setRunInfo(null);
+    setError('');
+    setCheckResult(null);
+    setExecution(null);
+  }
+  function cancelContext() {
+    activeRun.current?.cancel('context_changed', false);
+    const previous = controller.current;
+    controller.current = null;
+    previous?.abort();
+  }
   useEffect(() => {
     const c = new AbortController();
     mounted.current = true;
     api<Capabilities>('/capabilities', { signal: c.signal })
-      .then(setCap)
+      .then((result) => {
+        if (mounted.current && !c.signal.aborted) setCap(result);
+      })
       .catch(() => {});
     return () => {
       mounted.current = false;
       c.abort();
-      const previous = controller.current;
-      controller.current = null;
-      previous?.abort();
+      cancelContext();
     };
   }, []);
   useEffect(() => {
-    // History navigation can change the visible experiment while a request is pending.
+    // A new import/clear epoch discards unfinished work, including ignored aborts.
+    if (resetId.current === progress.history_reset_id) return;
+    resetId.current = progress.history_reset_id;
+    if (activeRun.current && activeRun.current.resetId === progress.history_reset_id) return;
+    activeRun.current?.discard();
     const previous = controller.current;
-    if (previous) {
-      controller.current = null;
-      previous.abort();
-      setRunning(false);
-      setLiveUsage(null);
-      setOutput('');
-      setTrace([]);
-      setRunInfo(null);
+    controller.current = null;
+    previous?.abort();
+    clearResult();
+  }, [progress.history_reset_id]);
+  useEffect(() => {
+    // Ordinary navigation preserves the old attempt's captured course, never the new one.
+    if (controller.current) {
+      cancelContext();
+      clearResult();
     }
     setCheckResult(null);
     setExecution(null);
     setError('');
-  }, [draftKey, mode]);
+  }, [requestContext, mode]);
   function downloadCode() {
     const extension = { python: 'py', typescript: 'ts', go: 'go' }[language];
     const url = URL.createObjectURL(new Blob([code], { type: 'text/plain;charset=utf-8' }));
@@ -201,8 +245,8 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
     );
   }
   function switchTrack(value: TrackId) {
-    controller.current?.abort();
-    controller.current = null;
+    cancelContext();
+    setRunning(false);
     setLiveUsage(null);
     setLanguage(value === 'agent' ? 'python' : progress.language);
     setParams({ track: value, mode, workflow }, { replace: true });
@@ -217,21 +261,27 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
     );
   }
   function stopRun() {
-    const active = controller.current;
-    if (!active) return;
-    // Invalidate before abort: even a transport ignoring AbortSignal cannot alter a new run.
-    controller.current = null;
-    active.abort();
-    setLiveUsage((previous) => ({
-      ...incompleteRunUsage(previous),
-      provider: previous?.provider ?? provider,
-    }));
-    setRunning(false);
-    setError('运行已停止，部分结果未计入历史。');
+    activeRun.current?.cancel('user_stop', true);
   }
   async function run() {
-    if (running || !prompt.trim()) return;
+    if (running || controller.current || !prompt.trim()) return;
+    const currentProgress = store.get(progressAtom);
+    const newestProgress = latestProgress(currentProgress);
+    // A queued storage event must not make a new attempt inherit an obsolete epoch.
+    if (newestProgress.history_reset_id !== currentProgress.history_reset_id) {
+      setProgress(newestProgress);
+    }
+    const epoch = newestProgress.history_reset_id;
     const c = new AbortController();
+    const context = {
+      id: crypto.randomUUID(),
+      prompt,
+      provider,
+      track: trackId,
+      lesson_id: selectedLesson?.id,
+      workflow,
+    };
+    const started = performance.now();
     controller.current = c;
     setRunning(true);
     setOutput('');
@@ -240,21 +290,84 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
     setRunInfo(null);
     setLiveUsage({ usage: null, usageComplete: false, provider });
     let answer = '';
-    let id = '';
+    let serverId: string | undefined;
     let terminal = false;
     let usageSnapshot: RunUsageSnapshot | null = null;
     const observed: RunTrace[] = [];
-    const current = () => mounted.current && controller.current === c;
-    function finish() {
+    const current = () =>
+      mounted.current && controller.current === c && activeRun.current === attempt && !terminal;
+    function finalize(
+      status: RunStatus | null,
+      reason?: RunReason,
+      data: Record<string, unknown> = {},
+      showResult = true,
+      temporaryError?: string,
+    ) {
+      if (terminal || activeRun.current !== attempt) return;
+      // Invalidate synchronously before abort can reject or deliver a late frame.
       terminal = true;
-      controller.current = null;
-      setRunning(false);
+      activeRun.current = null;
+      if (controller.current === c) controller.current = null;
       c.abort();
+      const latest = latestProgress(store.get(progressAtom));
+      if (status === null || latest.history_reset_id !== epoch) {
+        if (mounted.current && showResult) clearResult();
+        return;
+      }
+      if (status === 'cancelled' || reason === 'transport_error' || reason === 'stream_ended') {
+        usageSnapshot = incompleteRunUsage(usageSnapshot);
+      }
+      const record = buildTerminalRun({
+        ...context,
+        status,
+        reason,
+        server_run_id: serverId,
+        answer,
+        date: new Date().toISOString(),
+        duration_ms:
+          typeof data.duration_ms === 'number' &&
+          Number.isFinite(data.duration_ms) &&
+          data.duration_ms >= 0
+            ? data.duration_ms
+            : Math.max(0, Math.round(performance.now() - started)),
+        trace: observed,
+        usage: usageSnapshot?.usage ?? null,
+        usage_complete: usageSnapshot?.usageComplete,
+        steps: data.steps,
+        tool_count: data.tool_count,
+      });
+      if (!record || !validRunRecord(record)) {
+        if (mounted.current && showResult) {
+          setRunning(false);
+          setError('本次结果无法形成有效历史记录，已接收内容仅保留在当前页面。');
+        }
+        return;
+      }
+      setProgress((previous) => {
+        const newest = latestProgress(previous);
+        return newest.history_reset_id === epoch ? appendTerminalRun(newest, record) : newest;
+      });
+      if (!mounted.current || !showResult) return;
+      if (store.get(progressAtom).history_reset_id !== epoch) {
+        clearResult();
+        return;
+      }
+      setRunning(false);
+      setOutput(record.answer);
+      setTrace(record.trace || []);
+      setRunInfo({ ...record, viewResetId: epoch });
+      setLiveUsage({ usage: record.usage ?? null, usageComplete: record.usage_complete, provider });
+      setError(temporaryError || (record.reason ? runReasonMessages[record.reason] : ''));
     }
+    const attempt: ActiveRun = {
+      resetId: epoch,
+      cancel: (reason, showResult = false) => finalize('cancelled', reason, {}, showResult),
+      discard: () => finalize(null, undefined, {}, false),
+    };
+    activeRun.current = attempt;
     function snapshot(data: Record<string, unknown>, final = false) {
       usageSnapshot = updateRunUsage(usageSnapshot, data, final);
       setLiveUsage({ ...usageSnapshot, provider });
-      return usageSnapshot;
     }
     try {
       await streamRun(
@@ -270,9 +383,20 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
         token,
         c.signal,
         (event) => {
-          if (!current() || c.signal.aborted || terminal) return;
-          if (typeof event.data.run_id === 'string' && id && event.data.run_id !== id) return;
-          if (event.event === 'start') id = String(event.data.run_id);
+          if (!current() || c.signal.aborted) return;
+          if (store.get(progressAtom).history_reset_id !== epoch) {
+            finalize(null);
+            return;
+          }
+          if (typeof event.data.run_id === 'string' && serverId && event.data.run_id !== serverId)
+            return;
+          if (
+            event.event === 'start' &&
+            typeof event.data.run_id === 'string' &&
+            /^[A-Za-z0-9._:-]{1,100}$/.test(event.data.run_id)
+          ) {
+            serverId = event.data.run_id;
+          }
           if (event.event === 'usage') snapshot(event.data);
           if (event.event === 'trace') {
             const step = event.data as unknown as RunTrace;
@@ -296,82 +420,34 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
               },
               true,
             );
-            setError(String(event.data.message));
-            finish();
+            finalize(
+              'failed',
+              'server_error',
+              event.data,
+              true,
+              typeof event.data.message === 'string' ? event.data.message : undefined,
+            );
           }
           if (event.event === 'done') {
-            const finalUsage = snapshot(event.data, true);
-            finish();
-            if (event.data.truncated === true) {
-              setError('输出达到模型上限，内容可能未完成，未写入运行历史。请缩小任务后重试。');
-              return;
-            }
-            const duration = Number(event.data.duration_ms);
-            const date = new Date().toISOString();
-            const usage = finalUsage.usage;
-            const steps = typeof event.data.steps === 'number' ? event.data.steps : undefined;
-            const toolCount =
-              typeof event.data.tool_count === 'number' ? event.data.tool_count : undefined;
-            const usageComplete = finalUsage.usageComplete;
-            setRunInfo({
-              id,
-              duration,
-              usage,
-              provider,
-              lessonId: selectedLesson?.id,
-              prompt,
-              date,
-              workflow,
-              steps,
-              toolCount,
-              usageComplete,
-            });
-            setProgress((p) => ({
-              ...p,
-              runs: [
-                {
-                  id,
-                  prompt,
-                  answer,
-                  provider,
-                  track: trackId,
-                  ...(selectedLesson ? { lesson_id: selectedLesson.id } : {}),
-                  date,
-                  workflow,
-                  trace: observed.slice(0, 12),
-                  usage,
-                  steps,
-                  tool_count: toolCount,
-                  usage_complete: usageComplete,
-                  duration_ms: duration,
-                },
-                ...p.runs,
-              ].slice(0, 20),
-            }));
+            snapshot(event.data, true);
+            finalize(
+              event.data.truncated === true ? 'failed' : 'completed',
+              event.data.truncated === true ? 'output_limit' : undefined,
+              event.data,
+            );
           }
         },
       );
-      if (current() && !terminal) {
-        terminal = true;
-        setLiveUsage({ ...incompleteRunUsage(usageSnapshot), provider });
-        setError('运行未完成，请重试');
-      }
+      if (current()) finalize('failed', 'stream_ended');
     } catch (e) {
-      if (current() && !terminal) {
-        terminal = true;
-        setLiveUsage({ ...incompleteRunUsage(usageSnapshot), provider });
-        setError(
-          c.signal.aborted
-            ? '运行已停止，部分结果未计入历史。'
-            : e instanceof Error
-              ? e.message
-              : '运行失败',
-        );
-      }
-    } finally {
       if (current()) {
-        setRunning(false);
-        controller.current = null;
+        finalize(
+          c.signal.aborted ? 'cancelled' : 'failed',
+          c.signal.aborted ? 'user_stop' : 'transport_error',
+          {},
+          true,
+          e instanceof Error ? e.message : undefined,
+        );
       }
     }
   }
@@ -440,14 +516,22 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
   const displayedUsage =
     liveUsage ??
     (runInfo
-      ? { usage: runInfo.usage, usageComplete: runInfo.usageComplete, provider: runInfo.provider }
+      ? { usage: runInfo.usage, usageComplete: runInfo.usage_complete, provider: runInfo.provider }
       : null);
+  const displayedError = error || (runInfo?.reason ? runReasonMessages[runInfo.reason] : '');
   const canExecute = cap?.sandbox?.languages.includes(language) || false;
   const noteMarker = runInfo ? `### 实验记录 ${runInfo.id}` : '';
   const noteEntry = runInfo
     ? `${noteMarker}\n\n${providerLabel(runInfo.provider)} · ${runInfo.workflow === 'agent' ? 'Agent 循环 · ' : ''}${new Date(runInfo.date).toLocaleString('zh-CN')}\n\n任务：${runInfo.prompt}\n\n${output}\n\n以上是学习参考，请另行记录实践输入、实际结果与验收证据。`
     : '';
-  const canSaveNote = Boolean(selectedLesson && runInfo?.lessonId === selectedLesson.id);
+  const succeeded = runInfo ? runRecordStatus(runInfo) === 'completed' : false;
+  const canSaveNote = Boolean(
+    succeeded &&
+    runInfo?.viewResetId === progress.history_reset_id &&
+    selectedLesson &&
+    runInfo?.track === selectedLesson.track &&
+    runInfo.lesson_id === selectedLesson.id,
+  );
   const currentNote = selectedLesson ? progress.notes[selectedLesson.id] || '' : '';
   const alreadySaved = Boolean(noteMarker && currentNote.includes(noteMarker));
   const noteFits = `${currentNote}${currentNote ? '\n\n' : ''}${noteEntry}`.length <= 10000;
@@ -528,57 +612,63 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
       {selectedLesson && (
         <p className="linked-lesson">
           当前课程：<Link to={`/lesson/${selectedLesson.id}`}>{selectedLesson.title}</Link>
-          <span>{mode === 'agent' ? ' · 实验内容可写入本课笔记' : ' · 回到课程记录实践结果'}</span>
+          <span>{mode === 'agent' ? ' · 成功实验可写入本课笔记' : ' · 回到课程记录实践结果'}</span>
         </p>
       )}
       {history && (
-        <div className="run-history">
+        <section className="run-history" aria-label="实验历史">
           <h3>最近运行 · 当前浏览器</h3>
           {progress.runs.length ? (
             progress.runs.map((record) => (
               <button
                 key={record.id}
+                data-run-id={record.id}
+                data-run-status={runRecordStatus(record)}
                 disabled={running}
                 onClick={() => {
-                  const lesson = trackLesson(tracks, record.track, record.lesson_id);
+                  const latest = latestProgress(store.get(progressAtom));
+                  const currentRecord = latest.runs.find((item) => item.id === record.id);
+                  if (!currentRecord) {
+                    clearResult();
+                    setHistory(false);
+                    return;
+                  }
+                  // Accept this same latest snapshot before restoring its view. A queued
+                  // storage event must not discard a record we have just read from it.
+                  resetId.current = latest.history_reset_id;
+                  if (store.get(progressAtom).history_reset_id !== latest.history_reset_id) {
+                    setProgress(latest);
+                  }
+                  const lesson = trackLesson(tracks, currentRecord.track, currentRecord.lesson_id);
                   controller.current?.abort();
                   controller.current = null;
                   setLiveUsage(null);
-                  setWorkflow(record.workflow || 'retrieval');
-                  setLanguage(record.track === 'agent' ? 'python' : progress.language);
+                  setWorkflow(currentRecord.workflow || 'retrieval');
+                  setLanguage(currentRecord.track === 'agent' ? 'python' : latest.language);
                   setParams(
                     {
-                      track: record.track,
+                      track: currentRecord.track,
                       mode: 'agent',
-                      workflow: record.workflow || 'retrieval',
+                      workflow: currentRecord.workflow || 'retrieval',
                       ...(lesson ? { lesson: lesson.id } : {}),
                     },
                     { replace: true },
                   );
-                  setPrompt(record.prompt);
-                  setProvider(providerForReplay(record.provider, cap));
-                  setOutput(record.answer);
-                  setTrace(record.trace || []);
+                  setPrompt(currentRecord.prompt);
+                  setProvider(providerForReplay(currentRecord.provider, cap));
+                  setOutput(currentRecord.answer);
+                  setTrace(currentRecord.trace || []);
                   setRunInfo({
-                    id: record.id,
-                    duration: record.duration_ms,
-                    usage: record.usage ?? null,
-                    provider: record.provider,
-                    lessonId: lesson?.id,
-                    prompt: record.prompt,
-                    date: record.date,
-                    workflow: record.workflow,
-                    steps: record.steps,
-                    toolCount: record.tool_count,
-                    usageComplete: record.usage_complete,
+                    ...currentRecord,
                     restored: true,
+                    viewResetId: latest.history_reset_id,
                   });
-                  setError('');
+                  setError(currentRecord.reason ? runReasonMessages[currentRecord.reason] : '');
                   setHistory(false);
                 }}
               >
                 <span>
-                  {providerLabel(record.provider)}
+                  {runStatusLabels[runRecordStatus(record)]} · {providerLabel(record.provider)}
                   {record.workflow === 'agent' && ' · Agent 循环'}
                   {record.lesson_id &&
                     ` · ${trackLesson(tracks, record.track, record.lesson_id)?.title || '课程实验'}`}
@@ -588,9 +678,10 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
               </button>
             ))
           ) : (
-            <p>完成一次运行后，结果会保存到这里。</p>
+            <p>运行结束或停止后，已接收的结果会保存到这里。</p>
           )}
-        </div>
+          <p>成功、失败和停止尝试共用最近 20 条；输入、已接收内容与轨迹保存在当前浏览器。</p>
+        </section>
       )}
       {mode === 'tool-contract' ? (
         <ToolContractExperiment
@@ -770,21 +861,26 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
                 </Button>
               </div>
             </section>
-            <section className="lab-output">
+            <section
+              className="lab-output"
+              aria-label="运行结果"
+              data-run-id={runInfo?.id}
+              data-run-status={runInfo ? runRecordStatus(runInfo) : undefined}
+            >
               <div className="panel-heading">
                 <span>02 / OUTPUT</span>
                 <strong>
                   {running
                     ? '实验进行中'
                     : runInfo
-                      ? '实验已完成'
-                      : error
-                        ? '运行未完成'
+                      ? runStatusLabels[runRecordStatus(runInfo)]
+                      : displayedError
+                        ? '运行失败'
                         : '等待你的第一次运行'}
                 </strong>
                 {running && <Loader2 size={16} className="animate-spin" />}
               </div>
-              {!output && !trace.length && !error && (
+              {!output && !trace.length && !displayedError && (
                 <div className="lab-empty">
                   <div>
                     <Bot size={35} strokeWidth={1.2} />
@@ -822,11 +918,16 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
                   ))}
                 </div>
               )}
-              {error && (
+              {displayedError && (
                 <div className="inline-error" role="alert">
                   <XCircle size={17} />
-                  {error}
+                  {displayedError}
                 </div>
+              )}
+              {runInfo && !succeeded && (
+                <p role="status" className="mx-5 text-sm leading-relaxed text-muted-foreground">
+                  已接收片段；本次实验未完成，不能写入本课笔记。
+                </p>
               )}
               {output && (
                 <div className="markdown-output">
@@ -853,15 +954,24 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
                     {runInfo.restored ? '历史结果来源' : '结果来源'}：
                     {providerLabel(runInfo.provider)}
                   </span>
-                  <span>完成 · {(runInfo.duration / 1000).toFixed(2)}s</span>
+                  <span>
+                    {succeeded ? '完成' : '已观察'} · {(runInfo.duration_ms / 1000).toFixed(2)}s
+                  </span>
                   {runInfo.workflow === 'agent' && runInfo.steps !== undefined && (
                     <span>
                       {runInfo.steps}
                       {runInfo.provider === 'demo' ? ' 步预设流程' : ' 轮模型请求'} ·{' '}
-                      {runInfo.toolCount} 次工具请求
+                      {runInfo.tool_count} 次工具请求
                     </span>
                   )}
-                  <code>run / {runInfo.id.slice(0, 8)}</code>
+                  <code>记录 / {runInfo.id.slice(0, 8)}</code>
+                  {runInfo.server_run_id ? (
+                    <code>run / {runInfo.server_run_id.slice(0, 8)}</code>
+                  ) : (
+                    <span>
+                      {runInfo.status ? '未取得服务端运行 ID' : '旧版记录未单独保存服务端运行 ID'}
+                    </span>
+                  )}
                 </div>
               )}
               {displayedUsage && (
@@ -871,17 +981,17 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
                       ? running
                         ? '已知用量 · 运行尚未结束'
                         : displayedUsage.usageComplete === false
-                          ? runInfo
+                          ? succeeded
                             ? '部分模型轮次未返回用量'
                             : '已知用量 · 本次统计不完整'
-                          : displayedUsage.usageComplete === true && !runInfo
+                          : displayedUsage.usageComplete === true && !succeeded
                             ? '已知用量 · 已发出请求均已统计'
                             : '供应商已返回 usage'
-                      : runInfo
-                        ? displayedUsage.provider === 'demo'
-                          ? '未调用模型'
-                          : '供应商未返回用量'
-                        : '用量未知 · 未收到可用统计'}
+                      : displayedUsage.provider === 'demo'
+                        ? '未调用模型'
+                        : succeeded
+                          ? '供应商未返回用量'
+                          : '用量未知 · 未收到可用统计'}
                   </span>
                   {displayedUsage.usage && (
                     <span>
@@ -902,10 +1012,22 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
                     disabled={running || alreadySaved || !noteFits}
                     onClick={() =>
                       setProgress((p) => {
-                        const previous = p.notes[selectedLesson.id] || '';
+                        const current = latestProgress(p);
+                        if (
+                          !runInfo ||
+                          runRecordStatus(runInfo) !== 'completed' ||
+                          runInfo.viewResetId !== current.history_reset_id ||
+                          runInfo.track !== selectedLesson.track ||
+                          runInfo.lesson_id !== selectedLesson.id
+                        )
+                          return current;
+                        const previous = current.notes[selectedLesson.id] || '';
                         const next = `${previous}${previous ? '\n\n' : ''}${noteEntry}`;
-                        if (previous.includes(noteMarker) || next.length > 10000) return p;
-                        return { ...p, notes: { ...p.notes, [selectedLesson.id]: next } };
+                        if (previous.includes(noteMarker) || next.length > 10000) return current;
+                        return {
+                          ...current,
+                          notes: { ...current.notes, [selectedLesson.id]: next },
+                        };
                       })
                     }
                   >

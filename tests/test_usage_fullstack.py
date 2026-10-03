@@ -190,7 +190,20 @@ def test_usage_survives_actual_browser_api_failure_and_disconnect(monkeypatch, e
             expect(page.get_by_role("button", name="写入本课笔记", exact=True)).to_have_count(0)
             assert len(calls) == (1 if ending == "quota" else 2)
             stored = json.loads(page.evaluate("localStorage.getItem('deep-ai-station:v1')") or "{}")
-            assert not stored.get("runs")
+            assert len(stored["runs"]) == 1
+            record = stored["runs"][0]
+            assert record["status"] == ("cancelled" if ending == "cancel" else "failed")
+            assert record["reason"] == ("user_stop" if ending == "cancel" else "server_error")
+            assert record["usage"] == {
+                "prompt_tokens": 3,
+                "completion_tokens": 2,
+                "total_tokens": 5,
+            }
+            assert record["usage_complete"] is (ending == "quota")
+            assert record["server_run_id"] == admissions[0][0]
+            assert record["id"] != record["server_run_id"]
+            assert record["lesson_id"] == "agent-agent-loop"
+            assert "private-provider-diagnostic" not in json.dumps(stored)
             assert "fixed-local-test-access" not in json.dumps(stored)
             assert "private-provider-diagnostic" not in page.locator("body").inner_text()
             assert not errors

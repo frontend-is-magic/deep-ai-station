@@ -722,7 +722,13 @@ def test_history_navigation_aborts_hidden_agent_stream_and_ignores_late_frames(p
         }"""
     )
     assert_report(page, current)
-    assert stored(page).get("runs", []) == []
+    records = stored(page)["runs"]
+    assert len(records) == 1
+    assert records[0]["status"] == "cancelled"
+    assert records[0]["reason"] == "context_changed"
+    assert records[0]["lesson_id"] == LESSONS[0]
+    assert records[0]["answer"] == "旧课流的部分内容"
+    assert records[0]["server_run_id"] == "controlled-old-agent-run"
     assert not stored(page).get("notes")
     page.get_by_role("button", name="Agent 工作流", exact=True).click()
     expect(page.locator(".markdown-output")).to_have_count(0)

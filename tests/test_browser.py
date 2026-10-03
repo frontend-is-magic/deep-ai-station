@@ -170,7 +170,7 @@ def test_demo_workflow_history_and_cancellation(page):
     expect(page.get_by_text("最近运行 · 当前浏览器", exact=True)).to_be_visible()
     page.get_by_role("button", name="运行实验", exact=True).click()
     page.get_by_role("button", name="停止运行", exact=True).click()
-    expect(page.get_by_role("alert")).to_contain_text("运行已停止")
+    expect(page.get_by_role("alert")).to_contain_text("停止")
     expect(page.get_by_role("button", name="运行实验", exact=True)).to_be_enabled()
 
 
@@ -329,7 +329,12 @@ def test_agent_native_trace_updates_and_partial_usage_are_honest_in_history(page
     stored = json.loads(
         page.evaluate("localStorage.getItem('deep-ai-station:v1')") or '{"runs":[]}'
     )
-    assert len(stored["runs"]) == (1 if ending == "done" else 0)
+    assert len(stored["runs"]) == 1
+    assert stored["runs"][0]["status"] == ("completed" if ending == "done" else "failed")
+    if ending != "done":
+        assert stored["runs"][0]["reason"] == (
+            "output_limit" if ending == "truncated" else "server_error"
+        )
     assert "test-access" not in json.dumps(stored)
     if ending == "done":
         expect(page.get_by_text("部分模型轮次未返回用量", exact=True)).to_be_visible()
@@ -351,7 +356,7 @@ def test_agent_native_trace_updates_and_partial_usage_are_honest_in_history(page
     else:
         expect(page.get_by_role("alert")).to_contain_text("模型响应不可用")
         expect(page.locator(".trace-list")).to_contain_text("供应商响应未完成")
-        expect(page.get_by_text("运行未完成", exact=True)).to_be_visible()
+        expect(page.get_by_text("运行失败", exact=True)).to_be_visible()
 
 
 @pytest.mark.parametrize("ending", ["done", "error", "truncated"])
@@ -431,7 +436,12 @@ def test_real_stream_partial_failures_and_truncation_do_not_enter_history(page, 
     stored = json.loads(
         page.evaluate("localStorage.getItem('deep-ai-station:v1')") or '{"runs":[]}'
     )
-    assert len(stored["runs"]) == (1 if ending == "done" else 0)
+    assert len(stored["runs"]) == 1
+    assert stored["runs"][0]["status"] == ("completed" if ending == "done" else "failed")
+    if ending != "done":
+        assert stored["runs"][0]["reason"] == (
+            "output_limit" if ending == "truncated" else "server_error"
+        )
     assert "test-access" not in json.dumps(stored)
     if ending == "done":
         expect(page.get_by_text("实验已完成", exact=True)).to_be_visible()
@@ -442,7 +452,7 @@ def test_real_stream_partial_failures_and_truncation_do_not_enter_history(page, 
         expect(page.get_by_text("供应商未返回用量", exact=True)).to_be_visible()
     else:
         expect(page.get_by_role("alert")).to_be_visible()
-        expect(page.get_by_text("运行未完成", exact=True)).to_be_visible()
+        expect(page.get_by_text("运行失败", exact=True)).to_be_visible()
 
 
 @pytest.mark.parametrize("legacy_provider", ["openai", "anthropic"])
