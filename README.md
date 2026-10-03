@@ -12,7 +12,7 @@ AI Agent 与 AI 全栈工程的学习空间，连接路线、官方信息源和�
 
 ## 本地运行
 
-需要 Node.js 24、pnpm 10.32.1、Python 3.12 和 uv。
+需要 Node.js 24、pnpm 10.32.1、Python 3.12 和 uv。完整课程编译检查另外使用 Go 1.27.1。
 
 ```sh
 pnpm install --frozen-lockfile
@@ -48,9 +48,12 @@ uv run python scripts/run_e2e.py
 uv run python -m scripts.export_examples /tmp/examples.json
 node scripts/check_examples.mjs /tmp/examples.json
 go run scripts/check_examples.go /tmp/examples.json
+uv run python -m scripts.compile_go_examples
 ```
 
 浏览器验收使用 Codex 内置 Browser。自动化测试只使用 headless Chromium。
+
+课程验证覆盖 48 份 Python AST、24 份 TypeScript 严格类型检查（含锁定的 Hono 依赖）、24 份 Go 编译（含锁定的 Gin module）。Go 检查使用 `go test -c -mod=readonly`，只编译维护者提供的参考，不运行程序或测试；这仍不代替业务行为验收。
 
 ## 交付约定
 

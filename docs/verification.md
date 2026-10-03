@@ -10,13 +10,13 @@
 - Codex 内置 Browser：已验证首页、第一课测验、验收勾选、完成标记、笔记以及刷新恢复。
 - 真实模型调用尚未配置；供应商适配器使用 MockTransport 验证，不代表真实 API 已调用。
 - headless Playwright：15 条用户流程全部通过，覆盖完成/笔记刷新恢复、练习包按语言下载、工作流/取消/历史、真实模式 UI 完成/失败/截断历史边界、三语言检查、收藏/搜索、实时资料收藏在订阅失效后恢复、375px 移动布局、导入拒绝与导出、隔离 UI 的访问码与纯文本输出、编辑保留、语言偏好和存储额度异常。
-- GitHub develop CI 已通过：[完整课程与格式验证记录](https://github.com/frontend-is-magic/deep-ai-station/actions/runs/37116331682)。main 已快进到 `7150e90` 验收版本；之后的原生流式改动已通过本地检查，远端 CI 随新提交运行。
+- GitHub develop CI 已通过：[原生流式验证记录](https://github.com/frontend-is-magic/deep-ai-station/actions/runs/37116760840)。main 已快进到 `e931664` 验收版本；之后的课程编译检查已通过本地验证，远端 CI 随新提交运行。
 - Vercel 未发布：CLI 缺少认证，连接器部署工具不可用。已结束登录等待，并拆到独立人工配置对话；不声称线上成功。
 - [Notion 私人项目目录](https://app.notion.com/p/3eee149ae540815ca676f1dbaed0128a?pvs=204) 已创建；开发手册、学习 Wiki 和验收记录全部回读验证，包含目录规则、自绘图标与封面。
 
 CI 现在包含 headless Playwright。`scripts/run_e2e.py` 在本地实际启动前后端、执行测试，结束后清理自有进程；已核实 8000 与 5173 端口释放。
 
-96 份逐课示例完成 Python AST、TypeScript 语法诊断和 Go parser 校验；这些检查不执行代码。隔离运行用 fake SDK / 浏览器 mock 验证，未创建真实 E2B 实例，未构建收费 Go 模板；模板配方已准备，实际服务仍待托管配置。
+96 份逐课示例完成 48 份 Python AST、24 份 TypeScript 严格类型诊断和 24 份 Go parser / 编译校验，包含锁定的 Hono 与 Gin 依赖；这些检查不执行参考程序或测试。隔离运行用 fake SDK / 浏览器 mock 验证，未创建真实 E2B 实例，未构建收费 Go 模板；模板配方已准备，实际服务仍待托管配置。
 
 Go 格式化器的制表符曾触发嵌入 Python 参考字符串的 Ruff E101（`0a13a6d`）；`1b869bf` 将例外限定为该资料模块，保留可执行 Python 的常规检查，远端 CI 已重新通过。
 
