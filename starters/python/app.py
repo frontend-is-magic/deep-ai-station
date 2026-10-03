@@ -22,7 +22,7 @@ USAGE_FIELDS = {"prompt_tokens", "completion_tokens", "total_tokens"}
 class Question(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     prompt: str = Field(min_length=1, max_length=1000)
-    mode: Literal["demo", "openai"] = "demo"
+    mode: Literal["demo", "deepseek"] = "demo"
 
 
 class BodyLimit:
@@ -59,8 +59,9 @@ class BodyLimit:
 
 async def generate(prompt: str, evidence: list, client_factory=httpx.AsyncClient):
     body = {
-        "model": os.getenv("OPENAI_MODEL", "gpt-4.1-mini"),
-        "max_completion_tokens": 800,
+        "model": os.getenv("DEEPSEEK_MODEL", "deepseek-flash"),
+        "max_tokens": 800,
+        "thinking": {"type": "disabled"},
         "messages": [
             {
                 "role": "system",
@@ -79,9 +80,9 @@ async def generate(prompt: str, evidence: list, client_factory=httpx.AsyncClient
         async with asyncio.timeout(20), client_factory(timeout=20) as client:
             async with client.stream(
                 "POST",
-                "https://api.openai.com/v1/chat/completions",
+                "https://api.deepseek.com/chat/completions",
                 json=body,
-                headers={"Authorization": "Bearer " + os.environ["OPENAI_API_KEY"]},
+                headers={"Authorization": "Bearer " + os.environ["DEEPSEEK_API_KEY"]},
             ) as response:
                 response.raise_for_status()
                 data = bytearray()
@@ -148,7 +149,7 @@ def create_app(client_factory=httpx.AsyncClient):
     async def ask(body: Question, request: Request, x_playground_token: str | None = Header(None)):
         if not body.prompt.strip():
             raise HTTPException(422, "invalid_input")
-        if body.mode == "openai":
+        if body.mode == "deepseek":
             expected = os.getenv("PLAYGROUND_ACCESS_TOKEN", "")
             if (
                 not expected
@@ -156,7 +157,7 @@ def create_app(client_factory=httpx.AsyncClient):
                 or not hmac.compare_digest(expected.encode(), x_playground_token.encode())
             ):
                 raise HTTPException(401, "access_required")
-            if not os.getenv("OPENAI_API_KEY"):
+            if not os.getenv("DEEPSEEK_API_KEY"):
                 raise HTTPException(503, "provider_not_configured")
         evidence = [
             doc for doc in DOCUMENTS if any(word in body.prompt.lower() for word in doc["keywords"])

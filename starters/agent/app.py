@@ -18,7 +18,7 @@ from engine import DOCUMENTS, demo, generate
 class Question(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     prompt: str = Field(min_length=1, max_length=1000)
-    mode: Literal["demo", "openai"] = "demo"
+    mode: Literal["demo", "deepseek"] = "demo"
 
 
 class BodyLimit:
@@ -83,7 +83,7 @@ def create_app(client_factory=httpx.AsyncClient):
     async def ask(body: Question, request: Request, x_playground_token: str | None = Header(None)):
         if not body.prompt.strip():
             raise HTTPException(422, "invalid_input")
-        if body.mode == "openai":
+        if body.mode == "deepseek":
             expected = os.getenv("PLAYGROUND_ACCESS_TOKEN", "")
             if (
                 not expected
@@ -91,7 +91,7 @@ def create_app(client_factory=httpx.AsyncClient):
                 or not hmac.compare_digest(expected.encode(), x_playground_token.encode())
             ):
                 raise HTTPException(401, "access_required")
-            if not os.getenv("OPENAI_API_KEY"):
+            if not os.getenv("DEEPSEEK_API_KEY"):
                 raise HTTPException(503, "provider_not_configured")
         if body.mode == "demo":
             return demo(body.prompt)

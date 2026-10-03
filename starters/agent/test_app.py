@@ -44,7 +44,8 @@ def script(payloads):
     requests = []
 
     def remote(request):
-        assert str(request.url) == "https://api.openai.com/v1/chat/completions"
+        assert request.headers["Authorization"] == "Bearer test-only"
+        assert str(request.url) == "https://api.deepseek.com/chat/completions"
         requests.append(json.loads(request.content))
         value = payloads[len(requests) - 1]
         return value if isinstance(value, httpx.Response) else httpx.Response(200, json=value)
@@ -57,7 +58,8 @@ def script(payloads):
 
 @pytest.fixture(autouse=True)
 def credentials(monkeypatch):
-    monkeypatch.setenv("OPENAI_API_KEY", "test-only")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "test-only")
+    monkeypatch.delenv("DEEPSEEK_MODEL", raising=False)
     monkeypatch.setenv("PLAYGROUND_ACCESS_TOKEN", "test-access")
 
 
@@ -95,6 +97,7 @@ def test_demo_long_prefix_and_mixed_topics(prompt):
         {"prompt": None},
         {"prompt": "API", "extra": True},
         {"prompt": "API", "mode": "bad"},
+        {"prompt": "API", "mode": "openai"},
     ],
 )
 def test_invalid_inputs_are_sanitized(body):
@@ -112,12 +115,14 @@ def test_health_body_limit_and_access_gate(monkeypatch):
             "workflow": "research-agent",
         }
         assert client.post("/api/ask", content=b"x" * 16385).status_code == 413
-        assert client.post("/api/ask", json={"prompt": "API", "mode": "openai"}).status_code == 401
-        monkeypatch.delenv("OPENAI_API_KEY")
+        assert (
+            client.post("/api/ask", json={"prompt": "API", "mode": "deepseek"}).status_code == 401
+        )
+        monkeypatch.delenv("DEEPSEEK_API_KEY")
         assert (
             client.post(
                 "/api/ask",
-                json={"prompt": "API", "mode": "openai"},
+                json={"prompt": "API", "mode": "deepseek"},
                 headers={"X-Playground-Token": "test-access"},
             ).status_code
             == 503
@@ -197,7 +202,14 @@ async def test_native_three_rounds_two_tools_and_partial_usage():
     assert value["usage_complete"] is False
     assert requests[2]["tool_choice"] == "none"
     assert all(
-        request["parallel_tool_calls"] is False and request["max_completion_tokens"] == 800
+        request["model"] == "deepseek-flash"
+        and request["max_tokens"] == 800
+        and request["thinking"] == {"type": "disabled"}
+        and request["response_format"] == {"type": "json_object"}
+        and "JSON" in request["messages"][0]["content"]
+        and "parallel_tool_calls" not in request
+        and "max_completion_tokens" not in request
+        and all("strict" not in tool["function"] for tool in request["tools"])
         for request in requests
     )
     assert requests[2]["messages"][-1]["role"] == "tool"
@@ -207,7 +219,7 @@ async def test_native_three_rounds_two_tools_and_partial_usage():
 async def test_real_abstention_retains_model_call_and_unknown_usage():
     factory, _ = script([report((), usage=None)])
     value = await generate("missing", lambda: None, factory)
-    assert value["mode"] == "openai" and value["model_calls"] == 1
+    assert value["mode"] == "deepseek" and value["model_calls"] == 1
     assert value["outcome"] == "insufficient_evidence" and value["usage"] is None
     assert value["usage_complete"] is False
 
@@ -266,14 +278,14 @@ def test_quota_counts_every_http_request():
             assert (
                 client.post(
                     "/api/ask",
-                    json={"prompt": "API", "mode": "openai"},
+                    json={"prompt": "API", "mode": "deepseek"},
                     headers={"X-Playground-Token": "test-access"},
                 ).status_code
                 == 200
             )
         response = client.post(
             "/api/ask",
-            json={"prompt": "API", "mode": "openai"},
+            json={"prompt": "API", "mode": "deepseek"},
             headers={"X-Playground-Token": "test-access"},
         )
     assert response.status_code == 429 and response.json() == {"error": "rate_limited"}
@@ -353,7 +365,7 @@ async def test_disconnect_retrieves_simultaneous_provider_failure(monkeypatch):
     try:
         with pytest.raises(HTTPException) as error:
             await endpoint(
-                api_module.Question(prompt="API", mode="openai"), Disconnected(), "test-access"
+                api_module.Question(prompt="API", mode="deepseek"), Disconnected(), "test-access"
             )
         assert error.value.status_code == 499
         gc.collect()

@@ -269,7 +269,7 @@ def main():
                                 expect(page.get_by_role("region", name="回答")).to_contain_text(
                                     "证据不足 · 未调用模型"
                                 )
-                            page.get_by_label("运行模式").select_option("openai")
+                            page.get_by_label("运行模式").select_option("deepseek")
                             page.get_by_label("实验访问码").fill("test-access")
                             page.get_by_label("问题", exact=True).fill("API")
                             with page.expect_response(

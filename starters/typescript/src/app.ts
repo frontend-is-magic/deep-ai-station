@@ -61,16 +61,16 @@ export function createApp({
       !input.prompt.trim() ||
       Array.from(input.prompt).length > 1000 ||
       (input.mode !== undefined &&
-        (typeof input.mode !== 'string' || !['demo', 'openai'].includes(input.mode)))
+        (typeof input.mode !== 'string' || !['demo', 'deepseek'].includes(input.mode)))
     )
       return c.json({ error: 'invalid_input' }, 422);
-    let mode = input.mode === 'openai' ? 'openai' : 'demo';
-    if (mode === 'openai') {
+    let mode = input.mode === 'deepseek' ? 'deepseek' : 'demo';
+    if (mode === 'deepseek') {
       const expected = Buffer.from(env.PLAYGROUND_ACCESS_TOKEN || '');
       const token = Buffer.from(c.req.header('X-Playground-Token') || '');
       if (!expected.length || expected.length !== token.length || !timingSafeEqual(expected, token))
         throw new ApiError(401, 'access_required');
-      if (!env.OPENAI_API_KEY) throw new ApiError(503, 'provider_not_configured');
+      if (!env.DEEPSEEK_API_KEY) throw new ApiError(503, 'provider_not_configured');
     }
     const query = input.prompt.toLowerCase();
     const evidence = documents
@@ -92,15 +92,16 @@ export function createApp({
       const deadline = AbortSignal.timeout(20000);
       const signal = AbortSignal.any([deadline, c.req.raw.signal]);
       try {
-        const response = await fetcher('https://api.openai.com/v1/chat/completions', {
+        const response = await fetcher('https://api.deepseek.com/chat/completions', {
           method: 'POST',
           headers: {
-            Authorization: 'Bearer ' + env.OPENAI_API_KEY,
+            Authorization: 'Bearer ' + env.DEEPSEEK_API_KEY,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            model: env.OPENAI_MODEL || 'gpt-4.1-mini',
-            max_completion_tokens: 800,
+            model: env.DEEPSEEK_MODEL || 'deepseek-flash',
+            max_tokens: 800,
+            thinking: { type: 'disabled' },
             messages: [
               {
                 role: 'system',

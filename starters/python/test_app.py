@@ -14,7 +14,7 @@ CASES = json.loads(Path(__file__).with_name("contract-cases.json").read_text())
 
 @pytest.mark.parametrize("case", CASES, ids=lambda case: case["name"])
 def test_shared_contract(case, monkeypatch):
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
     monkeypatch.delenv("PLAYGROUND_ACCESS_TOKEN", raising=False)
     with TestClient(create_app()) as client:
         response = client.post("/api/ask", json=case["body"])
@@ -40,14 +40,18 @@ def test_invalid_wire_input_is_bounded(payload):
 
 
 def test_live_request_uses_fixed_endpoint_and_known_counts_and_enforces_quota(monkeypatch):
-    monkeypatch.setenv("OPENAI_API_KEY", "test-only")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "test-only")
     monkeypatch.setenv("PLAYGROUND_ACCESS_TOKEN", "test-access")
     requests = []
 
     def remote(request):
         requests.append(request)
-        assert str(request.url) == "https://api.openai.com/v1/chat/completions"
-        assert json.loads(request.content)["max_completion_tokens"] == 800
+        assert str(request.url) == "https://api.deepseek.com/chat/completions"
+        body = json.loads(request.content)
+        assert body["model"] == "deepseek-flash"
+        assert body["max_tokens"] == 800
+        assert body["thinking"] == {"type": "disabled"}
+        assert "max_completion_tokens" not in body
         return httpx.Response(
             200,
             json={
@@ -65,14 +69,14 @@ def test_live_request_uses_fixed_endpoint_and_known_counts_and_enforces_quota(mo
         for _ in range(10):
             response = client.post(
                 "/api/ask",
-                json={"prompt": "API", "mode": "openai"},
+                json={"prompt": "API", "mode": "deepseek"},
                 headers={"X-Playground-Token": "test-access"},
             )
             assert response.status_code == 200 and response.json()["usage"] == {"total_tokens": 12}
         assert (
             client.post(
                 "/api/ask",
-                json={"prompt": "API", "mode": "openai"},
+                json={"prompt": "API", "mode": "deepseek"},
                 headers={"X-Playground-Token": "test-access"},
             ).status_code
             == 429
@@ -90,7 +94,7 @@ def test_live_request_uses_fixed_endpoint_and_known_counts_and_enforces_quota(mo
     ],
 )
 async def test_incomplete_or_oversized_provider_output_is_sanitized(monkeypatch, payload):
-    monkeypatch.setenv("OPENAI_API_KEY", "test-only")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "test-only")
 
     def factory(**kwargs):
         return httpx.AsyncClient(
@@ -117,7 +121,7 @@ class WaitingStream(httpx.AsyncByteStream):
 
 
 async def test_cancel_closes_the_mock_provider_stream(monkeypatch):
-    monkeypatch.setenv("OPENAI_API_KEY", "test-only")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "test-only")
     remote = WaitingStream()
 
     def factory(**kwargs):

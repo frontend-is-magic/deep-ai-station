@@ -44,7 +44,6 @@ TOOLS = [
         "function": {
             "name": name,
             "description": description,
-            "strict": True,
             "parameters": model.model_json_schema(),
         },
     }
@@ -60,7 +59,8 @@ SYSTEM = """你是固定资料研究助手。先搜索，再批量读取，再�
 只能引用本次 document_read 实际读取的正文。quote 必须是原文连续摘录。
 对已知冲突练习必须读取并引用两侧，保留分歧，不自行裁定真假。
 无证据时 citations 返回空数组，说明证据不足。禁止猜造引用、执行代码或访问外部网址。
-最终按 JSON schema 返回 answer 和 citations；不输出内部推理。"""
+最终只返回 JSON 对象，格式为 {"answer":"回答正文","citations":[{"document_id":"已读ID","quote":"原文连续摘录"}]}。
+answer 必须非空且不超过 20000 字符，citations 最多 3 条，quote 最多 1000 字符；不得添加其他字段，不输出内部推理。"""
 
 
 def unique_object(pairs):
@@ -228,26 +228,19 @@ async def generate(prompt, charge, client_factory=httpx.AsyncClient):
                 charge()
                 run.model_calls += 1
                 body = {
-                    "model": os.getenv("OPENAI_MODEL", "gpt-4.1-mini"),
-                    "max_completion_tokens": 800,
+                    "model": os.getenv("DEEPSEEK_MODEL", "deepseek-flash"),
+                    "max_tokens": 800,
+                    "thinking": {"type": "disabled"},
                     "messages": messages,
                     "tools": TOOLS,
                     "tool_choice": "none" if index == 2 else "auto",
-                    "parallel_tool_calls": False,
-                    "response_format": {
-                        "type": "json_schema",
-                        "json_schema": {
-                            "name": "research_report",
-                            "strict": True,
-                            "schema": Report.model_json_schema(),
-                        },
-                    },
+                    "response_format": {"type": "json_object"},
                 }
                 async with client.stream(
                     "POST",
-                    "https://api.openai.com/v1/chat/completions",
+                    "https://api.deepseek.com/chat/completions",
                     json=body,
-                    headers={"Authorization": "Bearer " + os.environ["OPENAI_API_KEY"]},
+                    headers={"Authorization": "Bearer " + os.environ["DEEPSEEK_API_KEY"]},
                 ) as response:
                     response.raise_for_status()
                     data = bytearray()
@@ -308,7 +301,7 @@ async def generate(prompt, charge, client_factory=httpx.AsyncClient):
                 content = message["content"]
                 if not isinstance(content, str) or len(content) > 24000:
                     raise ValueError("invalid_report")
-                return run.result(decode(content), "openai")
+                return run.result(decode(content), "deepseek")
         raise ValueError("model_budget")
     except (httpx.TimeoutException, TimeoutError) as exc:
         raise HTTPException(504, "provider_timeout") from exc

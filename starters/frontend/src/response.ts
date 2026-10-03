@@ -7,7 +7,7 @@ export interface Source {
 
 interface BaseAnswer {
   run_id: string;
-  mode: 'demo' | 'openai' | 'no-evidence';
+  mode: 'demo' | 'deepseek' | 'no-evidence';
   answer: string;
   sources: Source[];
   usage: Record<string, number> | null;
@@ -85,7 +85,7 @@ export function parseAnswer(value: unknown): Answer {
     !object(value) ||
     !text(value.run_id, 128) ||
     typeof value.mode !== 'string' ||
-    !['demo', 'openai', 'no-evidence'].includes(value.mode) ||
+    !['demo', 'deepseek', 'no-evidence'].includes(value.mode) ||
     !text(value.answer, 20000) ||
     !Array.isArray(value.sources) ||
     value.sources.length > 20 ||
@@ -148,7 +148,7 @@ export function parseAnswer(value: unknown): Answer {
     !Array.isArray(value.citations) ||
     value.citations.length > 20 ||
     (value.mode === 'demo' && value.model_calls !== 0) ||
-    (value.mode === 'openai' && value.model_calls === 0) ||
+    (value.mode === 'deepseek' && value.model_calls === 0) ||
     (value.mode === 'no-evidence' &&
       (value.model_calls !== 0 || value.outcome !== 'insufficient_evidence')) ||
     (value.model_calls === 0 && usage !== null) ||

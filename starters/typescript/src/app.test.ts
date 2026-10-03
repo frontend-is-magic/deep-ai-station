@@ -43,11 +43,15 @@ test('bounded wire inputs', async () => {
 test('live fixed endpoint, token budget, known usage and quota', async () => {
   let calls = 0;
   const app = createApp({
-    env: { OPENAI_API_KEY: 'test-only', PLAYGROUND_ACCESS_TOKEN: 'test-access' },
+    env: { DEEPSEEK_API_KEY: 'test-only', PLAYGROUND_ACCESS_TOKEN: 'test-access' },
     fetcher: async (url, options) => {
       calls++;
-      assert.equal(url, 'https://api.openai.com/v1/chat/completions');
-      assert.equal(JSON.parse(String(options?.body)).max_completion_tokens, 800);
+      assert.equal(url, 'https://api.deepseek.com/chat/completions');
+      const body = JSON.parse(String(options?.body));
+      assert.equal(body.model, 'deepseek-flash');
+      assert.equal(body.max_tokens, 800);
+      assert.deepEqual(body.thinking, { type: 'disabled' });
+      assert.equal('max_completion_tokens' in body, false);
       return Response.json({
         choices: [{ finish_reason: 'stop', message: { content: '实际 API 资料回答' } }],
         usage: { total_tokens: 12, unexpected: 'discard' },
@@ -58,7 +62,7 @@ test('live fixed endpoint, token budget, known usage and quota', async () => {
     const response = await app.request('/api/ask', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Playground-Token': 'test-access' },
-      body: JSON.stringify({ prompt: 'API', mode: 'openai' }),
+      body: JSON.stringify({ prompt: 'API', mode: 'deepseek' }),
     });
     assert.equal(response.status, step < 10 ? 200 : 429);
     if (step < 10) assert.deepEqual((await response.json()).usage, { total_tokens: 12 });
@@ -73,13 +77,13 @@ test('provider invalid or incomplete responses are sanitized', async () => {
     'x'.repeat(1000001),
   ]) {
     const app = createApp({
-      env: { OPENAI_API_KEY: 'test-only', PLAYGROUND_ACCESS_TOKEN: 'test-access' },
+      env: { DEEPSEEK_API_KEY: 'test-only', PLAYGROUND_ACCESS_TOKEN: 'test-access' },
       fetcher: async () => new Response(body),
     });
     const response = await app.request('/api/ask', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Playground-Token': 'test-access' },
-      body: JSON.stringify({ prompt: 'API', mode: 'openai' }),
+      body: JSON.stringify({ prompt: 'API', mode: 'deepseek' }),
     });
     assert.equal(response.status, 502);
     assert.deepEqual(await response.json(), { error: 'provider_invalid_response' });
@@ -94,7 +98,7 @@ test('cancel aborts the provider request', async () => {
   });
   let providerSignal: AbortSignal | null = null;
   const app = createApp({
-    env: { OPENAI_API_KEY: 'test-only', PLAYGROUND_ACCESS_TOKEN: 'test-access' },
+    env: { DEEPSEEK_API_KEY: 'test-only', PLAYGROUND_ACCESS_TOKEN: 'test-access' },
     fetcher: async (_url, options) => {
       providerSignal = options!.signal!;
       entered();
@@ -111,7 +115,7 @@ test('cancel aborts the provider request', async () => {
     new Request('http://local/api/ask', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Playground-Token': 'test-access' },
-      body: JSON.stringify({ prompt: 'API', mode: 'openai' }),
+      body: JSON.stringify({ prompt: 'API', mode: 'deepseek' }),
       signal: controller.signal,
     }),
   );

@@ -1,6 +1,6 @@
 # Agent 研究助手毕业项目
 
-React + TypeScript 前端连接 Python / FastAPI 后端。默认用固定本地资料演示「计划 → 检索 → 批量读取 → 整理 → 引用校验」；真实模式使用服务端 OpenAI 原生工具调用。真实模型决策由供应商返回，演示顺序则是预设的。
+React + TypeScript 前端连接 Python / FastAPI 后端。默认用固定本地资料演示「计划 → 检索 → 批量读取 → 整理 → 引用校验」；真实模式使用服务端 DeepSeek API，沿用 OpenAI 兼容的 messages / tool_calls 输入输出格式。真实模型决策由供应商返回，演示顺序则是预设的。
 
 ## 本地运行
 
@@ -47,7 +47,9 @@ pnpm dev
 
 ## 真实模式和预算
 
-只在服务端托管环境设置 `OPENAI_API_KEY`、`PLAYGROUND_ACCESS_TOKEN`，可选 `OPENAI_MODEL`（默认 gpt-4.1-mini）；程序不自动加载 .env。先在供应商控制台设置费用上限，再显式选择真实模式并输入访问码。不要将任何密钥放进聊天、源码、VITE_ 变量或学习者沙箱。
+只在服务端托管环境设置 `DEEPSEEK_API_KEY`、`PLAYGROUND_ACCESS_TOKEN`，可选 `DEEPSEEK_MODEL`（默认 deepseek-flash）；固定请求 `https://api.deepseek.com/chat/completions`，程序不自动加载 .env。先在供应商控制台设置费用上限，再显式选择真实模式并输入访问码。不要将任何密钥放进聊天、源码、VITE_ 变量或学习者沙箱。
+
+DeepSeek 请求显式关闭 thinking，使用 `response_format: {"type":"json_object"}` 和包含字段格式的提示词；服务端独立执行 Pydantic 结构与引用校验。不依赖 beta strict 模式。
 
 每次运行最多 3 次模型请求、2 次工具请求；第三轮禁止工具。整个运行最多 20 秒，每轮最多 800 个 completion tokens，响应不超过 1 MB，工具参数不超过 4 KiB，回答最多 20,000 字符。每实例每分钟最多 10 次实际模型 HTTP 请求，多轮分别计数。用量只累加供应商报告的已知整数；任一轮缺字段则标记部分用量，不估算费用。实例内限流不能替代多实例共享预算。
 
@@ -57,4 +59,4 @@ pnpm dev
 
 按 Agent 路线继续做语义评测、资料更新策略、可恢复任务状态、用户身份、持久化、共享预算、Vercel 发布和回滚。修改学习者代码时使用独立受控开发环境或隔离沙箱，平台 API 不执行学习者代码。将版本、命令、实际结果与未验证部分填入 EVIDENCE.md。当前骨架不包含账号、数据库、任意网页研究或生产级评测系统。
 
-协议依据：[OpenAI Function calling](https://developers.openai.com/api/docs/guides/function-calling)、[Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs)。平台仓库的 `scripts/build_starters.py --check` 校验 ZIP 与源码一致，`scripts/run_starter_e2e.py` 用 headless 浏览器验证四个骨架的实际 API 链路；Codex 内置 Browser 验收需遵守用户控制优先规则。
+协议依据：[DeepSeek Tool Calls](https://api-docs.deepseek.com/guides/tool_calls/)、[DeepSeek JSON Output](https://api-docs.deepseek.com/guides/json_mode/)。平台仓库的 `scripts/build_starters.py --check` 校验 ZIP 与源码一致，`scripts/run_starter_e2e.py` 用 headless 浏览器验证四个骨架的实际 API 链路；Codex 内置 Browser 验收需遵守用户控制优先规则。

@@ -36,8 +36,9 @@
   },
   { "name": "uppercase-field", "body": { "Prompt": "API" }, "status": 422 },
   { "name": "unknown-mode", "body": { "prompt": "API", "mode": "arbitrary" }, "status": 422 },
+  { "name": "retired-openai-mode", "body": { "prompt": "API", "mode": "openai" }, "status": 422 },
   { "name": "null-mode", "body": { "prompt": "API", "mode": null }, "status": 422 },
   { "name": "empty-mode", "body": { "prompt": "API", "mode": "" }, "status": 422 },
   { "name": "object-mode", "body": { "prompt": "API", "mode": {} }, "status": 422 },
-  { "name": "protected-live", "body": { "prompt": "API", "mode": "openai" }, "status": 401 }
+  { "name": "protected-live", "body": { "prompt": "API", "mode": "deepseek" }, "status": 401 }
 ]

@@ -22,7 +22,7 @@ function resultTitle(result: Answer) {
 const recordsAtom = atom<Answer[]>([]);
 function App() {
   const [question, setQuestion] = useState('API 超时后，前端应该怎样显示错误？');
-  const [mode, setMode] = useState<'demo' | 'openai'>('demo');
+  const [mode, setMode] = useState<'demo' | 'deepseek'>('demo');
   const [token, setToken] = useState('');
   const [running, setRunning] = useState(false);
   const [error, setError] = useState('');
@@ -67,7 +67,7 @@ function App() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(mode === 'openai' ? { 'X-Playground-Token': token } : {}),
+          ...(mode === 'deepseek' ? { 'X-Playground-Token': token } : {}),
         },
         body: JSON.stringify({ prompt: question, mode }),
         signal: active.signal,
@@ -125,7 +125,7 @@ function App() {
             className="mt-2 block w-full max-w-full rounded border p-2"
           >
             <option value="demo">教学演示 · 无模型费用</option>
-            <option value="openai">真实 OpenAI · 需要托管配置</option>
+            <option value="deepseek">真实 DeepSeek · OpenAI 兼容接口</option>
           </select>
         </label>
         <p className="text-sm text-slate-600">
@@ -133,9 +133,9 @@ function App() {
             ? capability === 'agent'
               ? '预设检索、读取和整理顺序，没有模型决策，也没有调用模型。'
               : '固定资料检索与整理，没有调用模型。'
-            : '真实调用需要服务端密钥、访问码与供应商预算，调用会产生费用。'}
+            : 'DeepSeek 使用 OpenAI 兼容接口；需要服务端密钥、访问码与供应商预算，调用会产生费用。'}
         </p>
-        {mode === 'openai' && (
+        {mode === 'deepseek' && (
           <label className="block">
             实验访问码
             <input
@@ -181,7 +181,7 @@ function App() {
         )}
         <div className="flex flex-wrap gap-3">
           <Button
-            disabled={running || !question.trim() || (mode === 'openai' && !token)}
+            disabled={running || !question.trim() || (mode === 'deepseek' && !token)}
             onClick={ask}
           >
             提问

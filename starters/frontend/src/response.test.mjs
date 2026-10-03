@@ -55,7 +55,7 @@ test('demo research keeps actual zero model calls and bounded tool calls', () =>
 test('real insufficient evidence can have actual model calls and unknown usage', () => {
   const payload = {
     ...agent(),
-    mode: 'openai',
+    mode: 'deepseek',
     outcome: 'insufficient_evidence',
     model_calls: 2,
     tool_calls: 1,
@@ -69,7 +69,7 @@ test('real insufficient evidence can have actual model calls and unknown usage',
 test('partial known usage stays partial instead of filling unknown fields with zero', () => {
   const payload = {
     ...agent(),
-    mode: 'openai',
+    mode: 'deepseek',
     model_calls: 3,
     usage_complete: false,
     usage: { prompt_tokens: 12 },
@@ -137,7 +137,7 @@ test('conflicting evidence requires at least two cited conflict fixture sources'
 test('complete provider usage requires all three actual token counters', () => {
   const payload = {
     ...agent(),
-    mode: 'openai',
+    mode: 'deepseek',
     model_calls: 3,
     usage: { prompt_tokens: 12, completion_tokens: 0, total_tokens: 12 },
   };
@@ -173,6 +173,8 @@ test('malformed responses never produce a history record', () => {
     null,
     [],
     { ...ordinary(), mode: { toString: () => 'demo' } },
+    { ...ordinary(), mode: 'openai' },
+    { ...agent(), mode: 'anthropic' },
     { ...ordinary(), usage: { total_tokens: -1 } },
     { ...ordinary(), usage: { total_tokens: 1.5 } },
     { ...ordinary(), usage: { unknown: 1 } },

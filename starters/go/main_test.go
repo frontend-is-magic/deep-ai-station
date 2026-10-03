@@ -87,7 +87,7 @@ type transport func(*http.Request) (*http.Response, error)
 
 func (fn transport) RoundTrip(request *http.Request) (*http.Response, error) { return fn(request) }
 func testEnv(key string) string {
-	if key == "OPENAI_API_KEY" {
+	if key == "DEEPSEEK_API_KEY" {
 		return "test-only"
 	}
 	if key == "PLAYGROUND_ACCESS_TOKEN" {
@@ -99,22 +99,29 @@ func TestLiveMockAndQuota(t *testing.T) {
 	calls := 0
 	client := &http.Client{Transport: transport(func(request *http.Request) (*http.Response, error) {
 		calls++
-		if request.URL.String() != "https://api.openai.com/v1/chat/completions" {
+		if request.URL.String() != "https://api.deepseek.com/chat/completions" {
 			t.Fatal("unexpected endpoint")
 		}
 		var body map[string]any
 		if err := json.NewDecoder(request.Body).Decode(&body); err != nil {
 			t.Fatal(err)
 		}
-		if body["max_completion_tokens"] != float64(800) {
+		if body["max_tokens"] != float64(800) {
 			t.Fatal("token budget")
+		}
+		thinking, ok := body["thinking"].(map[string]any)
+		if body["model"] != "deepseek-flash" || !ok || thinking["type"] != "disabled" || len(thinking) != 1 {
+			t.Fatal("DeepSeek model and thinking configuration")
+		}
+		if _, exists := body["max_completion_tokens"]; exists {
+			t.Fatal("unsupported token field")
 		}
 		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(`{"choices":[{"finish_reason":"stop","message":{"content":"实际 API 资料"}}],"usage":{"total_tokens":12,"unexpected":"discard"}}`))}, nil
 	})}
 	app := router(client, testEnv, time.Now)
 	for step := 0; step < 11; step++ {
 		response := httptest.NewRecorder()
-		request := httptest.NewRequest(http.MethodPost, "/api/ask", strings.NewReader(`{"prompt":"API","mode":"openai"}`))
+		request := httptest.NewRequest(http.MethodPost, "/api/ask", strings.NewReader(`{"prompt":"API","mode":"deepseek"}`))
 		request.Header.Set("X-Playground-Token", "test-access")
 		app.ServeHTTP(response, request)
 		expected := 200
@@ -181,6 +188,62 @@ func TestCancellationPropagatesToProvider(t *testing.T) {
 	}
 }
 
+type waitingBody struct {
+	ctx     context.Context
+	reading chan struct{}
+	closed  bool
+}
+
+func (body *waitingBody) Read([]byte) (int, error) {
+	close(body.reading)
+	<-body.ctx.Done()
+	return 0, body.ctx.Err()
+}
+func (body *waitingBody) Close() error { body.closed = true; return nil }
+
+func TestBodyReadCancellationAndTimeoutCloseTheProvider(t *testing.T) {
+	for _, test := range []struct {
+		name   string
+		status int
+		code   string
+	}{
+		{"cancel", 499, "client_disconnected"},
+		{"timeout", 504, "provider_timeout"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			if test.name == "timeout" {
+				cancel()
+				ctx, cancel = context.WithTimeout(context.Background(), 50*time.Millisecond)
+			}
+			defer cancel()
+			body := &waitingBody{ctx: ctx, reading: make(chan struct{})}
+			client := &http.Client{Transport: transport(func(*http.Request) (*http.Response, error) {
+				return &http.Response{StatusCode: 200, Body: body}, nil
+			})}
+			result := make(chan error, 1)
+			go func() { _, _, err := generate(ctx, client, testEnv, "API", nil); result <- err }()
+			select {
+			case <-body.reading:
+			case <-time.After(2 * time.Second):
+				t.Fatal("provider body reading did not start")
+			}
+			if test.name == "cancel" {
+				cancel()
+			}
+			select {
+			case err := <-result:
+				failure, ok := err.(APIError)
+				if !ok || failure.Status != test.status || failure.Code != test.code || !body.closed {
+					t.Fatal("body read failure lost its status or did not close the provider")
+				}
+			case <-time.After(2 * time.Second):
+				t.Fatal("provider body reading did not stop")
+			}
+		})
+	}
+}
+
 func TestNullUsageIsUnknown(t *testing.T) {
 	client := &http.Client{Transport: transport(func(*http.Request) (*http.Response, error) {
 		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(`{"choices":[{"finish_reason":"stop","message":{"content":"API 资料"}}],"usage":{"total_tokens":null}}`))}, nil
@@ -201,7 +264,7 @@ func TestPanicDoesNotExposeRequestOrProviderDetails(t *testing.T) {
 	})}
 	app := router(client, testEnv, time.Now)
 	response := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodPost, "/api/ask", strings.NewReader(`{"prompt":"API","mode":"openai"}`))
+	request := httptest.NewRequest(http.MethodPost, "/api/ask", strings.NewReader(`{"prompt":"API","mode":"deepseek"}`))
 	request.Header.Set("X-Playground-Token", "test-access")
 	app.ServeHTTP(response, request)
 	if response.Code != 500 || strings.TrimSpace(response.Body.String()) != `{"error":"request_failed"}` || logs.Len() != 0 {
