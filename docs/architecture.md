@@ -27,7 +27,7 @@ CI 对 48 份 Python 参考做 AST 校验，对 24 份 TS 参考做严格类型�
 
 实时收藏保存来源、标题与摘要快照，订阅源失效后仍可回看；新收藏上限 200 条。旧版只含 ID 的记录仍兼容，重新收藏可补齐快照。资讯标识由稳定 URL 的摘要生成，源排序变化不会重复收藏。
 
-信息流精选资料不伪造发布日期。实时源固定为 OpenAI、LangChain、TypeScript、Go 与 Python，请求不跟随任意重定向，内容上限 1 MB，XML 用 defusedxml 解析，文章 URL 必须属于对应官方域名。源失败保留已有缓存或精选资料，状态独立展示。
+信息流精选资料不伪造发布日期。订阅源固定为 OpenAI、LangChain、Hugging Face Blog、TypeScript、Go 与 Python；Hugging Face Blog 包含机构与社区作者的原文。请求不跟随任意重定向，内容上限 1 MB，XML 用 defusedxml 解析，文章 URL 必须属于对应来源域名。成功缓存 5 分钟，失败等待 1 分钟再尝试；源失效时保留已有内容，并明确标识保留缓存，界面从响应读取实际来源数量。
 
 ## Playground
 
