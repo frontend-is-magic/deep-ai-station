@@ -1,4 +1,4 @@
-"""Fixed, human-labelled development set for free lexical retrieval comparisons."""
+"""Fixed teaching labels for free lexical retrieval development experiments."""
 
 import hashlib
 import json
@@ -15,7 +15,7 @@ Track = Literal["agent", "fullstack"]
 DATASET_VERSION = "course-retrieval-v1"
 NOTICE = (
     "免费词法检索实验：标题策略每个命中词计 1 分；加权策略每个词只取标题 4、目标 2、"
-    "正文 1 的最高分，同分按课程顺序排列。基于人工标注的小型开发集，"
+    "正文 1 的最高分，同分按课程顺序排列。基于预设教学标签的小型开发集，尚未经独立人工审核。"
     "正例 precision@k 的分母固定为 k；无证据样本单独统计无结果准确率。"
     "不调用模型，不执行用户代码，不包含向量检索或语义重排，也不衡量生成回答质量；"
     "请使用独立验收集验证泛化效果。"
@@ -44,8 +44,8 @@ class EvaluationCase:
     relevant_ids: tuple[str, ...]
 
 
-# Labels describe lessons that directly teach the question's subject. They are
-# editorial judgments, not generated from whichever documents a strategy finds.
+# Teaching labels describe lessons that directly teach the question's subject.
+# They have not been independently human-reviewed and do not follow ranked results.
 # Change DATASET_VERSION whenever a query, label, or scoring definition changes.
 DATASETS: dict[Track, tuple[EvaluationCase, ...]] = {
     "agent": (

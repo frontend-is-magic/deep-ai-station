@@ -180,7 +180,7 @@ function EvaluationCase({ item }: { item: RetrievalEvaluationCase }) {
         </span>
       </summary>
       <div className="mt-4">
-        <p className="font-medium">人工标注的相关课时</p>
+        <p className="font-medium">教学标签中的相关课时</p>
         {item.relevant.length ? <LessonLinks lessons={item.relevant} /> : <p>无相关课时</p>}
       </div>
       <div className="mt-4 grid min-w-0 gap-3 xl:grid-cols-2">
@@ -216,7 +216,7 @@ function EvaluationReport({ result }: { result: RetrievalEvaluationResponse }) {
         <summary>指标如何计算</summary>
         <p className="mt-2 leading-relaxed">
           正例逐题计算后取平均。Precision@k = 前 k 名相关数 ÷ k，返回不足 k 条仍以 k 为分母；
-          Recall@k = 前 k 名相关数 ÷ 人工标注相关数；MRR@k = 前 k 名首个相关课时排名倒数的均值，
+          Recall@k = 前 k 名相关数 ÷ 标签中的相关数；MRR@k = 前 k 名首个相关课时排名倒数的均值，
           未命中记 0。负例单独统计返回空列表的比例。词法评分用于排序，不是概率。
         </p>
       </details>
@@ -324,13 +324,13 @@ function RetrievalEvaluationSession({ track }: { track: TrackId }) {
           免费检索评测
         </h2>
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-          用同一组人工标注题比较两套词法检索配置。当前路线：
+          用同一组预设教学题比较两套词法检索配置。当前路线：
           {track === 'agent' ? 'AI Agent' : 'AI 全栈'}，固定 10 个正例和 2 个负例。
           仅使用本站课程语料，零模型调用，不执行代码。
         </p>
         <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
           仅标题匹配每词计 1 分；加权匹配每词取标题 4 分、目标 2 分、正文 1 分中的最高分。
-          这是小型开发集上的词法实验，不代表向量检索效果或实际回答质量。
+          标签尚未经独立人工审核。这是小型开发集上的词法实验，不代表向量检索效果或实际回答质量。
         </p>
       </div>
       <div className="grid min-w-0 gap-3 lg:grid-cols-2">
