@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState, useSyncExternalStore } from 'react';
 import { useAtom } from 'jotai';
 import { Link, NavLink, Route, Routes, useLocation } from 'react-router-dom';
 import {
@@ -19,7 +19,13 @@ import {
   X,
 } from 'lucide-react';
 import { api } from './lib/api';
-import { emptyProgress, progressAtom, validateProgress } from './lib/state';
+import {
+  emptyProgress,
+  progressAtom,
+  validateProgress,
+  getStorageIssue,
+  subscribeStorageIssue,
+} from './lib/state';
 import type { Track } from './lib/types';
 import { Dialog } from './components/ui/dialog';
 import { Button } from './components/ui/button';
@@ -51,6 +57,7 @@ export default function App() {
   const [settings, setSettings] = useState(false);
   const [notice, setNotice] = useState('');
   const [progress, setProgress] = useAtom(progressAtom);
+  const storageIssue = useSyncExternalStore(subscribeStorageIssue, getStorageIssue, () => null);
   const location = useLocation();
   useEffect(() => {
     const controller = new AbortController();
@@ -189,6 +196,12 @@ export default function App() {
         </div>
       </aside>
       <div className="main-shell">
+        {storageIssue && (
+          <div className="storage-notice" role="alert">
+            {storageIssue}
+            <button onClick={() => setSettings(true)}>导出备份</button>
+          </div>
+        )}
         <header className="topbar">
           <div className="breadcrumb">
             <button

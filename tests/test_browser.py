@@ -1,5 +1,6 @@
 import json
 import os
+from pathlib import Path
 
 import pytest
 from playwright.sync_api import expect, sync_playwright
@@ -75,6 +76,90 @@ def test_language_code_checks_and_failures(page):
         expect(page.get_by_text("未执行代码", exact=True)).to_be_visible()
 
 
+def test_sandbox_ui_requires_access_code_and_renders_plain_output(page):
+    page.route(
+        "**/api/capabilities",
+        lambda route: route.fulfill(
+            json={
+                "providers": [{"id": "demo", "name": "教学演示", "enabled": True, "model": None}],
+                "code_execution": "static-check",
+                "live_requires_access_token": True,
+                "sandbox": {
+                    "enabled": True,
+                    "languages": ["python"],
+                    "timeout_seconds": 12,
+                    "network": "denied",
+                },
+            }
+        ),
+    )
+
+    def execute(route):
+        assert route.request.headers["x-playground-token"] == "test-session-code"
+        assert json.loads(route.request.post_data)["code"] == "print(42)"
+        route.fulfill(
+            json={
+                "run_id": "test-run-id",
+                "passed": True,
+                "status": "completed",
+                "stdout": "42\n<script>not HTML</script>",
+                "stderr": "",
+                "truncated": False,
+                "cleanup": "destroyed",
+                "duration_ms": 100,
+                "notice": "Mock 沙箱 UI 契约，未调用真实服务",
+            }
+        )
+
+    page.route("**/api/playground/execute", execute)
+    goto(page, "/playground?track=agent&mode=code")
+    run = page.get_by_role("button", name="隔离运行", exact=True)
+    expect(run).to_be_disabled()
+    page.get_by_label("代码编辑器").fill("print(42)")
+    page.get_by_label("沙箱访问码").fill("test-session-code")
+    run.click()
+    expect(page.get_by_role("heading", name="隔离运行完成", exact=True)).to_be_visible()
+    expect(page.locator(".sandbox-output")).to_contain_text("<script>not HTML</script>")
+    assert page.locator(".sandbox-output script").count() == 0
+    assert "test-session-code" not in (
+        page.evaluate("localStorage.getItem('deep-ai-station:v1')") or ""
+    )
+
+
+def test_code_edit_is_preserved_when_switching_modes(page):
+    goto(page, "/playground?track=agent&mode=code")
+    editor = page.get_by_label("代码编辑器")
+    editor.fill("def custom():\n    return 17")
+    page.get_by_role("button", name="Agent 工作流", exact=True).click()
+    page.get_by_role("button", name="代码实验", exact=True).click()
+    expect(editor).to_have_value("def custom():\n    return 17")
+
+
+def test_saved_language_is_ready_when_playground_first_opens(page):
+    page.add_init_script(
+        "localStorage.setItem('deep-ai-station:v1', JSON.stringify({version:1, completed:[], bookmarks:[], notes:{}, language:'go', runs:[]}));"
+    )
+    goto(page, "/playground?track=fullstack&mode=code")
+    expect(page.get_by_label("代码语言")).to_have_value("go")
+    expect(page.get_by_label("代码编辑器")).to_contain_text("package main")
+
+
+def test_storage_quota_failure_keeps_memory_and_offers_export(page):
+    page.add_init_script(
+        "Storage.prototype.setItem = function () { throw new DOMException('quota', 'QuotaExceededError'); };"
+    )
+    goto(page, "/feed")
+    page.get_by_role("button", name="收藏：MCP：把工具接入变成清晰的协议边界", exact=True).click()
+    expect(page.get_by_role("alert")).to_contain_text("本次记录暂存在内存")
+    expect(
+        page.get_by_role("button", name="取消收藏：MCP：把工具接入变成清晰的协议边界", exact=True)
+    ).to_be_visible()
+    page.get_by_role("button", name="导出备份", exact=True).click()
+    with page.expect_download() as download:
+        page.get_by_role("button", name="导出学习记录", exact=True).click()
+    assert download.value.suggested_filename == "deep-ai-station-progress.json"
+
+
 def test_bookmarks_and_search(page):
     goto(page, "/feed")
     page.get_by_role("button", name="收藏：MCP：把工具接入变成清晰的协议边界", exact=True).click()
@@ -130,8 +215,15 @@ def test_news_bookmark_survives_source_loss_and_reload(page):
 
 
 def test_mobile_navigation_has_no_horizontal_overflow(page):
+    screenshot_dir = os.getenv("E2E_SCREENSHOT_DIR")
+    if screenshot_dir:
+        Path(screenshot_dir).mkdir(parents=True, exist_ok=True)
+        goto(page)
+        page.screenshot(path=str(Path(screenshot_dir) / "home-desktop.png"))
     page.set_viewport_size({"width": 375, "height": 812})
     goto(page)
+    if screenshot_dir:
+        page.screenshot(path=str(Path(screenshot_dir) / "home-mobile.png"), full_page=True)
     expect(page.get_by_role("heading", level=1)).to_be_visible()
     page.get_by_role("button", name="打开导航", exact=True).click()
     page.get_by_role("link", name="AI 全栈路线", exact=True).click()

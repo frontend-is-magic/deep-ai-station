@@ -103,6 +103,19 @@ export function validateProgress(value: unknown): value is Progress {
   );
 }
 const storage = createJSONStorage<Progress>(() => localStorage);
+let storageIssue: string | null = null;
+const storageListeners = new Set<() => void>();
+export const getStorageIssue = () => storageIssue;
+export function subscribeStorageIssue(listener: () => void) {
+  storageListeners.add(listener);
+  return () => {
+    storageListeners.delete(listener);
+  };
+}
+function notifyStorageIssue(issue: string | null) {
+  storageIssue = issue;
+  storageListeners.forEach((listener) => listener());
+}
 const guardedStorage = {
   getItem(key: string, fallback: Progress) {
     try {
@@ -112,11 +125,34 @@ const guardedStorage = {
       return fallback;
     }
   },
-  setItem: storage.setItem,
-  removeItem: storage.removeItem,
+  setItem(key: string, value: Progress) {
+    try {
+      storage.setItem(key, value);
+      notifyStorageIssue(null);
+    } catch {
+      notifyStorageIssue('浏览器存储不可用，本次记录暂存在内存。请导出学习记录备份。');
+    }
+  },
+  removeItem(key: string) {
+    try {
+      storage.removeItem(key);
+    } catch {
+      notifyStorageIssue('浏览器存储不可用，清空操作尚未保存。');
+    }
+  },
+  subscribe(key: string, callback: (value: Progress) => void, fallback: Progress) {
+    return (
+      storage.subscribe?.(
+        key,
+        (value) => callback(validateProgress(value) ? value : fallback),
+        fallback,
+      ) || (() => {})
+    );
+  },
 };
 export const progressAtom = atomWithStorage<Progress>(
   'deep-ai-station:v1',
   emptyProgress,
   guardedStorage,
+  { getOnInit: true },
 );
