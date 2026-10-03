@@ -5,6 +5,43 @@ import httpx
 from backend import feed
 
 
+async def test_langchain_canonical_articles_are_live_cached_and_filtered(monkeypatch):
+    source = next(source for source in feed.SOURCES if source["id"] == "langchain")
+    monkeypatch.setattr(feed, "_cache", {})
+    monkeypatch.setattr(feed, "_failed_at", {})
+    client_class = httpx.AsyncClient
+    requests = []
+
+    def handler(request):
+        requests.append(str(request.url))
+        return httpx.Response(
+            200,
+            text="""<rss><channel>
+            <item><title>Canonical article</title>
+            <link>https://www.langchain.com/blog/fixture</link>
+            <pubDate>Thu, 01 Oct 2026 12:00:00 GMT</pubDate></item>
+            <item><title>Deceptive host</title>
+            <link>https://www.langchain.com.external.test/blog/fixture</link></item>
+            <item><title>Authenticated URL</title>
+            <link>https://test-only@www.langchain.com/blog/fixture</link></item>
+            </channel></rss>""",
+        )
+
+    monkeypatch.setattr(
+        feed.httpx,
+        "AsyncClient",
+        lambda **options: client_class(transport=httpx.MockTransport(handler), **options),
+    )
+    items, state = await feed.fetch_source(source)
+    assert state["status"] == "live" and len(items) == 1
+    assert items[0]["url"] == "https://www.langchain.com/blog/fixture"
+    assert items[0]["source"] == "LangChain" and items[0]["track"] == "agent"
+    assert items[0]["published"] == "2026-10-01T12:00:00+00:00"
+    cached, state = await feed.fetch_source(source)
+    assert cached == items and state["status"] == "cached"
+    assert requests == [source["url"]]
+
+
 async def test_stale_feed_failure_preserves_items_without_claiming_source_available(monkeypatch):
     source = feed.SOURCES[0]
     previous = [{"id": "saved-article", "title": "Old article"}]

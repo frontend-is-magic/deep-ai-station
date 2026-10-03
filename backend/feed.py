@@ -20,8 +20,8 @@ SOURCES = [
         "id": "langchain",
         "name": "LangChain",
         "track": "agent",
-        "url": "https://blog.langchain.com/rss/",
-        "home": "https://blog.langchain.com/",
+        "url": "https://www.langchain.com/blog/rss.xml",
+        "home": "https://www.langchain.com/blog",
     },
     {
         "id": "huggingface",
