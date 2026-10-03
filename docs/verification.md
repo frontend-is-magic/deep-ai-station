@@ -5,17 +5,19 @@
 ## 2026-10-03 / 初始版本
 
 - 前端 TypeScript 检查与 Vite 生产构建通过。
-- pytest：39 项接口、适配器与隔离边界测试通过，包含课程契约、96 份练习包下载、非法输入、访问控制、分块请求体限制、资讯标识稳定、检索证据、超时/取消/输出上限/清理与错误脱敏。
+- pytest：41 项接口、适配器与隔离边界测试通过，包含课程契约、96 份练习包下载、非法输入、异常访问码、资讯链接过滤、分块请求体限制、资讯标识稳定、检索证据、超时/取消/输出上限/清理与错误脱敏。
 - Vitest：13 项测试通过，包含 SSE 拆包、学习记录导入边界、资讯快照与不安全链接拒绝。
 - Codex 内置 Browser：已验证首页、第一课测验、验收勾选、完成标记、笔记以及刷新恢复。
 - 真实模型调用尚未配置；供应商适配器使用 MockTransport 验证，不代表真实 API 已调用。
 - headless Playwright：12 条用户流程全部通过，覆盖完成/笔记刷新恢复、练习包按语言下载、工作流/取消/历史、三语言检查、收藏/搜索、实时资料收藏在订阅失效后恢复、375px 移动布局、导入拒绝与导出、隔离 UI 的访问码与纯文本输出、编辑保留、语言偏好和存储额度异常。
-- GitHub develop CI 已通过：[隔离运行验证记录](https://github.com/frontend-is-magic/deep-ai-station/actions/runs/37115754090)。main 承接验收版本，develop 继续迭代。
+- GitHub develop CI 已通过：[完整课程与格式验证记录](https://github.com/frontend-is-magic/deep-ai-station/actions/runs/37116074025)。main 承接验收版本，develop 继续迭代。
 - Vercel 未发布：CLI 缺少认证，连接器部署工具不可用。已结束登录等待，并拆到独立人工配置对话；不声称线上成功。
 - [Notion 私人项目目录](https://app.notion.com/p/3eee149ae540815ca676f1dbaed0128a?pvs=204) 已创建；开发手册、学习 Wiki 和验收记录全部回读验证，包含目录规则、自绘图标与封面。
 
 CI 现在包含 headless Playwright。`scripts/run_e2e.py` 在本地实际启动前后端、执行测试，结束后清理自有进程；已核实 8000 与 5173 端口释放。
 
 96 份逐课示例完成 Python AST、TypeScript 语法诊断和 Go parser 校验；这些检查不执行代码。隔离运行用 fake SDK / 浏览器 mock 验证，未创建真实 E2B 实例，未构建收费 Go 模板；模板配方已准备，实际服务仍待托管配置。
+
+Go 格式化器的制表符曾触发嵌入 Python 参考字符串的 Ruff E101（`0a13a6d`）；`1b869bf` 将例外限定为该资料模块，保留可执行 Python 的常规检查，远端 CI 已重新通过。
 
 内置 Browser 的任务标签已关闭，临时视口已重置，控制会话已释放。全局 AGENTS.md 已精简到 33 行，并保留完整控制边界引用及旧规则备份。
