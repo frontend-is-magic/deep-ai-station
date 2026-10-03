@@ -17,6 +17,7 @@ import { progressAtom } from '@/lib/state';
 import type { Track } from '@/lib/types';
 import { languageNames } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import EvidenceCard from '@/components/EvidenceCard';
 
 export default function LessonPage({ tracks }: { tracks: Track[] }) {
   const { lessonId } = useParams();
@@ -193,6 +194,10 @@ export default function LessonPage({ tracks }: { tracks: Track[] }) {
                 默认预设演示无需模型费用；真实模式需要服务端托管配置。引用校验不等于事实核验，真实调用与生产发布仍须验收。
               </p>
             </section>
+          )}
+          {((track.id === 'fullstack' && lesson.stage === 'ship') ||
+            (track.id === 'agent' && lesson.stage === 'capstone')) && (
+            <EvidenceCard key={`${lesson.id}:${language}`} lesson={lesson} language={language} />
           )}
           <h2>检查你的理解</h2>
           <div className="quiz-box">
