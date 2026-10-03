@@ -2,6 +2,13 @@
 
 本文件记录实际执行证据，未完成事项保留真实状态。
 
+## 2026-10-03 / 独立毕业项目与下载包配置
+
+- 云端支线“Deep AI Research Assistant｜云端毕业项目”已经启动，独立公开仓库为 [deep-ai-research-assistant](https://github.com/frontend-is-magic/deep-ai-research-assistant)。由 Agent 毕业骨架初始化，按 main / develop 开发版本化资料、私有研究记录持久化、报告导出与评测；产品增量仍在开发，不把骨架视为已完成产品。
+- 独立仓库初始化验证后端与敏感检查共 43 项，Node 24 前端构建和响应契约 13 项通过；提交 `533291b025a53a703384976b2f3605641399a52d` 的 [develop CI](https://github.com/frontend-is-magic/deep-ai-research-assistant/actions/runs/37129318858) 与 [main CI](https://github.com/frontend-is-magic/deep-ai-research-assistant/actions/runs/37129315632) 均成功。没有调用真实模型、沙箱或使用重置卡。
+- 独立 CI 暴露原毕业 ZIP 缺少 Prettier 配置。四份 ZIP 现均包含根 `.prettierrc.json`，原有成员字节保持不变。新增 `scripts/check_starter_archives.py` 在平台目录之外解包，核对实际解析到包内配置并检查四份前端及 TS 后端，已通过 5 组格式检查；临时移除包内配置的回归实验正确拒绝。
+- 下载包重建一致性、修改脚本 Ruff、CI YAML 格式与 diff 检查通过。对应平台远端 CI 与发布状态需以该修复提交的回执为准；这次配置打包修复不包含新的交互功能验收。
+
 ## 2026-10-03 / 毕业实践证据卡
 
 - 六节毕业课提供证据卡，按课程和参考语言分别保存源码版本、实际命令、成功输入/结果、失败输入/结果及未验证事项；Agent 固定 Python。记录由学习者填写，不自动勾选验收，不改变原笔记和完成状态，不上传云端或调用模型。

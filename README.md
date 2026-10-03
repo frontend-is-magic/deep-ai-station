@@ -67,6 +67,8 @@ uv run python -m scripts.compile_go_examples
 
 完整毕业骨架的启动与校验见 [多语言项目](starters/README.md) 与 [Agent 研究助手](starters/agent/README.md)。三种语言使用共用固定契约；研究助手另有证据存在、证据不足和合成冲突案例。四个项目分别验证 React 到实际后端的演示请求；维护者脚本不接受学习者代码。真实 DeepSeek adapter 仅经过 mock 验证，账号、上传、数据库和生产发布仍是后续实践任务。
 
+安装 `starters/frontend` 与 `starters/typescript` 的冻结依赖后，运行 `uv run python scripts/check_starter_archives.py`；该检查在仓库之外解包四份 ZIP，确认它们使用包内 Prettier 配置，并验证各自前端与 TypeScript 后端格式，防止误继承平台配置。
+
 ## 交付约定
 
 `main` 保持验收版本，`develop` 持续开发；提交使用 `feat: 中文说明` 等前缀。Vercel 发布配置位于 [vercel.json](vercel.json)，同域路由静态前端与 Python API。

@@ -54,6 +54,7 @@ def bundle(language):
             files[f"backend/{name}"] = (SOURCE / "shared" / name).read_bytes()
     for name in ("AGENTS.md", "EVIDENCE.md", ".gitignore"):
         files[name] = (SOURCE / "shared" / name).read_bytes()
+    files[".prettierrc.json"] = (ROOT / ".prettierrc.json").read_bytes()
     readme = SOURCE / "agent" / "README.md" if language == "agent" else SOURCE / "README.md"
     files["README.md"] = readme.read_bytes()
     buffer = io.BytesIO()

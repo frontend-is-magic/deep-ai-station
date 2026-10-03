@@ -41,6 +41,7 @@ jobs:
         working-directory: starters/frontend
       - run: pnpm --dir starters/typescript install --frozen-lockfile
       - run: pnpm --dir starters/typescript check
+      - run: uv run python scripts/check_starter_archives.py
       - run: uv sync --locked --project starters/python
       - run: uv run --project starters/python ruff check starters/python
       - run: uv run --project starters/python ruff format --check starters/python
