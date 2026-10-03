@@ -36,12 +36,11 @@ def completion(*, name=None, arguments=None, id="call_1", text=None, usage=None)
 
 @pytest.fixture(autouse=True)
 def configured(monkeypatch):
-    monkeypatch.setenv("OPENAI_API_KEY", "test-only")
     monkeypatch.setenv("DEEPSEEK_API_KEY", "test-only")
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-only")
+    monkeypatch.delenv("DEEPSEEK_MODEL", raising=False)
 
 
-@pytest.mark.parametrize("provider", ["openai", "deepseek"])
+@pytest.mark.parametrize("provider", ["deepseek"])
 async def test_native_agent_searches_reads_then_answers_with_bounded_requests_and_partial_usage(
     provider,
 ):
@@ -87,68 +86,6 @@ async def test_native_agent_searches_reads_then_answers_with_bounded_requests_an
     assert [e["text"] for e in events if e["event"] == "delta"] == ["依据实际课程来源回答 MCP"]
 
 
-def anthropic_completion(*, name=None, arguments=None, id="call_1", text=None):
-    block = (
-        {"type": "text", "text": text}
-        if text
-        else {"type": "tool_use", "id": id, "name": name, "input": arguments}
-    )
-    payloads = [
-        {"type": "message_start", "message": {"usage": {"input_tokens": 2}}},
-        {"type": "content_block_start", "index": 0, "content_block": block},
-        {"type": "content_block_stop", "index": 0},
-        {
-            "type": "message_delta",
-            "delta": {"stop_reason": "end_turn" if text else "tool_use"},
-            "usage": {"output_tokens": 3},
-        },
-        {"type": "message_stop"},
-    ]
-    return b"".join(f"data: {json.dumps(value)}\n\n".encode() for value in payloads)
-
-
-async def test_anthropic_agent_replays_native_tool_results_and_aggregates_actual_round_usage():
-    bodies = []
-    responses = [
-        anthropic_completion(name="knowledge_search", arguments={"query": "MCP"}),
-        anthropic_completion(name="lesson_read", arguments={"lesson_id": "agent-mcp"}, id="call_2"),
-        anthropic_completion(text="依据 MCP 课程的验收项回答"),
-    ]
-
-    def response(request):
-        bodies.append(json.loads(request.content))
-        return httpx.Response(200, content=responses[len(bodies) - 1])
-
-    async with httpx.AsyncClient(transport=httpx.MockTransport(response)) as client:
-        events = [
-            event
-            async for event in stream_agent(
-                "anthropic", "MCP", "system", 0.3, "agent", "agent-mcp", "r", client=client
-            )
-        ]
-    for body in bodies[:2]:
-        assert body["tool_choice"] == {"type": "auto", "disable_parallel_tool_use": True}
-    assert bodies[2]["tool_choice"] == {"type": "none"}
-    assert [m["role"] for m in bodies[2]["messages"]] == [
-        "user",
-        "assistant",
-        "user",
-        "assistant",
-        "user",
-    ]
-    for n, body in enumerate(bodies[1:], 1):
-        result = body["messages"][-1]["content"][0]
-        use = body["messages"][-2]["content"][0]
-        assert result["type"] == "tool_result" and use["type"] == "tool_use"
-        assert result["tool_use_id"] == use["id"] == f"call_{n}"
-        observation = json.loads(result["content"])
-        assert observation["read_only"] is True and result["is_error"] is False
-    assert json.loads(bodies[2]["messages"][-1]["content"][0]["content"])["lesson"]["criteria"]
-    assert events[-1]["usage"] == {"input_tokens": 6, "output_tokens": 9}
-    assert events[-1]["usage_complete"] is True
-    assert events[-1]["steps"] == 3 and events[-1]["tool_count"] == 2
-
-
 @pytest.mark.parametrize(
     "name,arguments,error",
     [
@@ -188,7 +125,9 @@ async def test_unknown_tool_is_an_error_observation_without_dispatch_and_can_rec
     async with httpx.AsyncClient(transport=httpx.MockTransport(response)) as client:
         events = [
             e
-            async for e in stream_agent("openai", "x", "s", 0.3, "agent", None, "r", client=client)
+            async for e in stream_agent(
+                "deepseek", "x", "s", 0.3, "agent", None, "r", client=client
+            )
         ]
     assert events[-1]["steps"] == 2 and len(bodies) == 2
     assert any(e.get("data", {}).get("status") == "error" for e in events)
@@ -214,7 +153,9 @@ async def test_same_read_only_arguments_reuse_observation_without_repeating_disp
     async with httpx.AsyncClient(transport=httpx.MockTransport(response)) as client:
         events = [
             e
-            async for e in stream_agent("openai", "x", "s", 0.3, "agent", None, "r", client=client)
+            async for e in stream_agent(
+                "deepseek", "x", "s", 0.3, "agent", None, "r", client=client
+            )
         ]
     assert dispatch.call_count == 1 and events[-1]["tool_count"] == 2
     assert bodies[1]["messages"][-1]["content"] == bodies[2]["messages"][-1]["content"]
@@ -242,7 +183,7 @@ async def test_model_cannot_request_another_tool_on_the_last_round(monkeypatch):
             _ = [
                 e
                 async for e in stream_agent(
-                    "openai", "x", "s", 0.3, "agent", None, "r", client=client
+                    "deepseek", "x", "s", 0.3, "agent", None, "r", client=client
                 )
             ]
     assert error.value.status_code == 502 and len(requests) == 3 and dispatch.call_count == 1
@@ -268,7 +209,7 @@ async def test_cancelled_agent_closes_the_active_model_stream():
     async with httpx.AsyncClient(
         transport=httpx.MockTransport(lambda _: httpx.Response(200, stream=remote))
     ) as client:
-        stream = stream_agent("openai", "x", "s", 0.3, "agent", None, "r", client=client)
+        stream = stream_agent("deepseek", "x", "s", 0.3, "agent", None, "r", client=client)
         assert (await anext(stream))["event"] == "trace"
         pending = asyncio.create_task(anext(stream))
         await remote.waiting.wait()
@@ -290,7 +231,7 @@ async def test_agent_total_deadline_closes_the_stream(monkeypatch):
             _ = [
                 e
                 async for e in stream_agent(
-                    "openai", "x", "s", 0.3, "agent", None, "r", client=client
+                    "deepseek", "x", "s", 0.3, "agent", None, "r", client=client
                 )
             ]
     assert error.value.status_code == 504 and remote.closed

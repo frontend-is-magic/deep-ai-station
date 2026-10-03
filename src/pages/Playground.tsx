@@ -23,10 +23,12 @@ import { api, streamRun } from '@/lib/api';
 import { progressAtom, readRunUsage } from '@/lib/state';
 import { codeDraftsAtom, updateDraft } from '@/lib/drafts';
 import { languageNames } from '@/lib/utils';
+import { providerForReplay, providerLabel } from '@/lib/providers';
 import type {
   Capabilities,
   Language,
   Lesson,
+  LiveProvider,
   RunTrace,
   RunWorkflow,
   Track,
@@ -87,7 +89,7 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
     params.get('track') === 'fullstack' ? 'fullstack' : 'agent',
   );
   const [mode, setMode] = useState(params.get('mode') === 'code' ? 'code' : 'agent');
-  const [provider, setProvider] = useState('demo');
+  const [provider, setProvider] = useState<LiveProvider>('demo');
   const [workflow, setWorkflow] = useState<RunWorkflow>(
     params.get('workflow') === 'agent' ? 'agent' : 'retrieval',
   );
@@ -123,6 +125,7 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
     steps?: number;
     toolCount?: number;
     usageComplete?: boolean;
+    restored?: boolean;
   } | null>(null);
   const [history, setHistory] = useState(false);
   const [language, setLanguage] = useState<Language>(
@@ -353,7 +356,7 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
   const canExecute = cap?.sandbox?.languages.includes(language) || false;
   const noteMarker = runInfo ? `### 实验记录 ${runInfo.id}` : '';
   const noteEntry = runInfo
-    ? `${noteMarker}\n\n${runInfo.provider === 'demo' ? '教学演示' : runInfo.provider} · ${runInfo.workflow === 'agent' ? 'Agent 循环 · ' : ''}${new Date(runInfo.date).toLocaleString('zh-CN')}\n\n任务：${runInfo.prompt}\n\n${output}\n\n以上是学习参考，请另行记录实践输入、实际结果与验收证据。`
+    ? `${noteMarker}\n\n${providerLabel(runInfo.provider)} · ${runInfo.workflow === 'agent' ? 'Agent 循环 · ' : ''}${new Date(runInfo.date).toLocaleString('zh-CN')}\n\n任务：${runInfo.prompt}\n\n${output}\n\n以上是学习参考，请另行记录实践输入、实际结果与验收证据。`
     : '';
   const canSaveNote = Boolean(selectedLesson && runInfo?.lessonId === selectedLesson.id);
   const currentNote = selectedLesson ? progress.notes[selectedLesson.id] || '' : '';
@@ -446,6 +449,7 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
                     { replace: true },
                   );
                   setPrompt(record.prompt);
+                  setProvider(providerForReplay(record.provider, cap));
                   setOutput(record.answer);
                   setTrace(record.trace || []);
                   setRunInfo({
@@ -460,13 +464,14 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
                     steps: record.steps,
                     toolCount: record.tool_count,
                     usageComplete: record.usage_complete,
+                    restored: true,
                   });
                   setError('');
                   setHistory(false);
                 }}
               >
                 <span>
-                  {record.provider === 'demo' ? '教学演示' : record.provider}
+                  {providerLabel(record.provider)}
                   {record.workflow === 'agent' && ' · Agent 循环'}
                   {record.lesson_id &&
                     ` · ${trackLesson(tracks, record.track, record.lesson_id)?.title || '课程实验'}`}
@@ -490,10 +495,16 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
                   ? '教学演示：预设课程工具调用顺序，没有模型决策或模型费用。'
                   : '教学演示：确定性课程检索，不调用模型、不产生模型费用。'
                 : workflow === 'agent'
-                  ? '真实 Agent：模型可选择两个只读课程工具，最多 3 次模型请求、2 次工具请求。45 秒总上限，调用会产生费用。'
-                  : '真实模型：逐步显示供应商流式输出。需要实验访问码，调用会产生费用；停止会关闭上游连接。'}
+                  ? '真实 DeepSeek Agent：使用 OpenAI 兼容接口，模型可选择两个只读课程工具，最多 3 次模型请求、2 次工具请求。45 秒总上限，调用会产生费用。'
+                  : '真实 DeepSeek：通过 OpenAI 兼容接口逐步显示输出。需要实验访问码，调用会产生费用；停止会关闭上游连接。'}
             </span>
           </div>
+          {runInfo?.restored && (
+            <p className="linked-lesson" role="status">
+              历史结果来源：{providerLabel(runInfo.provider)}；再次运行使用当前选择的{' '}
+              {providerLabel(provider)}。
+            </p>
+          )}
           <div className="lab-grid">
             <section className="lab-input">
               <div className="panel-heading">
@@ -506,14 +517,14 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
                   disabled={running}
                   aria-label="模型服务"
                   value={provider}
-                  onChange={(e) => setProvider(e.target.value)}
+                  onChange={(e) => setProvider(e.target.value as LiveProvider)}
                 >
                   <option value="demo">教学演示 · 无需密钥</option>
                   {(cap?.providers || [])
-                    .filter((x) => x.id !== 'demo')
+                    .filter((x) => x.id === 'deepseek')
                     .map((p) => (
                       <option key={p.id} disabled={!p.enabled} value={p.id}>
-                        {p.name}
+                        DeepSeek
                         {p.enabled ? ` · ${p.model}` : ' · 未启用'}
                       </option>
                     ))}
@@ -722,6 +733,10 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
               )}
               {runInfo && (
                 <div className="run-metadata">
+                  <span>
+                    {runInfo.restored ? '历史结果来源' : '结果来源'}：
+                    {providerLabel(runInfo.provider)}
+                  </span>
                   <span>完成 · {(runInfo.duration / 1000).toFixed(2)}s</span>
                   <span>
                     {runInfo.usage

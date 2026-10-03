@@ -1109,7 +1109,7 @@ FULLSTACK_EXAMPLES = {
         @app.get("/api/health")
         def health():
             # 只公开能力是否配置，不返回环境变量值。
-            return {"status": "ok", "model_configured": bool(os.getenv("OPENAI_API_KEY"))}
+            return {"status": "ok", "model_configured": bool(os.getenv("DEEPSEEK_API_KEY"))}
 
 
         # api/index.py 导出 app；平台托管 secrets；构建后验证 /api/health。
@@ -1118,7 +1118,7 @@ FULLSTACK_EXAMPLES = {
         import { Hono } from 'hono';
         const app = new Hono();
         app.get('/api/health', (c) =>
-          c.json({ status: 'ok', modelConfigured: !!process.env.OPENAI_API_KEY }),
+          c.json({ status: 'ok', modelConfigured: !!process.env.DEEPSEEK_API_KEY }),
         );
         export default app;
         // Hono 按官方 Vercel adapter 入口部署；环境变量仅在服务端读取。
@@ -1139,7 +1139,7 @@ FULLSTACK_EXAMPLES = {
         		return
         	}
         	w.Header().Set("Content-Type", "application/json")
-        	json.NewEncoder(w).Encode(map[string]any{"status": "ok", "model_configured": os.Getenv("OPENAI_API_KEY") != ""})
+        \tjson.NewEncoder(w).Encode(map[string]any{"status": "ok", "model_configured": os.Getenv("DEEPSEEK_API_KEY") != ""})
         }
 
         // api/health.go 按 Go 函数入口组织；部署后验证 API 与前端。

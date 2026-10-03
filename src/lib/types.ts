@@ -1,6 +1,7 @@
 export type TrackId = 'agent' | 'fullstack';
 export type Language = 'typescript' | 'python' | 'go';
 export type RunWorkflow = 'retrieval' | 'agent';
+export type LiveProvider = 'demo' | 'deepseek';
 export interface RunTrace {
   id?: string;
   title: string;

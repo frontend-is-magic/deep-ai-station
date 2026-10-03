@@ -8,23 +8,11 @@ import httpx
 from fastapi import HTTPException
 
 from backend.sandbox import sandbox_capabilities
-from backend.tool_protocol import ToolAccumulator, anthropic_messages
+from backend.tool_protocol import ToolAccumulator
 
-Provider = Literal["demo", "openai", "anthropic", "deepseek"]
+Provider = Literal["demo", "deepseek"]
 STREAM_TIMEOUT = 45
 PROVIDERS = {
-    "openai": {
-        "key": "OPENAI_API_KEY",
-        "model_env": "OPENAI_MODEL",
-        "model": "gpt-4.1-mini",
-        "url": "https://api.openai.com/v1/chat/completions",
-    },
-    "anthropic": {
-        "key": "ANTHROPIC_API_KEY",
-        "model_env": "ANTHROPIC_MODEL",
-        "model": "claude-sonnet-4-6",
-        "url": "https://api.anthropic.com/v1/messages",
-    },
     "deepseek": {
         "key": "DEEPSEEK_API_KEY",
         "model_env": "DEEPSEEK_MODEL",
@@ -41,7 +29,7 @@ def capabilities() -> dict:
         + [
             {
                 "id": name,
-                "name": name.capitalize(),
+                "name": "DeepSeek",
                 "enabled": bool(os.getenv(config["key"])) and protected,
                 "model": os.getenv(config["model_env"], config["model"])
                 if os.getenv(config["key"])
@@ -91,10 +79,6 @@ def _usage_counts(value: object) -> dict:
         "prompt_tokens",
         "completion_tokens",
         "total_tokens",
-        "input_tokens",
-        "output_tokens",
-        "cache_creation_input_tokens",
-        "cache_read_input_tokens",
     }
     return {
         key: count
@@ -114,6 +98,8 @@ async def stream_generate(
     tools: list[dict] | None = None,
     tool_choice: Literal["auto", "none"] = "auto",
 ) -> AsyncIterator[dict]:
+    if provider != "deepseek":
+        raise HTTPException(422, "仅支持 DeepSeek 真实模型")
     config = PROVIDERS[provider]
     key = os.getenv(config["key"])
     if not key:
@@ -129,39 +115,11 @@ async def stream_generate(
         "temperature": temperature,
         "stream": True,
         "stream_options": {"include_usage": True},
+        "thinking": {"type": "disabled"},
     }
-    if provider == "deepseek":
-        # Current DeepSeek models default to thinking. This bounded tutorial
-        # requests non-thinking output so the 1200-token budget serves the answer.
-        body["thinking"] = {"type": "disabled"}
-    if provider == "anthropic":
-        headers = {"x-api-key": key, "anthropic-version": "2023-06-01"}
-        body = {
-            "model": model,
-            "system": system,
-            "messages": anthropic_messages(messages),
-            "max_tokens": 1200,
-            "temperature": temperature,
-            "stream": True,
-        }
     if tools:
-        if provider == "anthropic":
-            body["tools"] = [
-                {
-                    "name": tool["name"],
-                    "description": tool["description"],
-                    "input_schema": tool["parameters"],
-                }
-                for tool in tools
-            ]
-            body["tool_choice"] = {"type": tool_choice}
-            if tool_choice == "auto":
-                body["tool_choice"]["disable_parallel_tool_use"] = True
-        else:
-            body["tools"] = [{"type": "function", "function": tool} for tool in tools]
-            body["tool_choice"] = tool_choice
-            if provider == "openai":
-                body["parallel_tool_calls"] = False
+        body["tools"] = [{"type": "function", "function": tool} for tool in tools]
+        body["tool_choice"] = tool_choice
     own_client = client is None
     client = client or httpx.AsyncClient(timeout=40)
     try:
@@ -176,68 +134,33 @@ async def stream_generate(
             finish_reason = None
             tool_parts = ToolAccumulator()
             async for payload in _sse_payloads(response):
-                if provider != "anthropic" and payload == "[DONE]":
+                if payload == "[DONE]":
                     ended = True
                     break
                 data = json.loads(payload)
                 if not isinstance(data, dict) or "error" in data:
                     raise ValueError("invalid_stream")
                 text = None
-                if provider == "anthropic":
-                    kind = data.get("type")
-                    if kind == "message_stop":
-                        ended = True
-                        break
-                    if kind == "message_start":
-                        usage.update(_usage_counts(data["message"].get("usage")))
-                    elif kind == "message_delta":
-                        usage.update(_usage_counts(data.get("usage")))
-                        finish_reason = data.get("delta", {}).get("stop_reason")
-                    elif kind == "content_block_delta":
-                        delta = data.get("delta", {})
-                        if delta.get("type") == "text_delta":
-                            text = delta.get("text")
-                        elif delta.get("type") == "input_json_delta":
-                            if not tools or tool_choice == "none":
-                                raise ValueError("tools_not_allowed")
-                            tool_parts.add(data.get("index"), fragment=delta.get("partial_json"))
-                    elif kind == "content_block_start":
-                        block = data.get("content_block", {})
-                        if block.get("type") == "text":
-                            text = block.get("text")
-                        elif block.get("type") == "tool_use":
-                            if not tools or tool_choice == "none":
-                                raise ValueError("tools_not_allowed")
-                            tool_parts.add(
-                                data.get("index"),
-                                id=block.get("id"),
-                                name=block.get("name"),
-                                initial=block.get("input"),
-                            )
-                    elif kind == "content_block_stop":
-                        tool_parts.close(data.get("index"))
-                    # Pings, thinking deltas and unknown future events are not answer text.
-                else:
-                    usage.update(_usage_counts(data.get("usage")))
-                    choices = data.get("choices", [])
-                    if choices:
-                        delta = choices[0].get("delta", {})
-                        text = delta.get("content")
-                        finish_reason = choices[0].get("finish_reason") or finish_reason
-                        for call in delta.get("tool_calls") or []:
-                            if (
-                                not tools
-                                or tool_choice == "none"
-                                or call.get("type", "function") != "function"
-                            ):
-                                raise ValueError("tools_not_allowed")
-                            function = call.get("function") or {}
-                            tool_parts.add(
-                                call.get("index"),
-                                id=call.get("id"),
-                                name=function.get("name"),
-                                fragment=function.get("arguments"),
-                            )
+                usage.update(_usage_counts(data.get("usage")))
+                choices = data.get("choices", [])
+                if choices:
+                    delta = choices[0].get("delta", {})
+                    text = delta.get("content")
+                    finish_reason = choices[0].get("finish_reason") or finish_reason
+                    for call in delta.get("tool_calls") or []:
+                        if (
+                            not tools
+                            or tool_choice == "none"
+                            or call.get("type", "function") != "function"
+                        ):
+                            raise ValueError("tools_not_allowed")
+                        function = call.get("function") or {}
+                        tool_parts.add(
+                            call.get("index"),
+                            id=call.get("id"),
+                            name=function.get("name"),
+                            fragment=function.get("arguments"),
+                        )
                 if text is not None:
                     if not isinstance(text, str):
                         raise ValueError("invalid_text")
@@ -254,8 +177,8 @@ async def stream_generate(
             ):
                 raise ValueError("incomplete_stream")
             truncated = finish_reason in {"length", "max_tokens"}
-            calls = [] if truncated else tool_parts.finish(require_closed=provider == "anthropic")
-            if not truncated and bool(calls) != (finish_reason in {"tool_calls", "tool_use"}):
+            calls = [] if truncated else tool_parts.finish()
+            if not truncated and bool(calls) != (finish_reason == "tool_calls"):
                 raise ValueError("invalid_tool_finish")
             yield {
                 "event": "done",

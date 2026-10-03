@@ -189,12 +189,12 @@ def test_course_mentor_notes_and_history_restore_the_correct_lesson(page):
     page.get_by_role("button", name="运行历史", exact=False).click()
     page.locator(".run-history button").first.click()
     expect(page.get_by_label("学习方向", exact=False)).to_have_value("fullstack")
-    expect(page.locator(".linked-lesson")).to_contain_text("HTTP 与 API 契约")
+    expect(page.get_by_role("link", name="HTTP 与 API 契约", exact=True)).to_be_visible()
     expect(page.get_by_role("button", name="已写入本课笔记", exact=True)).to_be_disabled()
     page.set_viewport_size({"width": 375, "height": 812})
     page.get_by_role("button", name="运行历史", exact=False).click()
     assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
-    page.locator(".linked-lesson a").click()
+    page.get_by_role("link", name="HTTP 与 API 契约", exact=True).click()
     page.reload()
     expect(page.get_by_label("课程笔记")).to_contain_text("已有的 API 契约笔记")
     assert page.get_by_label("课程笔记").input_value().count("### 实验记录") == 1
@@ -243,7 +243,7 @@ def test_agent_native_trace_updates_and_partial_usage_are_honest_in_history(page
         lambda route: route.fulfill(
             json={
                 "providers": [
-                    {"id": "openai", "name": "OpenAI", "enabled": True, "model": "test-model"}
+                    {"id": "deepseek", "name": "DeepSeek", "enabled": True, "model": "test-model"}
                 ],
                 "sandbox": {"languages": []},
             }
@@ -251,7 +251,8 @@ def test_agent_native_trace_updates_and_partial_usage_are_honest_in_history(page
     )
 
     def run(route):
-        assert json.loads(route.request.post_data)["workflow"] == "agent"
+        payload = json.loads(route.request.post_data)
+        assert payload["workflow"] == "agent" and payload["provider"] == "deepseek"
         assert route.request.headers["x-playground-token"] == "test-access"
         events = [("start", {"run_id": "mock-agent-run"})]
         for step in range(1, 4):
@@ -310,7 +311,7 @@ def test_agent_native_trace_updates_and_partial_usage_are_honest_in_history(page
 
     page.route("**/api/playground/run", run)
     goto(page, "/playground?workflow=agent")
-    page.get_by_label("模型服务").select_option("openai")
+    page.get_by_label("模型服务").select_option("deepseek")
     page.get_by_text("高级配置", exact=True).click()
     page.get_by_label("实验访问码").fill("test-access")
     page.get_by_role("button", name="运行实验", exact=True).click()
@@ -338,7 +339,7 @@ def test_agent_native_trace_updates_and_partial_usage_are_honest_in_history(page
         expect(page.get_by_text("部分模型轮次未返回用量", exact=True)).to_be_visible()
         expect(page.get_by_text("tokens · 总量 12", exact=True)).to_be_visible()
         expect(page.get_by_text("3 轮模型请求 · 2 次工具请求", exact=True)).to_be_visible()
-        page.get_by_label("模型服务").select_option("openai")
+        page.get_by_label("模型服务").select_option("deepseek")
         page.get_by_text("高级配置", exact=True).click()
         assert page.get_by_label("实验访问码").input_value() == ""
     else:
@@ -359,7 +360,7 @@ def test_real_stream_partial_failures_and_truncation_do_not_enter_history(page, 
         lambda route: route.fulfill(
             json={
                 "providers": [
-                    {"id": "openai", "name": "OpenAI", "enabled": True, "model": "test-model"}
+                    {"id": "deepseek", "name": "DeepSeek", "enabled": True, "model": "test-model"}
                 ],
                 "sandbox": {"languages": []},
             }
@@ -367,6 +368,7 @@ def test_real_stream_partial_failures_and_truncation_do_not_enter_history(page, 
     )
 
     def run(route):
+        assert json.loads(route.request.post_data)["provider"] == "deepseek"
         assert route.request.headers["x-playground-token"] == "test-access"
         events = [
             ("start", {"run_id": "mock-stream-run"}),
@@ -394,7 +396,7 @@ def test_real_stream_partial_failures_and_truncation_do_not_enter_history(page, 
 
     page.route("**/api/playground/run", run)
     goto(page, "/playground")
-    page.get_by_label("模型服务").select_option("openai")
+    page.get_by_label("模型服务").select_option("deepseek")
     page.get_by_text("高级配置", exact=True).click()
     page.get_by_label("实验访问码").fill("test-access")
     page.get_by_role("button", name="运行实验", exact=True).click()
@@ -435,6 +437,92 @@ def test_real_stream_partial_failures_and_truncation_do_not_enter_history(page, 
     else:
         expect(page.get_by_role("alert")).to_be_visible()
         expect(page.get_by_text("运行未完成", exact=True)).to_be_visible()
+
+
+@pytest.mark.parametrize("legacy_provider", ["openai", "anthropic"])
+@pytest.mark.parametrize("deepseek_enabled", [True, False])
+def test_legacy_results_keep_their_source_and_replay_with_current_provider(
+    page, legacy_provider, deepseek_enabled
+):
+    page.route(
+        "**/api/capabilities",
+        lambda route: route.fulfill(
+            json={
+                "providers": [
+                    {"id": "demo", "name": "教学演示", "enabled": True, "model": None},
+                    {
+                        "id": "deepseek",
+                        "name": "DeepSeek",
+                        "enabled": deepseek_enabled,
+                        "model": "test-model",
+                    },
+                    {"id": "openai", "name": "OpenAI", "enabled": True, "model": "old-model"},
+                    {
+                        "id": "anthropic",
+                        "name": "Anthropic",
+                        "enabled": True,
+                        "model": "old-model",
+                    },
+                ],
+                "sandbox": {"languages": []},
+            }
+        ),
+    )
+    snapshot = {
+        "version": 1,
+        "completed": [],
+        "bookmarks": [],
+        "notes": {},
+        "language": "typescript",
+        "runs": [
+            {
+                "id": "legacy-result",
+                "prompt": "历史任务",
+                "answer": "旧供应商的原始结果",
+                "provider": legacy_provider,
+                "track": "agent",
+                "date": "2026-10-03T00:00:00Z",
+                "duration_ms": 10,
+            }
+        ],
+    }
+    page.add_init_script(
+        "localStorage.setItem('deep-ai-station:v1', " + json.dumps(json.dumps(snapshot)) + ")"
+    )
+    requested = []
+
+    def run(route):
+        requested.append(json.loads(route.request.post_data)["provider"])
+        route.fulfill(
+            content_type="text/event-stream",
+            body='event: start\ndata: {"run_id":"replay-result"}\n\n'
+            'event: delta\ndata: {"text":"新运行结果"}\n\n'
+            'event: done\ndata: {"duration_ms":10,"usage":null}\n\n',
+        )
+
+    page.route("**/api/playground/run", run)
+    goto(page, "/playground")
+    assert page.get_by_label("模型服务").locator("option").evaluate_all(
+        "options => options.map(option => option.value)"
+    ) == ["demo", "deepseek"]
+    page.get_by_role("button", name="运行历史", exact=False).click()
+    page.locator(".run-history button").first.click()
+    expected = "deepseek" if deepseek_enabled else "demo"
+    label = "OpenAI" if legacy_provider == "openai" else "Anthropic"
+    expect(page.get_by_label("模型服务")).to_have_value(expected)
+    expect(page.locator(".markdown-output")).to_contain_text("旧供应商的原始结果")
+    expect(page.locator(".run-metadata")).to_contain_text(label + "（历史供应商）")
+    assert requested == []
+    if deepseek_enabled:
+        page.get_by_text("高级配置", exact=True).click()
+        page.get_by_label("实验访问码").fill("test-access")
+    page.get_by_role("button", name="运行实验", exact=True).click()
+    expect(page.locator(".markdown-output")).to_contain_text("新运行结果")
+    assert requested == [expected]
+    stored = json.loads(page.evaluate("localStorage.getItem('deep-ai-station:v1')"))
+    assert stored["runs"][0]["provider"] == expected
+    assert stored["runs"][1]["provider"] == legacy_provider
+    assert stored["runs"][1]["answer"] == "旧供应商的原始结果"
 
 
 def test_language_code_checks_and_failures(page):
@@ -534,7 +622,7 @@ def test_code_session_edits_survive_language_and_route_changes_and_download(page
         page.get_by_role("button", name="下载当前代码", exact=True).click()
     assert download.value.suggested_filename == "fullstack-http-draft.go"
     assert Path(download.value.path()).read_text() == edits["go"]
-    page.locator(".linked-lesson a").click()
+    page.get_by_role("link", name="HTTP 与 API 契约", exact=True).click()
     page.get_by_role("link", name="在实验空间编辑", exact=True).click()
     expect(page.get_by_label("代码语言")).to_have_value("go")
     expect(editor).to_have_value(edits["go"])

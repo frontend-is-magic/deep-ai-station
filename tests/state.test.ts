@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { createSSEParser } from '../src/lib/api';
 import { emptyProgress, toggleBookmark, validateProgress } from '../src/lib/state';
-import type { FeedItem, RunRecord } from '../src/lib/types';
+import { providerForReplay, providerLabel } from '../src/lib/providers';
+import type { Capabilities, FeedItem, RunRecord } from '../src/lib/types';
 
 const article: FeedItem = {
   id: 'news-1',
@@ -69,6 +70,11 @@ describe('import boundary', () => {
       duration_ms: 10,
     };
     expect(validateProgress({ ...emptyProgress, runs: [run] })).toBe(true);
+    for (const provider of ['openai', 'anthropic']) {
+      const snapshot = { ...emptyProgress, runs: [{ ...run, provider }] };
+      expect(validateProgress(snapshot)).toBe(true);
+      expect(snapshot.runs[0].provider).toBe(provider);
+    }
     expect(
       validateProgress({ ...emptyProgress, runs: [{ ...run, lesson_id: 'fullstack-http' }] }),
     ).toBe(true);
@@ -109,5 +115,43 @@ describe('import boundary', () => {
       { ...run, tool_count: 3 },
     ])
       expect(validateProgress({ ...emptyProgress, runs: [invalid] })).toBe(false);
+  });
+});
+
+describe('current model selection and historical results', () => {
+  const capabilities: Capabilities = {
+    providers: [
+      { id: 'demo', name: '教学演示', enabled: true, model: null },
+      { id: 'deepseek', name: 'DeepSeek', enabled: true, model: 'test-model' },
+      { id: 'openai', name: 'OpenAI', enabled: true, model: 'legacy-model' },
+    ],
+    code_execution: 'static',
+    live_requires_access_token: true,
+  };
+  it('uses available DeepSeek for old live experiments while preserving their source labels', () => {
+    for (const provider of ['openai', 'anthropic', 'deepseek']) {
+      expect(providerForReplay(provider, capabilities)).toBe('deepseek');
+    }
+    expect(providerForReplay('demo', capabilities)).toBe('demo');
+    expect(providerLabel('openai')).toBe('OpenAI（历史供应商）');
+    expect(providerLabel('anthropic')).toBe('Anthropic（历史供应商）');
+    expect(providerLabel('deepseek')).toBe('DeepSeek');
+    expect(providerLabel('__proto__')).toBe('__proto__（历史供应商）');
+  });
+  it('falls back to demo when DeepSeek is unavailable even if an old supplier is enabled', () => {
+    const unavailable = {
+      ...capabilities,
+      providers: capabilities.providers.map((provider) =>
+        provider.id === 'deepseek' ? { ...provider, enabled: false } : provider,
+      ),
+    };
+    expect(providerForReplay('openai', unavailable)).toBe('demo');
+    expect(providerForReplay('anthropic', null)).toBe('demo');
+    expect(
+      providerForReplay('deepseek', {
+        ...capabilities,
+        providers: capabilities.providers.filter((provider) => provider.id !== 'deepseek'),
+      }),
+    ).toBe('demo');
   });
 });

@@ -92,7 +92,7 @@ def test_real_workflow_receives_only_retrieved_course_evidence(monkeypatch):
     import backend.app as api_module
 
     api_module._live_requests.clear()
-    monkeypatch.setenv("OPENAI_API_KEY", "test-only")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "test-only")
     monkeypatch.setenv("PLAYGROUND_ACCESS_TOKEN", "test-access")
 
     async def stream(provider, prompt, system, temperature):
@@ -105,7 +105,7 @@ def test_real_workflow_receives_only_retrieved_course_evidence(monkeypatch):
     monkeypatch.setattr(api_module, "stream_generate", stream)
     response = client.post(
         "/api/playground/run",
-        json={"prompt": "MCP", "provider": "openai"},
+        json={"prompt": "MCP", "provider": "deepseek"},
         headers={"X-Playground-Token": "test-access"},
     )
     assert "knowledge_search" in response.text and "event: done" in response.text
@@ -138,10 +138,10 @@ def test_course_workflow_pins_the_lesson_even_when_the_prompt_has_no_match():
 def test_course_context_is_validated_before_requesting_a_provider(
     monkeypatch, lesson_id, track, status
 ):
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
     response = client.post(
         "/api/playground/run",
-        json={"prompt": "question", "provider": "openai", "track": track, "lesson_id": lesson_id},
+        json={"prompt": "question", "provider": "deepseek", "track": track, "lesson_id": lesson_id},
     )
     assert response.status_code == status
 
@@ -150,7 +150,7 @@ def test_real_course_workflow_includes_trusted_objectives_and_acceptance_criteri
     import backend.app as api_module
 
     api_module._live_requests.clear()
-    monkeypatch.setenv("OPENAI_API_KEY", "test-only")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "test-only")
     monkeypatch.setenv("PLAYGROUND_ACCESS_TOKEN", "test-access")
     course = LESSONS["fullstack-http"]
 
@@ -168,7 +168,7 @@ def test_real_course_workflow_includes_trusted_objectives_and_acceptance_criteri
         "/api/playground/run",
         json={
             "prompt": "xyzzy-no-course-match",
-            "provider": "openai",
+            "provider": "deepseek",
             "track": "fullstack",
             "lesson_id": course["id"],
         },
@@ -181,7 +181,7 @@ def test_provider_failure_after_partial_text_has_error_without_done(monkeypatch)
     import backend.app as api_module
 
     api_module._live_requests.clear()
-    monkeypatch.setenv("OPENAI_API_KEY", "test-only")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "test-only")
     monkeypatch.setenv("PLAYGROUND_ACCESS_TOKEN", "test-access")
 
     async def stream(*args):
@@ -191,7 +191,7 @@ def test_provider_failure_after_partial_text_has_error_without_done(monkeypatch)
     monkeypatch.setattr(api_module, "stream_generate", stream)
     response = client.post(
         "/api/playground/run",
-        json={"prompt": "MCP", "provider": "openai"},
+        json={"prompt": "MCP", "provider": "deepseek"},
         headers={"X-Playground-Token": "test-access"},
     )
     assert "partial" in response.text and "event: error" in response.text
@@ -237,7 +237,7 @@ def test_agent_model_limit_counts_each_request_instead_of_only_the_outer_run(mon
     import backend.agent_loop as agent_module
     import backend.app as api_module
 
-    monkeypatch.setenv("OPENAI_API_KEY", "test-only")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "test-only")
     monkeypatch.setenv("PLAYGROUND_ACCESS_TOKEN", "test-access")
     api_module._live_requests.clear()
     queue = api_module._live_requests["live"]
@@ -264,7 +264,7 @@ def test_agent_model_limit_counts_each_request_instead_of_only_the_outer_run(mon
     try:
         response = client.post(
             "/api/playground/run",
-            json={"prompt": "MCP", "workflow": "agent", "provider": "openai"},
+            json={"prompt": "MCP", "workflow": "agent", "provider": "deepseek"},
             headers={"X-Playground-Token": "test-access"},
         )
         assert len(calls) == 2 and len(queue) == 10
@@ -290,21 +290,21 @@ def test_run_rejects_invalid_input(body):
 
 
 def test_public_real_calls_require_service_configuration_and_authorization(monkeypatch):
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
     assert (
-        client.post("/api/playground/run", json={"prompt": "x", "provider": "openai"}).status_code
+        client.post("/api/playground/run", json={"prompt": "x", "provider": "deepseek"}).status_code
         == 503
     )
-    monkeypatch.setenv("OPENAI_API_KEY", "test-only")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "test-only")
     monkeypatch.setenv("PLAYGROUND_ACCESS_TOKEN", "test-access")
     assert (
-        client.post("/api/playground/run", json={"prompt": "x", "provider": "openai"}).status_code
+        client.post("/api/playground/run", json={"prompt": "x", "provider": "deepseek"}).status_code
         == 401
     )
     assert (
         client.post(
             "/api/playground/run",
-            json={"prompt": "x", "provider": "openai"},
+            json={"prompt": "x", "provider": "deepseek"},
             headers={"X-Playground-Token": "wrong"},
         ).status_code
         == 401
@@ -314,12 +314,48 @@ def test_public_real_calls_require_service_configuration_and_authorization(monke
     assert "test-access" not in json.dumps(data)
 
 
+@pytest.mark.parametrize("provider", ["openai", "anthropic"])
+@pytest.mark.parametrize("workflow", ["retrieval", "agent"])
+def test_removed_providers_are_rejected_before_model_dispatch(monkeypatch, provider, workflow):
+    import backend.app as api_module
+
+    def unexpected_request(*args, **kwargs):
+        raise AssertionError("Unsupported providers must not reach the model adapter")
+
+    monkeypatch.setattr(api_module, "stream_generate", unexpected_request)
+    response = client.post(
+        "/api/playground/run",
+        json={"prompt": "MCP", "provider": provider, "workflow": workflow},
+        headers={"X-Playground-Token": "test-access"},
+    )
+    assert response.status_code == 422
+
+
+def test_capabilities_only_offer_demo_and_protected_deepseek(monkeypatch):
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "test-only")
+    monkeypatch.setenv("PLAYGROUND_ACCESS_TOKEN", "test-access")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-only-unused")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-only-unused")
+    monkeypatch.delenv("DEEPSEEK_MODEL", raising=False)
+    data = client.get("/api/capabilities").json()
+    assert [provider["id"] for provider in data["providers"]] == ["demo", "deepseek"]
+    assert data["providers"][1] == {
+        "id": "deepseek",
+        "name": "DeepSeek",
+        "enabled": True,
+        "model": "deepseek-flash",
+    }
+    assert "test-only" not in json.dumps(data) and "test-access" not in json.dumps(data)
+    monkeypatch.delenv("PLAYGROUND_ACCESS_TOKEN")
+    assert client.get("/api/capabilities").json()["providers"][1]["enabled"] is False
+
+
 def test_invalid_non_ascii_access_header_is_rejected_without_server_error(monkeypatch):
-    monkeypatch.setenv("OPENAI_API_KEY", "test-only")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "test-only")
     monkeypatch.setenv("PLAYGROUND_ACCESS_TOKEN", "test-access")
     response = client.post(
         "/api/playground/run",
-        json={"prompt": "test", "provider": "openai"},
+        json={"prompt": "test", "provider": "deepseek"},
         headers={"X-Playground-Token": b"\xff"},
     )
     assert response.status_code == 401
@@ -394,67 +430,14 @@ def test_feed_skips_authenticated_malformed_and_nonstandard_port_links():
     assert [item["url"] for item in result] == ["https://go.dev/good"]
 
 
-@pytest.mark.parametrize("provider", ["openai", "anthropic", "deepseek"])
-async def test_provider_adapters_validate_message_contract(monkeypatch, provider):
-    env = {
-        "openai": "OPENAI_API_KEY",
-        "anthropic": "ANTHROPIC_API_KEY",
-        "deepseek": "DEEPSEEK_API_KEY",
-    }[provider]
-    monkeypatch.setenv(env, "test-only")
-    monkeypatch.delenv(env.replace("API_KEY", "MODEL"), raising=False)
-
-    def handler(request):
-        body = json.loads(request.content)
-        assert body["max_tokens"] == 1200
-        assert body["stream"] is True
-        assert (
-            body["model"]
-            == {
-                "openai": "gpt-4.1-mini",
-                "anthropic": "claude-sonnet-4-6",
-                "deepseek": "deepseek-flash",
-            }[provider]
-        )
-        if provider == "deepseek":
-            assert body["thinking"] == {"type": "disabled"}
-        assert body["messages"][-1]["content"] == "test prompt"
-        if provider == "anthropic":
-            assert body["system"] == "test system"
-            events = [
-                {"type": "message_start", "message": {"usage": {"input_tokens": 4}}},
-                {"type": "content_block_delta", "delta": {"type": "text_delta", "text": "answer"}},
-                {"type": "message_delta", "usage": {"output_tokens": 2}},
-                {"type": "message_stop"},
-            ]
-        else:
-            assert body["messages"][0]["role"] == "system"
-            assert body["stream_options"]["include_usage"] is True
-            events = [
-                {"choices": [{"delta": {"content": "answer"}}]},
-                {"choices": [], "usage": {"total_tokens": 6}},
-                "[DONE]",
-            ]
-        content = "".join(f"data: {x if isinstance(x, str) else json.dumps(x)}\n\n" for x in events)
-        return httpx.Response(200, text=content, headers={"content-type": "text/event-stream"})
-
-    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as transport:
-        result = [
-            event
-            async for event in stream_generate(
-                provider, "test prompt", "test system", 0.3, transport
-            )
-        ]
-        assert result[0] == {"event": "delta", "text": "answer"}
-        assert result[-1]["event"] == "done" and result[-1]["usage"]
-
-
 async def test_upstream_errors_are_sanitized(monkeypatch):
-    monkeypatch.setenv("OPENAI_API_KEY", "test-only")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "test-only")
     async with httpx.AsyncClient(
         transport=httpx.MockTransport(lambda _: httpx.Response(401, text="sensitive upstream data"))
     ) as transport:
         with pytest.raises(HTTPException) as exc:
-            _ = [event async for event in stream_generate("openai", "x", "system", 0.3, transport)]
+            _ = [
+                event async for event in stream_generate("deepseek", "x", "system", 0.3, transport)
+            ]
         assert exc.value.status_code == 502
         assert "sensitive" not in str(exc.value.detail)

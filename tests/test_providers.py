@@ -32,9 +32,8 @@ class RemoteStream(httpx.AsyncByteStream):
 
 @pytest.fixture(autouse=True)
 def configured(monkeypatch):
-    monkeypatch.setenv("OPENAI_API_KEY", "test-only")
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-only")
     monkeypatch.setenv("DEEPSEEK_API_KEY", "test-only")
+    monkeypatch.delenv("DEEPSEEK_MODEL", raising=False)
 
 
 TOOLS = [
@@ -56,7 +55,7 @@ async def test_first_delta_arrives_before_completion_and_close_releases_upstream
     async with httpx.AsyncClient(
         transport=httpx.MockTransport(lambda _: httpx.Response(200, stream=remote))
     ) as client:
-        stream = stream_generate("openai", "x", "system", 0.3, client)
+        stream = stream_generate("deepseek", "x", "system", 0.3, client)
         first = await asyncio.wait_for(anext(stream), timeout=1)
         assert first == {"event": "delta", "text": "first"}
         assert not remote.closed and not remote.waiting.is_set()
@@ -69,7 +68,7 @@ async def test_cancelling_while_waiting_for_next_token_releases_upstream():
     async with httpx.AsyncClient(
         transport=httpx.MockTransport(lambda _: httpx.Response(200, stream=remote))
     ) as client:
-        stream = stream_generate("openai", "x", "system", 0.3, client)
+        stream = stream_generate("deepseek", "x", "system", 0.3, client)
         pending = asyncio.create_task(anext(stream))
         await remote.waiting.wait()
         pending.cancel()
@@ -88,36 +87,53 @@ async def test_split_utf8_crlf_and_usage_only_chunk_are_decoded():
     async with httpx.AsyncClient(
         transport=httpx.MockTransport(lambda _: httpx.Response(200, stream=remote))
     ) as client:
-        result = [event async for event in stream_generate("openai", "x", "system", 0.3, client)]
+        result = [event async for event in stream_generate("deepseek", "x", "system", 0.3, client)]
     assert result[0]["text"] == "你好"
     assert result[-1]["usage"] == {"total_tokens": 6}
     assert remote.closed
 
 
-async def test_anthropic_usage_is_cumulative_and_thinking_is_not_answer_text():
-    parts = [
-        {"type": "message_start", "message": {"usage": {"input_tokens": 10, "output_tokens": 1}}},
-        {
-            "type": "content_block_delta",
-            "delta": {"type": "thinking_delta", "thinking": "internal"},
-        },
-        {"type": "future_event"},
-        {"type": "content_block_delta", "delta": {"type": "text_delta", "text": "answer"}},
-        {
-            "type": "message_delta",
-            "delta": {"stop_reason": "max_tokens"},
-            "usage": {"output_tokens": 5},
-        },
-        {"type": "message_stop"},
-    ]
-    remote = RemoteStream([frame(value) for value in parts])
-    async with httpx.AsyncClient(
-        transport=httpx.MockTransport(lambda _: httpx.Response(200, stream=remote))
-    ) as client:
-        result = [event async for event in stream_generate("anthropic", "x", "system", 0.3, client)]
+async def test_deepseek_compatible_request_keeps_budget_and_excludes_reasoning_from_answer():
+    remote = RemoteStream(
+        [
+            frame({"choices": [{"delta": {"reasoning_content": "internal"}}]}),
+            frame({"choices": [{"delta": {"content": "answer"}, "finish_reason": "length"}]}),
+            frame(
+                {
+                    "choices": [],
+                    "usage": {"prompt_tokens": 4, "completion_tokens": 2, "total_tokens": 6},
+                }
+            ),
+            frame("[DONE]"),
+        ]
+    )
+
+    def response(request):
+        assert str(request.url) == "https://api.deepseek.com/chat/completions"
+        assert request.headers["Authorization"] == "Bearer test-only"
+        body = json.loads(request.content)
+        assert body["model"] == "deepseek-flash"
+        assert body["messages"] == [
+            {"role": "system", "content": "test system"},
+            {"role": "user", "content": "test prompt"},
+        ]
+        assert body["max_tokens"] == 1200 and body["stream"] is True
+        assert body["stream_options"] == {"include_usage": True}
+        assert body["thinking"] == {"type": "disabled"}
+        assert "parallel_tool_calls" not in body
+        return httpx.Response(200, stream=remote)
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(response)) as client:
+        result = [
+            event
+            async for event in stream_generate(
+                "deepseek", "test prompt", "test system", 0.3, client
+            )
+        ]
     assert [event.get("text") for event in result[:-1]] == ["answer"]
-    assert result[-1]["usage"] == {"input_tokens": 10, "output_tokens": 5}
-    assert result[-1]["truncated"] is True
+    assert result[-1]["usage"] == {"prompt_tokens": 4, "completion_tokens": 2, "total_tokens": 6}
+    assert result[-1]["model"] == "deepseek-flash" and result[-1]["truncated"] is True
+    assert remote.closed
 
 
 @pytest.mark.parametrize(
@@ -138,7 +154,7 @@ async def test_incomplete_malformed_or_excessive_stream_never_emits_done(parts):
         transport=httpx.MockTransport(lambda _: httpx.Response(200, stream=remote))
     ) as client:
         with pytest.raises(HTTPException) as error:
-            async for event in stream_generate("openai", "x", "system", 0.3, client):
+            async for event in stream_generate("deepseek", "x", "system", 0.3, client):
                 seen.append(event)
     assert error.value.status_code == 502
     assert "private" not in error.value.detail
@@ -155,21 +171,20 @@ async def test_total_timeout_closes_stream_and_returns_fixed_error(monkeypatch):
         transport=httpx.MockTransport(lambda _: httpx.Response(200, stream=remote))
     ) as client:
         with pytest.raises(HTTPException) as error:
-            _ = [event async for event in stream_generate("openai", "x", "system", 0.3, client)]
+            _ = [event async for event in stream_generate("deepseek", "x", "system", 0.3, client)]
     assert error.value.status_code == 504 and remote.closed
 
 
-@pytest.mark.parametrize("provider", ["openai", "deepseek"])
+@pytest.mark.parametrize("provider", ["deepseek"])
 async def test_tool_only_stream_accumulates_json_fragments_and_uses_native_definitions(provider):
     def response(request):
         body = json.loads(request.content)
         assert body["tools"][0]["function"]["name"] == "knowledge_search"
         assert body["tool_choice"] == "auto"
         assert body["messages"][1]["content"] == "question"
-        if provider == "openai":
-            assert body["parallel_tool_calls"] is False
-        else:
-            assert body["thinking"] == {"type": "disabled"}
+        assert body["thinking"] == {"type": "disabled"}
+        assert "strict" not in body["tools"][0]["function"]
+        assert "parallel_tool_calls" not in body
         return httpx.Response(200, stream=remote)
 
     remote = RemoteStream(
@@ -227,84 +242,6 @@ async def test_tool_only_stream_accumulates_json_fragments_and_uses_native_defin
     assert events[0]["usage"] == {"total_tokens": 10} and remote.closed
 
 
-async def test_anthropic_tool_stream_and_followup_history_match_the_native_protocol():
-    messages = [
-        {"role": "user", "content": "question"},
-        {
-            "role": "assistant",
-            "content": None,
-            "tool_calls": [
-                {
-                    "id": "toolu_1",
-                    "type": "function",
-                    "function": {"name": "knowledge_search", "arguments": '{"query":"MCP"}'},
-                }
-            ],
-        },
-        {
-            "role": "tool",
-            "tool_call_id": "toolu_1",
-            "content": '{"error":"invalid_arguments"}',
-            "is_error": True,
-        },
-    ]
-
-    def response(request):
-        body = json.loads(request.content)
-        assert body["tools"][0]["input_schema"] == TOOLS[0]["parameters"]
-        assert body["tool_choice"] == {"type": "auto", "disable_parallel_tool_use": True}
-        assert body["messages"][1]["content"][0]["type"] == "tool_use"
-        assert body["messages"][1]["content"][0]["input"] == {"query": "MCP"}
-        result = body["messages"][2]["content"][0]
-        assert (
-            result["type"] == "tool_result"
-            and result["tool_use_id"] == "toolu_1"
-            and result["is_error"] is True
-        )
-        return httpx.Response(200, stream=remote)
-
-    remote = RemoteStream(
-        [
-            frame(
-                {
-                    "type": "content_block_start",
-                    "index": 1,
-                    "content_block": {
-                        "type": "tool_use",
-                        "id": "toolu_2",
-                        "name": "knowledge_search",
-                        "input": {},
-                    },
-                }
-            ),
-            frame(
-                {
-                    "type": "content_block_delta",
-                    "index": 1,
-                    "delta": {"type": "input_json_delta", "partial_json": '{"query":"MCP"}'},
-                }
-            ),
-            frame({"type": "content_block_stop", "index": 1}),
-            frame(
-                {
-                    "type": "message_delta",
-                    "delta": {"stop_reason": "tool_use"},
-                    "usage": {"output_tokens": 12},
-                }
-            ),
-            frame({"type": "message_stop"}),
-        ]
-    )
-    async with httpx.AsyncClient(transport=httpx.MockTransport(response)) as client:
-        events = [
-            event
-            async for event in stream_generate(
-                "anthropic", "", "system", 0.3, client, messages=messages, tools=TOOLS
-            )
-        ]
-    assert events[-1]["tool_calls"][0]["arguments"] == {"query": "MCP"} and remote.closed
-
-
 @pytest.mark.parametrize(
     "case",
     [
@@ -317,6 +254,7 @@ async def test_anthropic_tool_stream_and_followup_history_match_the_native_proto
         "deep_json",
         "array_args",
         "changed_id",
+        "invalid_index",
     ],
 )
 async def test_invalid_tool_streams_are_never_returned_as_executable_calls(case):
@@ -344,6 +282,8 @@ async def test_invalid_tool_streams_are_never_returned_as_executable_calls(case)
         call["function"]["arguments"] = '["MCP"]'
     elif case == "changed_id":
         calls.append({"index": 0, "id": "call_changed"})
+    elif case == "invalid_index":
+        call["index"] = True
     remote = RemoteStream(
         [
             frame({"choices": [{"delta": {"tool_calls": calls}, "finish_reason": finish}]}),
@@ -356,7 +296,7 @@ async def test_invalid_tool_streams_are_never_returned_as_executable_calls(case)
     ) as client:
         with pytest.raises(HTTPException) as error:
             async for event in stream_generate(
-                "openai",
+                "deepseek",
                 "x",
                 "s",
                 0.3,
@@ -399,40 +339,6 @@ async def test_truncated_tool_arguments_do_not_become_a_tool_call():
         transport=httpx.MockTransport(lambda _: httpx.Response(200, stream=remote))
     ) as client:
         events = [
-            event async for event in stream_generate("openai", "x", "s", 0.3, client, tools=TOOLS)
+            event async for event in stream_generate("deepseek", "x", "s", 0.3, client, tools=TOOLS)
         ]
     assert events[-1]["truncated"] is True and events[-1]["tool_calls"] == [] and remote.closed
-
-
-@pytest.mark.parametrize("close_index", [None, True])
-async def test_anthropic_incomplete_or_invalid_tool_block_never_becomes_a_call(close_index):
-    blocks = [
-        {"type": "message_start", "message": {}},
-        {
-            "type": "content_block_start",
-            "index": 1,
-            "content_block": {
-                "type": "tool_use",
-                "id": "call_1",
-                "name": "knowledge_search",
-                "input": {"query": "MCP"},
-            },
-        },
-        *(
-            [{"type": "content_block_stop", "index": close_index}]
-            if close_index is not None
-            else []
-        ),
-        {"type": "message_delta", "delta": {"stop_reason": "tool_use"}},
-        {"type": "message_stop"},
-    ]
-    remote = RemoteStream([frame(block) for block in blocks])
-    async with httpx.AsyncClient(
-        transport=httpx.MockTransport(lambda _: httpx.Response(200, stream=remote))
-    ) as client:
-        with pytest.raises(HTTPException) as error:
-            _ = [
-                event
-                async for event in stream_generate("anthropic", "x", "s", 0.3, client, tools=TOOLS)
-            ]
-    assert error.value.status_code == 502 and remote.closed
