@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { StickyNote } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { progressAtom } from '@/lib/state';
+import { editLatestProgress } from '@/lib/progress-write';
+import type { Progress } from '@/lib/types';
 import type { RetrievalEvaluationResponse } from '@/lib/retrievalEvaluation';
 import {
   EVALUATION_REFLECTION_LIMIT,
@@ -13,11 +15,13 @@ import {
 
 export default function RetrievalEvaluationNote({
   result,
+  resetId,
   lesson,
   reflection,
   onReflectionChange,
 }: {
   result: RetrievalEvaluationResponse;
+  resetId: Progress['history_reset_id'];
   lesson: EvaluationLesson;
   reflection: string;
   onReflectionChange: (value: string) => void;
@@ -75,9 +79,16 @@ export default function RetrievalEvaluationNote({
       <div className="flex flex-wrap items-center gap-3">
         <Button
           type="button"
-          disabled={prepared.status !== 'ready'}
+          disabled={progress.history_reset_id !== resetId || prepared.status !== 'ready'}
           onClick={() =>
-            setProgress((current) => saveEvaluationNote(current, result, lesson, reflection))
+            setProgress(
+              (previous) =>
+                editLatestProgress(
+                  previous,
+                  (current) => saveEvaluationNote(current, result, lesson, reflection),
+                  { resetId },
+                ).progress,
+            )
           }
           className="h-auto max-w-full whitespace-normal py-2 text-left"
         >

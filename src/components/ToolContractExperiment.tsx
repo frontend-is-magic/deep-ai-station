@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
-import { useAtom } from 'jotai';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useAtom, useStore } from 'jotai';
 import { Link } from 'react-router-dom';
 import { FlaskConical, Loader2, Play, Square, StickyNote } from 'lucide-react';
 import { api } from '@/lib/api';
 import { progressAtom } from '@/lib/state';
-import type { Lesson, TrackId } from '@/lib/types';
+import type { Lesson, Progress, TrackId } from '@/lib/types';
+import { editLatestProgress, RESET_NOTICE } from '@/lib/progress-write';
 import {
   parseToolContractCatalog,
   parseToolContractReport,
@@ -33,11 +34,13 @@ const reasons = {
 
 function ToolNote({
   report,
+  resetId,
   lesson,
   reflection,
   onReflection,
 }: {
   report: ToolContractReport;
+  resetId: Progress['history_reset_id'];
   lesson: ToolContractLesson;
   reflection: string;
   onReflection: (value: string) => void;
@@ -89,9 +92,16 @@ function ToolNote({
       )}
       <div className="flex flex-wrap items-center gap-3">
         <Button
-          disabled={prepared.status !== 'ready'}
+          disabled={progress.history_reset_id !== resetId || prepared.status !== 'ready'}
           onClick={() =>
-            setProgress((current) => saveToolContractNote(current, report, lesson, reflection))
+            setProgress(
+              (previous) =>
+                editLatestProgress(
+                  previous,
+                  (current) => saveToolContractNote(current, report, lesson, reflection),
+                  { resetId },
+                ).progress,
+            )
           }
           className="h-auto max-w-full whitespace-normal py-2 text-left"
         >
@@ -110,19 +120,49 @@ function ToolNote({
 }
 
 function ToolSession({ lesson }: { lesson: ToolContractLesson }) {
+  const [progress, setProgress] = useAtom(progressAtom);
+  const store = useStore();
   const [catalog, setCatalog] = useState<ToolContractCatalog | null>(null);
   const [catalogError, setCatalogError] = useState('');
   const [reload, setReload] = useState(0);
   const [toolName, setToolName] = useState('knowledge_search');
   const [argumentsJson, setArgumentsJson] = useState('{"query":"MCP"}');
-  const [report, setReport] = useState<ToolContractReport | null>(null);
+  const [completed, setCompleted] = useState<{
+    report: ToolContractReport;
+    resetId: Progress['history_reset_id'];
+  } | null>(null);
+  const report = completed?.resetId === progress.history_reset_id ? completed?.report : null;
   const [reflection, setReflection] = useState('');
   const [running, setRunning] = useState(false);
   const [message, setMessage] = useState('修改参数，观察服务端为什么接受或拒绝这次调用。');
   const [error, setError] = useState('');
-  const active = useRef<AbortController | null>(null);
+  const active = useRef<{
+    controller: AbortController;
+    resetId: Progress['history_reset_id'];
+  } | null>(null);
+  const observedResetId = useRef(progress.history_reset_id);
   const timer = useRef<number | undefined>(undefined);
   const bytes = new TextEncoder().encode(argumentsJson).byteLength;
+  const discard = useCallback((nextMessage: string) => {
+    const previous = active.current;
+    active.current = null;
+    previous?.controller.abort();
+    window.clearTimeout(timer.current);
+    timer.current = undefined;
+    setRunning(false);
+    setCompleted(null);
+    setReflection('');
+    setError('');
+    setMessage(nextMessage);
+  }, []);
+  useEffect(() => {
+    if (observedResetId.current === progress.history_reset_id) return;
+    observedResetId.current = progress.history_reset_id;
+    // A run started after a silent storage change already owns this new epoch.
+    if (active.current && active.current.resetId === progress.history_reset_id) return;
+    if (completed && completed.resetId === progress.history_reset_id) return;
+    discard(RESET_NOTICE);
+  }, [progress.history_reset_id, completed, discard]);
   useEffect(() => {
     const controller = new AbortController();
     let disposed = false;
@@ -152,23 +192,18 @@ function ToolSession({ lesson }: { lesson: ToolContractLesson }) {
     () => () => {
       const previous = active.current;
       active.current = null;
-      previous?.abort();
+      previous?.controller.abort();
       window.clearTimeout(timer.current);
     },
     [],
   );
 
-  function discard(nextMessage: string) {
-    const previous = active.current;
-    active.current = null;
-    previous?.abort();
-    window.clearTimeout(timer.current);
-    timer.current = undefined;
-    setRunning(false);
-    setReport(null);
-    setReflection('');
-    setError('');
-    setMessage(nextMessage);
+  function contextIsCurrent(resetId: Progress['history_reset_id']) {
+    const checked = editLatestProgress(store.get(progressAtom), (current) => current, { resetId });
+    if (!checked.reset) return true;
+    discard(RESET_NOTICE);
+    setProgress((previous) => editLatestProgress(previous, (current) => current).progress);
+    return false;
   }
   async function run() {
     if (!catalog || active.current || !toolName || bytes > 4096) return;
@@ -178,15 +213,20 @@ function ToolSession({ lesson }: { lesson: ToolContractLesson }) {
       tool_name: toolName,
       arguments_json: argumentsJson,
     };
+    const previous = store.get(progressAtom);
+    const latest = editLatestProgress(previous, (current) => current).progress;
+    const resetId = latest.history_reset_id;
+    if (previous.history_reset_id !== resetId) setProgress(latest);
     const controller = new AbortController();
-    active.current = controller;
+    const requestContext = { controller, resetId };
+    active.current = requestContext;
     setRunning(true);
-    setReport(null);
+    setCompleted(null);
     setReflection('');
     setError('');
     setMessage('正在验证原始 JSON 与工具契约…');
     const timeout = window.setTimeout(() => {
-      if (active.current !== controller) return;
+      if (active.current !== requestContext || !contextIsCurrent(resetId)) return;
       discard('等待超时，本次没有可保存的结果。请重试。');
     }, 15000);
     timer.current = timeout;
@@ -198,21 +238,22 @@ function ToolSession({ lesson }: { lesson: ToolContractLesson }) {
         signal: controller.signal,
         cache: 'no-store',
       });
-      if (active.current !== controller || controller.signal.aborted) return;
+      if (active.current !== requestContext || controller.signal.aborted) return;
+      if (!contextIsCurrent(resetId)) return;
       const result = parseToolContractReport(value, request);
-      setReport(result);
+      setCompleted({ report: result, resetId });
       setMessage(
         result.outcome === 'success'
           ? '调用成功。检查实际返回的 observation。'
           : '调用被拒绝。检查错误码，并尝试修正参数。',
       );
     } catch {
-      if (active.current !== controller) return;
+      if (active.current !== requestContext || !contextIsCurrent(resetId)) return;
       setMessage('本次校验未完成，没有可保存的结果。');
       setError('工具校验未完成，请检查服务后重试。');
     } finally {
       window.clearTimeout(timeout);
-      if (active.current === controller) {
+      if (active.current === requestContext) {
         active.current = null;
         timer.current = undefined;
         setRunning(false);
@@ -365,7 +406,7 @@ function ToolSession({ lesson }: { lesson: ToolContractLesson }) {
           {error}
         </p>
       )}
-      {report && (
+      {completed && report && (
         <section
           aria-label="工具校验结果"
           className="min-w-0 space-y-4 rounded-xl border border-border p-5"
@@ -394,6 +435,7 @@ function ToolSession({ lesson }: { lesson: ToolContractLesson }) {
           </pre>
           <ToolNote
             report={report}
+            resetId={completed.resetId}
             lesson={lesson}
             reflection={reflection}
             onReflection={setReflection}

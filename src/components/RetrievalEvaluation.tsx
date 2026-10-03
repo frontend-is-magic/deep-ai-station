@@ -1,10 +1,13 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useAtom, useStore } from 'jotai';
 import { Link } from 'react-router-dom';
 import { Download, FlaskConical, Loader2, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import RetrievalEvaluationNote from '@/components/RetrievalEvaluationNote';
 import type { EvaluationLesson } from '@/lib/retrieval-note';
-import type { TrackId } from '@/lib/types';
+import type { Progress, TrackId } from '@/lib/types';
+import { progressAtom } from '@/lib/state';
+import { editLatestProgress, RESET_NOTICE } from '@/lib/progress-write';
 import {
   missedLessons,
   requestRetrievalEvaluation,
@@ -245,74 +248,118 @@ interface EvaluationContext {
 }
 
 function RetrievalEvaluationSession({ track, lesson }: EvaluationContext) {
+  const [progress, setProgress] = useAtom(progressAtom);
+  const store = useStore();
   const [baseline, setBaseline] = useState<RetrievalConfiguration>({ strategy: 'title', top_k: 3 });
   const [candidate, setCandidate] = useState<RetrievalConfiguration>({
     strategy: 'weighted',
     top_k: 3,
   });
-  const [result, setResult] = useState<RetrievalEvaluationResponse | null>(null);
+  const [completed, setCompleted] = useState<{
+    result: RetrievalEvaluationResponse;
+    resetId: Progress['history_reset_id'];
+  } | null>(null);
+  const result = completed?.resetId === progress.history_reset_id ? completed?.result : null;
   const [running, setRunning] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [reflection, setReflection] = useState('');
-  const controller = useRef<AbortController | null>(null);
+  const active = useRef<{
+    controller: AbortController;
+    resetId: Progress['history_reset_id'];
+  } | null>(null);
+  const timer = useRef<number | undefined>(undefined);
+  const observedResetId = useRef(progress.history_reset_id);
+  const discard = useCallback((nextMessage: string) => {
+    const previous = active.current;
+    active.current = null;
+    previous?.controller.abort();
+    window.clearTimeout(timer.current);
+    timer.current = undefined;
+    setRunning(false);
+    setCompleted(null);
+    setReflection('');
+    setError('');
+    setMessage(nextMessage);
+  }, []);
+  useEffect(() => {
+    if (observedResetId.current === progress.history_reset_id) return;
+    observedResetId.current = progress.history_reset_id;
+    if (active.current && active.current.resetId === progress.history_reset_id) return;
+    if (completed && completed.resetId === progress.history_reset_id) return;
+    discard(RESET_NOTICE);
+  }, [progress.history_reset_id, completed, discard]);
   useEffect(
     () => () => {
-      controller.current?.abort();
-      controller.current = null;
+      const previous = active.current;
+      active.current = null;
+      previous?.controller.abort();
+      window.clearTimeout(timer.current);
     },
     [],
   );
 
+  function contextIsCurrent(resetId: Progress['history_reset_id']) {
+    const checked = editLatestProgress(store.get(progressAtom), (current) => current, { resetId });
+    if (!checked.reset) return true;
+    discard(RESET_NOTICE);
+    setProgress((previous) => editLatestProgress(previous, (current) => current).progress);
+    return false;
+  }
+
   function configure(side: Side, configuration: RetrievalConfiguration) {
+    discard('配置已更新，请重新运行评测。');
     if (side === 'baseline') setBaseline(configuration);
     else setCandidate(configuration);
-    setResult(null);
-    setReflection('');
-    setError('');
-    setMessage('配置已更新，请重新运行评测。');
   }
 
   async function run() {
-    if (controller.current) return;
-    const current = new AbortController();
-    controller.current = current;
+    if (active.current) return;
+    const previous = store.get(progressAtom);
+    const latest = editLatestProgress(previous, (current) => current).progress;
+    const resetId = latest.history_reset_id;
+    if (previous.history_reset_id !== resetId) setProgress(latest);
+    const controller = new AbortController();
+    const requestContext = { controller, resetId };
+    active.current = requestContext;
     setRunning(true);
-    setResult(null);
+    setCompleted(null);
     setReflection('');
     setError('');
     setMessage('正在比较固定标注集中的课时检索结果……');
-    let timedOut = false;
     const timeout = window.setTimeout(() => {
-      timedOut = true;
-      current.abort();
+      if (active.current !== requestContext || !contextIsCurrent(resetId)) return;
+      discard('本次评测未完成，可以重试。');
+      setError('评测请求超时，请重试。');
     }, 15000);
+    timer.current = timeout;
     try {
-      const response = await requestRetrievalEvaluation(track, baseline, candidate, current.signal);
-      if (controller.current !== current || current.signal.aborted) return;
-      setResult(response);
+      const response = await requestRetrievalEvaluation(
+        track,
+        baseline,
+        candidate,
+        controller.signal,
+      );
+      if (active.current !== requestContext || controller.signal.aborted) return;
+      if (!contextIsCurrent(resetId)) return;
+      setCompleted({ result: response, resetId });
       setMessage(`已完成 ${response.cases.length} 道固定题目的 A/B 评测。`);
     } catch (reason) {
-      if (controller.current !== current) return;
+      if (active.current !== requestContext || !contextIsCurrent(resetId)) return;
       setMessage('本次评测未完成，可以重试。');
-      setError(
-        timedOut
-          ? '评测请求超时，请重试。'
-          : reason instanceof Error
-            ? reason.message
-            : '评测失败，请重试。',
-      );
+      setError(reason instanceof Error ? reason.message : '评测失败，请重试。');
     } finally {
       window.clearTimeout(timeout);
-      if (controller.current === current) {
-        controller.current = null;
+      if (active.current === requestContext) {
+        active.current = null;
+        timer.current = undefined;
         setRunning(false);
       }
     }
   }
 
   function download() {
-    if (!result) return;
+    if (!result || !completed || !contextIsCurrent(completed.resetId)) return;
     let url: string | undefined;
     try {
       url = URL.createObjectURL(
@@ -384,11 +431,12 @@ function RetrievalEvaluationSession({ track, lesson }: EvaluationContext) {
           {error}
         </p>
       ) : null}
-      {result ? (
+      {completed && result ? (
         <EvaluationReport result={result}>
           {lesson && lesson.track === track && result.track === lesson.track ? (
             <RetrievalEvaluationNote
               result={result}
+              resetId={completed.resetId}
               lesson={lesson}
               reflection={reflection}
               onReflectionChange={setReflection}
