@@ -2,12 +2,20 @@
 
 本文件记录实际执行证据，未完成事项保留真实状态。
 
+## 2026-10-03 / 免费检索评测工作台
+
+- Playground 新增检索评测，Agent 检索/评测课与全栈 RAG / 单元测试课提供入口。每路线 10 个正例与 2 个无证据例，比较标题与加权词法策略、各自 top-k（1–5）；结果保留标注相关课时、实际排名/评分/匹配词、漏检与误召回，可下载包含配置、数据集版本、语料哈希与运行 ID 的完整 JSON。
+- 正例 Precision@k、Recall@k、MRR 按题取宏平均，负例独立计算无结果准确率。默认 k=3 实测：Agent 召回从 0.8 到 0.95，全栈从 0.9 到 0.9667；两路线负例准确率均从 1 降到 0.5，页面不隐藏召回与噪声的取舍。这是固定小型开发集，不证明向量检索或生成回答质量。
+- 161 项非浏览器 pytest、30 项 Vitest、Prettier / TypeScript / 构建、Ruff 均通过。后端新增手算指标、严格边界、真实课时归属、默认检索兼容、语料哈希与禁止网络/模型的测试。
+- 34 条 headless 用户流程一次全量通过，另新增进行中切路线取消请求的流程单独通过，共 35 条。新增流程实际验证 React → API、配置变化清旧结果、完整 JSON 下载、故障后重试、路线隔离和取消、刷新清报告、375px 不溢出、学习记录不变且无模型/沙箱请求。第一轮定位到下拉框可访问名称不明确，补齐后复验通过。原生 Browser 与远端发布状态以对应提交的后续验收回执为准。
+
 ## 2026-10-03 / 独立毕业项目与下载包配置
 
 - 云端支线“Deep AI Research Assistant｜云端毕业项目”已经启动，独立公开仓库为 [deep-ai-research-assistant](https://github.com/frontend-is-magic/deep-ai-research-assistant)。由 Agent 毕业骨架初始化，按 main / develop 开发版本化资料、私有研究记录持久化、报告导出与评测；产品增量仍在开发，不把骨架视为已完成产品。
 - 独立仓库初始化验证后端与敏感检查共 43 项，Node 24 前端构建和响应契约 13 项通过；提交 `533291b025a53a703384976b2f3605641399a52d` 的 [develop CI](https://github.com/frontend-is-magic/deep-ai-research-assistant/actions/runs/37129318858) 与 [main CI](https://github.com/frontend-is-magic/deep-ai-research-assistant/actions/runs/37129315632) 均成功。没有调用真实模型、沙箱或使用重置卡。
 - 独立 CI 暴露原毕业 ZIP 缺少 Prettier 配置。四份 ZIP 现均包含根 `.prettierrc.json`，原有成员字节保持不变。新增 `scripts/check_starter_archives.py` 在平台目录之外解包，核对实际解析到包内配置并检查四份前端及 TS 后端，已通过 5 组格式检查；临时移除包内配置的回归实验正确拒绝。
 - 下载包重建一致性、修改脚本 Ruff、CI YAML 格式与 diff 检查通过。对应平台远端 CI 与发布状态需以该修复提交的回执为准；这次配置打包修复不包含新的交互功能验收。
+- 下载包修复提交 `d13d34d87b333b71bd71c960bf2cdaf3e3c229e5` 的 [完整 CI](https://github.com/frontend-is-magic/deep-ai-station/actions/runs/37129446740) 已成功，main 普通快进并完成 Vercel Production deployment `6828812778`。线上四个 ZIP 与该提交逐字节一致，健康接口仍为 48 课，能力仅 demo / DeepSeek，免费 Agent SSE 正常结束；真实 DeepSeek 未启用。
 
 ## 2026-10-03 / 毕业实践证据卡
 

@@ -153,6 +153,16 @@ export default function LessonPage({ tracks }: { tracks: Track[] }) {
               下载本课练习资料
             </a>
           </Button>
+          {((track.id === 'agent' && ['retrieval', 'evaluation'].includes(lesson.stage)) ||
+            lesson.id === 'fullstack-ai-rag' ||
+            lesson.id === 'fullstack-unit-tests') && (
+            <Button variant="outline" asChild>
+              <Link to={`/playground?track=${track.id}&lesson=${lesson.id}&mode=evaluation`}>
+                <FlaskConical size={16} />
+                比较检索配置与指标
+              </Link>
+            </Button>
+          )}
           {track.id === 'fullstack' && lesson.stage === 'ship' && (
             <section
               aria-label="毕业项目骨架"

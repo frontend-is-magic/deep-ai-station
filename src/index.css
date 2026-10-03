@@ -1536,6 +1536,10 @@ hr {
   gap: 14px;
   margin-bottom: 22px;
 }
+.playground-toolbar .segmented-control {
+  max-width: 100%;
+  flex-wrap: wrap;
+}
 .track-select {
   font-size: 12px;
   display: flex;

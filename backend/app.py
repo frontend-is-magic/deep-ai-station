@@ -21,6 +21,7 @@ from backend.feed import get_feed
 from backend.middleware import RequestLimits
 from backend.providers import PROVIDERS, Provider, capabilities, stream_generate
 from backend.retrieval import retrieve
+from backend.retrieval_evaluation import RetrievalEvaluationRequest, evaluate_retrieval
 from backend.sandbox import execute_code
 
 app = FastAPI(
@@ -79,6 +80,11 @@ def search(
 @app.get("/api/feed")
 async def feed(refresh: bool = False):
     return await get_feed(refresh)
+
+
+@app.post("/api/playground/retrieval-evaluation")
+def retrieval_evaluation(body: RetrievalEvaluationRequest):
+    return evaluate_retrieval(body)
 
 
 @app.get("/api/capabilities")

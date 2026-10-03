@@ -36,6 +36,7 @@ import type {
 } from '@/lib/types';
 import { PageHeading } from '@/components/common';
 import { Button } from '@/components/ui/button';
+import RetrievalEvaluation from '@/components/RetrievalEvaluation';
 
 interface CheckResult {
   mode: string;
@@ -88,7 +89,13 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
   const [trackId, setTrackId] = useState<TrackId>(
     params.get('track') === 'fullstack' ? 'fullstack' : 'agent',
   );
-  const [mode, setMode] = useState(params.get('mode') === 'code' ? 'code' : 'agent');
+  const [mode, setMode] = useState(
+    params.get('mode') === 'evaluation'
+      ? 'evaluation'
+      : params.get('mode') === 'code'
+        ? 'code'
+        : 'agent',
+  );
   const [provider, setProvider] = useState<LiveProvider>('demo');
   const [workflow, setWorkflow] = useState<RunWorkflow>(
     params.get('workflow') === 'agent' ? 'agent' : 'retrieval',
@@ -405,10 +412,19 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
             <Code2 size={16} />
             代码实验
           </button>
+          <button
+            disabled={running}
+            className={mode === 'evaluation' ? 'selected' : ''}
+            onClick={() => switchMode('evaluation')}
+          >
+            <FlaskConical size={16} />
+            检索评测
+          </button>
         </div>
         <label className="track-select">
           学习方向
           <select
+            aria-label="学习方向"
             disabled={running}
             value={trackId}
             onChange={(e) => switchTrack(e.target.value as TrackId)}
@@ -485,7 +501,9 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
           )}
         </div>
       )}
-      {mode === 'agent' ? (
+      {mode === 'evaluation' ? (
+        <RetrievalEvaluation key={trackId} track={trackId} />
+      ) : mode === 'agent' ? (
         <>
           <div className={`mode-notice ${provider === 'demo' ? '' : 'live'}`}>
             <FlaskConical size={18} />
