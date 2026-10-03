@@ -283,6 +283,18 @@ def assert_standalone_archive(path, lab_id, language, lesson_id):
             fixtures = json.loads(archive.read("fixtures.json"))
             assert {item["owner_id"] for item in fixtures["sessions"]} == {"alice", "bob"}
             assert "result_unconfirmed" in archive.read("CONTRACT.md").decode()
+        elif lab_id == "mcp-readonly":
+            assert manifest["languages"] == ["python"]
+            assert {
+                "server.py",
+                "client.py",
+                "protocol.py",
+                "test_protocol.py",
+                "test_process.py",
+            } <= files
+            assert "mcp==2.3.0" in archive.read("pyproject.toml").decode()
+            assert "2026-07-28" in archive.read("CONTRACT.md").decode()
+            assert "server/discover" in archive.read("CONTRACT.md").decode()
         elif lab_id == "api-contract":
             assert_api_contract_archive(archive, language, files)
         elif lab_id == "sse-stream":
@@ -425,7 +437,28 @@ def test_course_labs_are_limited_to_their_bound_lessons(page):
         expect(page.get_by_role("link", name="下载本课练习资料", exact=True)).to_be_visible()
 
 
-def test_agent_write_lab_download_is_python_only_and_evidence_does_not_award_progress(page):
+@pytest.mark.parametrize(
+    "lab_id,lesson_id,title,notice,failure",
+    [
+        (
+            "agent-write-safety",
+            "agent-tool-safety",
+            "可运行工具审批与幂等实验",
+            "公开假身份无生产权限",
+            "待执行：提交后 503，查询原 ID",
+        ),
+        (
+            "mcp-readonly",
+            "agent-mcp",
+            "可运行 MCP 只读协议实验",
+            "仅访问包内固定课程资料",
+            "待执行：超时取消后复用连接并确认子进程退出",
+        ),
+    ],
+)
+def test_agent_lab_download_is_python_only_and_evidence_does_not_award_progress(
+    page, lab_id, lesson_id, title, notice, failure
+):
     errors, paid = [], []
     page.on("pageerror", lambda error: errors.append(str(error)))
     page.on(
@@ -436,25 +469,22 @@ def test_agent_write_lab_download_is_python_only_and_evidence_does_not_award_pro
             else None
         ),
     )
-    goto(page, "/lesson/agent-tool-safety?language=go")
+    goto(page, f"/lesson/{lesson_id}?language=go")
     seed_existing_records(page)
-    page.get_by_label("课程笔记", exact=True).fill("先批准完整意图，结果不明先查原操作。")
+    page.get_by_label("课程笔记", exact=True).fill("记录实际观察，区分成功、失败与未验证。")
     before = stored(page)
-    title = "可运行工具审批与幂等实验"
     region = page.get_by_role("region", name=title, exact=True)
     expect(region).to_be_visible()
-    expect(region).to_contain_text("公开假身份无生产权限")
+    expect(region).to_contain_text(notice)
     expect(region.get_by_role("link")).to_have_count(1)
     download_link = region.get_by_role("link", name="下载实验 · Python", exact=True)
-    expect(download_link).to_have_attribute("href", "/labs/agent-write-safety-python.zip")
+    expect(download_link).to_have_attribute("href", f"/labs/{lab_id}-python.zip")
     for language in ("Go", "TypeScript"):
         expect(page.get_by_role("button", name=language, exact=True)).to_have_count(0)
     with page.expect_download() as result:
         download_link.click()
-    assert result.value.suggested_filename == "agent-write-safety-python.zip"
-    assert_standalone_archive(
-        result.value.path(), "agent-write-safety", "python", "agent-tool-safety"
-    )
+    assert result.value.suggested_filename == f"{lab_id}-python.zip"
+    assert_standalone_archive(result.value.path(), lab_id, "python", lesson_id)
     for field in ("notes", "completed", "practice", "evidence"):
         assert stored(page)[field] == before[field]
     with page.expect_download() as reference_download:
@@ -462,26 +492,28 @@ def test_agent_write_lab_download_is_python_only_and_evidence_does_not_award_pro
     with zipfile.ZipFile(reference_download.value.path()) as archive:
         from backend.examples import AGENT_EXAMPLES
 
-        assert archive.read("example.py").decode() == AGENT_EXAMPLES["tool-safety"]
+        assert (
+            archive.read("example.py").decode() == AGENT_EXAMPLES[lesson_id.removeprefix("agent-")]
+        )
     evidence = page.get_by_role("region", name="实验实践证据", exact=True)
     expect(evidence).to_contain_text(title)
     expect(evidence).to_contain_text("当前记录：Python")
     evidence.get_by_label("验证命令", exact=True).fill("uv run --frozen pytest -q")
-    evidence.get_by_label("失败输入与实际结果", exact=True).fill("待执行：提交后 503，查询原 ID")
+    evidence.get_by_label("失败输入与实际结果", exact=True).fill(failure)
     page.reload()
     expect(evidence.get_by_label("验证命令", exact=True)).to_have_value("uv run --frozen pytest -q")
     after = stored(page)
     assert len(after["evidence"]) == 2
     assert after["evidence"][0] == before["evidence"][0]
     assert after["evidence"][1]["language"] == "python"
-    assert after["evidence"][1]["lesson_id"] == "agent-tool-safety"
+    assert after["evidence"][1]["lesson_id"] == lesson_id
     for field in ("notes", "completed", "practice"):
         assert after[field] == before[field]
     with page.expect_download() as exported:
         evidence.get_by_role("button", name="下载实践证据 Markdown", exact=True).click()
     text = Path(exported.value.path()).read_text()
-    assert title in text and "agent-tool-safety" in text and "未经平台核验" in text
-    assert "不会自动完成课程" in text and "待执行：提交后 503，查询原 ID" in text
+    assert title in text and lesson_id in text and "未经平台核验" in text
+    assert "不会自动完成课程" in text and failure in text
     page.set_viewport_size({"width": 375, "height": 812})
     expect(region).to_be_visible()
     assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")

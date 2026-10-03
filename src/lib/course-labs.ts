@@ -7,7 +7,8 @@ export interface CourseLab {
     | 'session-authorization'
     | 'text-upload'
     | 'sse-stream'
-    | 'agent-write-safety';
+    | 'agent-write-safety'
+    | 'mcp-readonly';
   lessons: readonly string[];
   languages: readonly Language[];
   title: string;
@@ -16,6 +17,16 @@ export interface CourseLab {
 }
 
 const courseLabs: readonly CourseLab[] = [
+  {
+    id: 'mcp-readonly',
+    lessons: ['agent-mcp'],
+    languages: ['python'],
+    title: '可运行 MCP 只读协议实验',
+    description:
+      '独立项目，使用官方 SDK 客户端与服务端进行真实 stdio 通信。观察工具发现、严格 schema、固定资源、空结果与错误分层，并验证请求超时取消、断连和子进程退出。',
+    notice:
+      '仅访问包内固定课程资料，无模型调用、远端服务器或任意命令入口。下载后按 README 在独立练习环境运行，将实际消息与清理证据记入下方证据卡；不会自动完成课程或 Python 实践。',
+  },
   {
     id: 'agent-write-safety',
     lessons: ['agent-tool-safety'],

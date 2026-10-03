@@ -12,6 +12,14 @@ describe('course lab language availability', () => {
     expect(courseLabFor('missing-lesson', 'python')).toBeUndefined();
   });
 
+  it('offers the MCP lab only for its Agent lesson and Python', () => {
+    expect(courseLabFor('agent-mcp', 'python')?.id).toBe('mcp-readonly');
+    expect(courseLabFor('agent-mcp')?.languages).toEqual(['python']);
+    expect(courseLabFor('agent-mcp', 'go')).toBeUndefined();
+    expect(courseLabFor('agent-mcp', 'typescript')).toBeUndefined();
+    expect(courseLabFor('agent-tool-contract', 'python')).toBeUndefined();
+  });
+
   it('retains all three language downloads for the existing fullstack labs', () => {
     for (const lesson of [
       'fullstack-routing',
