@@ -52,6 +52,7 @@ jobs:
       - run: uv run --project starters/agent pytest starters/agent
       - run: go test -C starters/go -mod=readonly ./...
       - run: uv run playwright install --with-deps chromium
+      - run: uv run python scripts/verify_stream_labs.py --browser
       - run: uv run python scripts/run_starter_e2e.py
       - run: uv run python scripts/run_e2e.py
   course-labs:

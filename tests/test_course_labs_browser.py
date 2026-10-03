@@ -12,6 +12,11 @@ pytestmark = pytest.mark.e2e
 ROOT = Path(__file__).resolve().parents[1]
 STORAGE_KEY = "deep-ai-station:v1"
 LABS = {
+    "sse-stream": {
+        "title": "可运行 SSE 流式实验",
+        "version": "sse-stream-v1",
+        "lessons": ("fullstack-ai-stream", "fullstack-async"),
+    },
     "api-contract": {
         "title": "可运行 API 契约实验",
         "version": "api-contract-v1",
@@ -264,6 +269,32 @@ def assert_standalone_archive(path, lab_id, language, lesson_id):
         assert lesson_id in manifest["lessons"] and language in manifest["languages"]
         if lab_id == "api-contract":
             assert_api_contract_archive(archive, language, files)
+        elif lab_id == "sse-stream":
+            assert {
+                "fixtures.json",
+                "contract-cases.json",
+                "client/src/main.tsx",
+                "client/src/stream.mjs",
+                "client/src/stream.d.mts",
+                "client/src/stream.test.mjs",
+                "client/package.json",
+                "client/pnpm-lock.yaml",
+                "client/vite.config.ts",
+            } <= files
+            cases = json.loads(archive.read("contract-cases.json"))
+            assert {case["id"] for case in cases} >= {
+                "success",
+                "error",
+                "timeout",
+                "hold",
+                "reject-duplicate",
+            }
+            assert json.loads(archive.read("fixtures.json"))["texts"] == [
+                "理解 ",
+                "流式 ",
+                "响应 🌱",
+            ]
+            assert "真实随机端口" in archive.read("README.md").decode()
         elif lab_id == "text-upload":
             assert_upload_archive(archive, language, files)
         elif lab_id == "session-authorization":
@@ -298,7 +329,11 @@ def test_course_lab_downloads_follow_language_and_preserve_reference_bundle(
     expect(card).to_be_visible()
     expect(card).to_contain_text("完整依赖配置与锁文件、启动入口")
     expect(card).to_contain_text("成功/失败测试")
-    if lab_id == "sqlite-storage":
+    if lab_id == "sse-stream":
+        expect(card).to_contain_text("共享 React 客户端")
+        expect(card).to_contain_text("真实 HTTP 断连清理")
+        expect(card).to_contain_text("固定教学数据源，无模型密钥或费用")
+    elif lab_id == "sqlite-storage":
         expect(card).to_contain_text("v1→v2 迁移")
         expect(card).to_contain_text("owner 只是教学输入，不代表登录认证")
     elif lab_id == "text-upload":

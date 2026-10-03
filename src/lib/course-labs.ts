@@ -1,5 +1,5 @@
 export interface CourseLab {
-  id: 'api-contract' | 'sqlite-storage' | 'session-authorization' | 'text-upload';
+  id: 'api-contract' | 'sqlite-storage' | 'session-authorization' | 'text-upload' | 'sse-stream';
   lessons: readonly string[];
   title: string;
   description: string;
@@ -7,6 +7,15 @@ export interface CourseLab {
 }
 
 const courseLabs: readonly CourseLab[] = [
+  {
+    id: 'sse-stream',
+    lessons: ['fullstack-ai-stream', 'fullstack-async'],
+    title: '可运行 SSE 流式实验',
+    description:
+      '独立流式服务与共享 React 客户端，包含完整依赖配置与锁文件、启动入口和成功/失败测试。验证分块 UTF-8、事件序号、错误与总超时、真实 HTTP 断连清理，以及两个运行的取消隔离。',
+    notice:
+      '固定教学数据源，无模型密钥或费用；服务端取消与一次清理由原生真实 HTTP 测试证明。页面停止不代表生产代理或真实供应商已清理。将实际结果记入 EVIDENCE.md 与课程笔记，不会自动完成本课或语言实践。',
+  },
   {
     id: 'api-contract',
     lessons: ['fullstack-routing', 'fullstack-validation'],

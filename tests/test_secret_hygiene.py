@@ -164,6 +164,7 @@ SQLITE_SIDECARS = [
         "labs/sqlite-storage/shared/.gitignore",
         "labs/session-authorization/shared/.gitignore",
         "labs/text-upload/shared/.gitignore",
+        "labs/sse-stream/shared/.gitignore",
     ],
 )
 def test_sqlite_sidecars_are_ignored_but_force_tracked_copies_are_rejected(

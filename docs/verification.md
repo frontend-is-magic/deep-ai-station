@@ -1,12 +1,21 @@
 # 验证记录
 
+## 2026-10-04 / 三语言 SSE 流式与取消实验
+
+- 流式聊天与异步并发两课接入 `sse-stream`。Python/FastAPI、TypeScript/Hono、Go/Gin 共用固定 Producer、12 个 HTTP 案例与 React/Tailwind/Jotai/Radix 客户端；无密钥、模型或沙箱调用。每请求独立 UUID、顺序 delta、唯一终态、一个总 deadline，断开后合作取消及一次清理；未把页面停止当作服务端释放证据。
+- 三个 ZIP 均在仓库之外冻结安装，Python37项、TypeScript12项和Go11个顶层组/25个子案例（race）通过。每语言另外发送12个真实HTTP请求；原生随机端口测试证明首段后断开时Producer取消、清理一次、A取消不影响B完成。TS包根fixture路径经实际解压布局子进程验证，既有共享目录回退保留。
+- 共享客户端31项解析器测试及类型/构建通过；涵盖UTF-8跨块、LF/CRLF/CR、run_id与序号、输入上限、重复终态、提前done和缺失终态。只有success的完整三段及done后EOF才可显示完成。三个后端均通过实际React→Vite→HTTP的成功、故障、超时、停止、重跑、并发与375px流程；TS链路额外控制不完整EOF及忽略AbortSignal的迟到旧响应，不能覆盖新运行。
+- 已查看桌面与移动截图，两个运行面板在375px纵向排列，无横向溢出。初轮发现并修复select可访问名称不明确，以及验证器关闭子进程后立即检查监听的竞态；最终三语言完整复验全部通过，浏览器/context和自有前后端监听均确认释放。 最终审查另发现launcher先退出可遗留子服务，现按自有PGID有界清理并升级SIGKILL；4项回归包括两个实际进程树/随机端口，以及缺失组、Linux僵尸组边界，监听全部释放；修复后TypeScript ZIP→React→实际HTTP全链路复验通过。
+- 主平台276项Vitest、格式、TypeScript与生产构建通过；256项非浏览器pytest通过，10项真实PostgreSQL因本地无地址明确skip，56份Python文件Ruff通过。10条课程下载headless覆盖九课×三语言的27组下载，15个独立ZIP与白名单源码逐字节相符，语言切换/笔记/已有实践保持。358个暂存/工作文件及ZIP成员敏感扫描通过；原8000/5173和冻结749c9a0未改。
+- CI增加三语言下载包浏览器到API验证；精确提交的远端结果待推送后记录。原生Browser、真实供应商、代理缓冲、Vercel Python断连和Production仍须独立验收，集中原人工配置对话，不使用重置卡。
+
 ## 2026-10-04 / 精选资料连接课程与语言实践
 
 - 信息流和收藏页的8条精选资料均提供明确配套课时；FastAPI、Hono、Go分别进入Python、TypeScript、Go，四篇Agent资料使用Python，Jotai公共前端保留服务端偏好。卡片显示该课该语言的独立实践状态，原文外链与收藏保持可用，不自动完成课程或实践。
 - 关联要求精确ID、原始URL、路线与guide类型，目标课时全局唯一且参考语言/snippet可用；未知/RSS/错配项不猜测链接。新增54项Vitest，并用实际 `CURATED` / `TRACKS` 执行8条映射×3种偏好共24次检查。没有扩展资料或v1学习备份结构；旧收藏快照在源请求失败时仍解析入口。
 - 全栈课程支持明确单一language参数，复制、新标签、刷新和同课历史导航保持语言；手动切换更新现有query并保留其他参数，练习下载与Playground跟随。空值、重复和非法参数保留原偏好，Agent和无效课时不改全栈偏好。只更新有效语言与原学习位置，其他学习记录保留。
 - Node24下 `pnpm check` 通过276项Vitest、格式、类型与生产构建；251项非浏览器pytest通过，10项PostgreSQL本地无地址明确skip，54份Python文件Ruff通过。16条新增headless全部通过，另3条既有收藏/搜索/语言回归通过。新增测试初轮因测试自身空白页localStorage初始化和旧导航名称失败；修正测试后16条完整复验通过，产品代码未因该问题变更。
-- 另1条真实本地信息流API视觉流程通过，已查看桌面、375px信息流及收藏页截图：链接、状态文字与长标题完整，无横向溢出、嵌套锚点或页面异常。自有5175与headless context已释放，原8000/5173和冻结749c9a0未改，0模型/沙箱调用。原生Browser及Production仍由原人工配置对话集中处理；远端CI与Preview以当前提交回执为准。
+- 另1条真实本地信息流API视觉流程通过，已查看桌面、375px信息流及收藏页截图：链接、状态文字与长标题完整，无横向溢出、嵌套锚点或页面异常。自有5175与headless context已释放，原8000/5173和冻结749c9a0未改，0模型/沙箱调用。原生Browser及Production仍由原人工配置对话集中处理；对应 `27cd129` 的[完整 CI](https://github.com/frontend-is-magic/deep-ai-station/actions/runs/37144240778)成功：89条完整headless、10项真实PostgreSQL17、三语言实验与四毕业骨架浏览器到API均通过。Preview `6831424021` 成功，匿名正常TLS健康请求302，未绕过保护。
 
 ## 2026-10-04 / 检索评测写入课程笔记
 
