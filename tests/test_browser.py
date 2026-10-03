@@ -268,6 +268,46 @@ def test_code_edit_is_preserved_when_switching_modes(page):
     expect(editor).to_have_value("def custom():\n    return 17")
 
 
+def test_code_session_edits_survive_language_and_route_changes_and_download(page):
+    goto(page, "/lesson/fullstack-http")
+    page.get_by_role("link", name="在实验空间编辑", exact=True).click()
+    editor = page.get_by_label("代码编辑器")
+    edits = {
+        "typescript": "const message: string = '我的 TypeScript 草稿';\nconsole.log(message);",
+        "python": "def message():\n    return '我的 Python 草稿'\n\nprint(message())",
+        "go": 'package main\nimport "fmt"\nfunc main() { fmt.Println("我的 Go 草稿") }',
+    }
+    for language, code in edits.items():
+        page.get_by_label("代码语言").select_option(language)
+        editor.fill(code)
+    for language, code in edits.items():
+        page.get_by_label("代码语言").select_option(language)
+        expect(editor).to_have_value(code)
+    with page.expect_download() as download:
+        page.get_by_role("button", name="下载当前代码", exact=True).click()
+    assert download.value.suggested_filename == "fullstack-http-draft.go"
+    assert Path(download.value.path()).read_text() == edits["go"]
+    page.locator(".linked-lesson a").click()
+    page.get_by_role("link", name="在实验空间编辑", exact=True).click()
+    expect(page.get_by_label("代码语言")).to_have_value("go")
+    expect(editor).to_have_value(edits["go"])
+    page.get_by_role("button", name="恢复示例", exact=True).click()
+    expect(editor).not_to_have_value(edits["go"])
+    page.get_by_label("代码语言").select_option("python")
+    expect(editor).to_have_value(edits["python"])
+    page.get_by_role("button", name="检查代码", exact=True).click()
+    expect(page.locator(".check-output")).to_contain_text("基础检查通过")
+    editor.fill("")
+    expect(page.locator(".check-output")).not_to_contain_text("基础检查通过")
+    page.get_by_label("代码语言").select_option("go")
+    page.get_by_label("代码语言").select_option("python")
+    expect(editor).to_have_value("")
+    page.set_viewport_size({"width": 375, "height": 812})
+    assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
+    progress = json.loads(page.evaluate("localStorage.getItem('deep-ai-station:v1')"))
+    assert "我的 Go 草稿" not in json.dumps(progress, ensure_ascii=False)
+
+
 def test_saved_language_is_ready_when_playground_first_opens(page):
     page.add_init_script(
         "localStorage.setItem('deep-ai-station:v1', JSON.stringify({version:1, completed:[], bookmarks:[], notes:{}, language:'go', runs:[]}));"

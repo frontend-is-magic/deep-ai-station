@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   ChevronDown,
   Code2,
+  Download,
   FlaskConical,
   History,
   Loader2,
@@ -19,6 +20,7 @@ import {
 } from 'lucide-react';
 import { api, streamRun } from '@/lib/api';
 import { progressAtom } from '@/lib/state';
+import { codeDraftsAtom, updateDraft } from '@/lib/drafts';
 import { languageNames } from '@/lib/utils';
 import type { Capabilities, Language, Lesson, Track, TrackId } from '@/lib/types';
 import { PageHeading } from '@/components/common';
@@ -58,6 +60,7 @@ function trackLesson(tracks: Track[], track: TrackId, id?: string) {
 export default function Playground({ tracks }: { tracks: Track[] }) {
   const [params, setParams] = useSearchParams();
   const [progress, setProgress] = useAtom(progressAtom);
+  const [drafts, setDrafts] = useAtom(codeDraftsAtom);
   const [trackId, setTrackId] = useState<TrackId>(
     params.get('track') === 'fullstack' ? 'fullstack' : 'agent',
   );
@@ -99,7 +102,8 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
   const track = tracks.find((x) => x.id === trackId)!;
   const initialCode =
     selectedLesson?.snippets[language] || track.lessons[0].snippets[language] || '';
-  const [code, setCode] = useState(initialCode);
+  const draftKey = `${trackId}:${selectedLesson?.id || 'default'}:${language}`;
+  const code = drafts.find((draft) => draft.context === draftKey)?.code ?? initialCode;
   const [checkResult, setCheckResult] = useState<CheckResult | null>(null);
   const [execution, setExecution] = useState<ExecutionResult | null>(null);
   const controller = useRef<AbortController | null>(null);
@@ -117,12 +121,19 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
     };
   }, []);
   useEffect(() => {
-    const lesson = tracks.flatMap((t) => t.lessons).find((x) => x.id === selectedLesson?.id);
-    const current = tracks.find((x) => x.id === trackId)!;
-    setCode(lesson?.snippets[language] || current.lessons[0].snippets[language] || '');
     setCheckResult(null);
     setExecution(null);
-  }, [language, trackId, tracks, selectedLesson?.id]);
+    setError('');
+  }, [draftKey]);
+  function downloadCode() {
+    const extension = { python: 'py', typescript: 'ts', go: 'go' }[language];
+    const url = URL.createObjectURL(new Blob([code], { type: 'text/plain;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${selectedLesson?.id || trackId}-draft.${extension}`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
   function switchMode(next: string) {
     setMode(next);
     setError('');
@@ -664,7 +675,11 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
                     aria-label="代码语言"
                     value={language}
                     disabled={running}
-                    onChange={(e) => setLanguage(e.target.value as Language)}
+                    onChange={(e) => {
+                      const value = e.target.value as Language;
+                      setLanguage(value);
+                      if (trackId === 'fullstack') setProgress((p) => ({ ...p, language: value }));
+                    }}
                   >
                     {(['python', 'typescript', 'go'] as Language[]).map((lang) => (
                       <option key={lang} value={lang}>
@@ -678,9 +693,10 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
                   size="sm"
                   disabled={running}
                   onClick={() => {
-                    setCode(initialCode);
+                    setDrafts((items) => items.filter((draft) => draft.context !== draftKey));
                     setCheckResult(null);
                     setExecution(null);
+                    setError('');
                   }}
                 >
                   恢复示例
@@ -692,7 +708,14 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
                 value={code}
                 maxLength={20000}
                 spellCheck={false}
-                onChange={(e) => setCode(e.target.value)}
+                disabled={running}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setDrafts((items) => updateDraft(items, draftKey, value));
+                  setCheckResult(null);
+                  setExecution(null);
+                  setError('');
+                }}
               />
               {canExecute && (
                 <label className="field-label sandbox-access">
@@ -731,6 +754,13 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
                     隔离运行
                   </Button>
                 )}
+              </div>
+              <div className="code-draft-tools">
+                <p>最近 20 组编辑保留在本次页面会话；刷新前可下载当前代码。</p>
+                <Button variant="outline" size="sm" disabled={!code.trim()} onClick={downloadCode}>
+                  <Download size={14} />
+                  下载当前代码
+                </Button>
               </div>
               <p className="sandbox-help">
                 {canExecute

@@ -1914,6 +1914,20 @@ hr {
 .code-editor-footer button {
   font-size: 13px;
 }
+.code-draft-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 20px 15px;
+}
+.code-draft-tools p {
+  flex: 1 1 200px;
+  font-size: 11px;
+  color: #697c5a;
+  line-height: 1.7;
+}
 .check-results {
   padding: 24px;
 }
