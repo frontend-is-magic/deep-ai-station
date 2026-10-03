@@ -1,0 +1,6 @@
+{
+  "id": "mcp-readonly",
+  "version": "mcp-readonly-v1",
+  "lessons": ["agent-mcp"],
+  "languages": ["python"]
+}

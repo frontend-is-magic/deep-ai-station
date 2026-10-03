@@ -111,6 +111,18 @@ jobs:
       - run: uv run python scripts/verify_agent_write_lab.py
       - run: uv run playwright install --with-deps chromium
       - run: uv run python scripts/verify_agent_write_lab.py --browser
+  mcp-lab:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.12.22'
+          python-version: '3.12'
+          enable-cache: true
+          cache-dependency-glob: labs/mcp-readonly/python/uv.lock
+      - run: uv run --no-project --python 3.12 python scripts/build_course_labs.py --check
+      - run: uv run --no-project --python 3.12 python scripts/verify_mcp_lab.py
   shared-quota:
     runs-on: ubuntu-latest
     services:

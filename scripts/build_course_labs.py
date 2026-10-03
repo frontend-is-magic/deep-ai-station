@@ -193,6 +193,18 @@ WRITE_SHARED = [
     "client/src/protocol.test.mjs",
     "client/src/fixtures.json",
 ]
+MCP_FILES = {
+    "python": [
+        "server.py",
+        "client.py",
+        "protocol.py",
+        "test_protocol.py",
+        "test_process.py",
+        "pyproject.toml",
+        "uv.lock",
+    ],
+}
+MCP_SHARED = ["README.md", "CONTRACT.md", "EVIDENCE.md", "AGENTS.md", ".gitignore"]
 LABS = {
     "api-contract": (FILES, SHARED),
     "sqlite-storage": (STORAGE_FILES, STORAGE_SHARED),
@@ -200,6 +212,7 @@ LABS = {
     "text-upload": (UPLOAD_FILES, UPLOAD_SHARED),
     "sse-stream": (STREAM_FILES, STREAM_SHARED),
     "agent-write-safety": (WRITE_FILES, WRITE_SHARED),
+    "mcp-readonly": (MCP_FILES, MCP_SHARED),
 }
 
 
