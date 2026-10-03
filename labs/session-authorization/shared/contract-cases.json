@@ -1,0 +1,1444 @@
+[
+  {
+    "id": "health",
+    "method": "GET",
+    "path": "/health",
+    "headers": {},
+    "status": 200,
+    "expected": {
+      "status": "ok",
+      "lab": "session-authorization-v1"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    }
+  },
+  {
+    "id": "auth-missing",
+    "method": "GET",
+    "path": "/me",
+    "headers": {},
+    "status": 401,
+    "expected": {
+      "error": "authentication_required"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "WWW-Authenticate": "Bearer realm=\"session-authorization\""
+    }
+  },
+  {
+    "id": "auth-unknown",
+    "method": "GET",
+    "path": "/me",
+    "headers": {
+      "Authorization": "Bearer lab-unknown-session"
+    },
+    "status": 401,
+    "expected": {
+      "error": "authentication_required"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "WWW-Authenticate": "Bearer realm=\"session-authorization\""
+    }
+  },
+  {
+    "id": "auth-expired",
+    "method": "GET",
+    "path": "/me",
+    "headers": {
+      "Authorization": "Bearer lab-expired-session"
+    },
+    "status": 401,
+    "expected": {
+      "error": "authentication_required"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "WWW-Authenticate": "Bearer realm=\"session-authorization\""
+    }
+  },
+  {
+    "id": "auth-revoked",
+    "method": "GET",
+    "path": "/me",
+    "headers": {
+      "Authorization": "Bearer lab-revoked-session"
+    },
+    "status": 401,
+    "expected": {
+      "error": "authentication_required"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "WWW-Authenticate": "Bearer realm=\"session-authorization\""
+    }
+  },
+  {
+    "id": "auth-basic",
+    "method": "GET",
+    "path": "/me",
+    "headers": {
+      "Authorization": "Basic lab-alice-session"
+    },
+    "status": 401,
+    "expected": {
+      "error": "authentication_required"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "WWW-Authenticate": "Bearer realm=\"session-authorization\""
+    }
+  },
+  {
+    "id": "auth-empty",
+    "method": "GET",
+    "path": "/me",
+    "headers": {
+      "Authorization": "Bearer "
+    },
+    "status": 401,
+    "expected": {
+      "error": "authentication_required"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "WWW-Authenticate": "Bearer realm=\"session-authorization\""
+    }
+  },
+  {
+    "id": "auth-tab",
+    "method": "GET",
+    "path": "/me",
+    "headers": {
+      "Authorization": "Bearer\tlab-alice-session"
+    },
+    "status": 401,
+    "expected": {
+      "error": "authentication_required"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "WWW-Authenticate": "Bearer realm=\"session-authorization\""
+    }
+  },
+  {
+    "id": "auth-padded",
+    "method": "GET",
+    "path": "/me",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session="
+    },
+    "status": 401,
+    "expected": {
+      "error": "authentication_required"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "WWW-Authenticate": "Bearer realm=\"session-authorization\""
+    }
+  },
+  {
+    "id": "auth-long",
+    "method": "GET",
+    "path": "/me",
+    "headers": {
+      "Authorization": "Bearer aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "status": 401,
+    "expected": {
+      "error": "authentication_required"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "WWW-Authenticate": "Bearer realm=\"session-authorization\""
+    }
+  },
+  {
+    "id": "alice-me",
+    "method": "GET",
+    "path": "/me",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session"
+    },
+    "status": 200,
+    "expected": {
+      "user_id": "alice"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    }
+  },
+  {
+    "id": "bearer-case-and-spaces",
+    "method": "GET",
+    "path": "/me",
+    "headers": {
+      "Authorization": "bEaReR  lab-alice-session"
+    },
+    "status": 200,
+    "expected": {
+      "user_id": "alice"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    }
+  },
+  {
+    "id": "bob-me",
+    "method": "GET",
+    "path": "/me",
+    "headers": {
+      "Authorization": "Bearer lab-bob-session"
+    },
+    "status": 200,
+    "expected": {
+      "user_id": "bob"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    }
+  },
+  {
+    "id": "alice-list",
+    "method": "GET",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session"
+    },
+    "status": 200,
+    "expected": {
+      "items": [
+        {
+          "id": "alice-notes",
+          "title": "Alice 的笔记",
+          "archived": false
+        },
+        {
+          "id": "alice-plan",
+          "title": "Alice 的计划",
+          "archived": false
+        }
+      ]
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    }
+  },
+  {
+    "id": "bob-list",
+    "method": "GET",
+    "path": "/documents",
+    "headers": {
+      "Authorization": "Bearer lab-bob-session"
+    },
+    "status": 200,
+    "expected": {
+      "items": [
+        {
+          "id": "bob-notes",
+          "title": "Bob 的笔记",
+          "archived": false
+        }
+      ]
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    }
+  },
+  {
+    "id": "alice-detail",
+    "method": "GET",
+    "path": "/documents/alice-notes",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session"
+    },
+    "status": 200,
+    "expected": {
+      "id": "alice-notes",
+      "title": "Alice 的笔记",
+      "archived": false
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    }
+  },
+  {
+    "id": "foreign-detail",
+    "method": "GET",
+    "path": "/documents/bob-notes",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session"
+    },
+    "status": 404,
+    "expected": {
+      "error": "document_not_found"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    }
+  },
+  {
+    "id": "missing-detail",
+    "method": "GET",
+    "path": "/documents/does-not-exist",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session"
+    },
+    "status": 404,
+    "expected": {
+      "error": "document_not_found"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    }
+  },
+  {
+    "id": "spoof-header-only",
+    "method": "GET",
+    "path": "/me",
+    "headers": {
+      "X-User-Id": "alice",
+      "X-Role": "admin"
+    },
+    "status": 401,
+    "expected": {
+      "error": "authentication_required"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "WWW-Authenticate": "Bearer realm=\"session-authorization\""
+    }
+  },
+  {
+    "id": "spoof-header-ignored",
+    "method": "GET",
+    "path": "/me",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session",
+      "X-User-Id": "bob",
+      "X-Role": "admin"
+    },
+    "status": 200,
+    "expected": {
+      "user_id": "alice"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    }
+  },
+  {
+    "id": "query-owner",
+    "method": "GET",
+    "path": "/documents?owner=bob",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session"
+    },
+    "status": 422,
+    "expected": {
+      "error": "invalid_input"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    }
+  },
+  {
+    "id": "query-mode",
+    "method": "GET",
+    "path": "/me?allow_cookie=true",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session"
+    },
+    "status": 422,
+    "expected": {
+      "error": "invalid_input"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    }
+  },
+  {
+    "id": "archive-own",
+    "method": "PATCH",
+    "path": "/documents/alice-notes",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session"
+    },
+    "status": 200,
+    "expected": {
+      "id": "alice-notes",
+      "title": "Alice 的笔记",
+      "archived": true
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    },
+    "json": {
+      "archived": true
+    }
+  },
+  {
+    "id": "archive-persists",
+    "method": "GET",
+    "path": "/documents/alice-notes",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session"
+    },
+    "status": 200,
+    "expected": {
+      "id": "alice-notes",
+      "title": "Alice 的笔记",
+      "archived": true
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    }
+  },
+  {
+    "id": "readonly-own",
+    "method": "PATCH",
+    "path": "/documents/alice-notes",
+    "headers": {
+      "Authorization": "Bearer lab-alice-readonly-session"
+    },
+    "status": 403,
+    "expected": {
+      "error": "forbidden"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    },
+    "json": {
+      "archived": false
+    }
+  },
+  {
+    "id": "readonly-foreign",
+    "method": "PATCH",
+    "path": "/documents/bob-notes",
+    "headers": {
+      "Authorization": "Bearer lab-alice-readonly-session"
+    },
+    "status": 404,
+    "expected": {
+      "error": "document_not_found"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    },
+    "json": {
+      "archived": false
+    }
+  },
+  {
+    "id": "bob-cannot-write-alice",
+    "method": "PATCH",
+    "path": "/documents/alice-notes",
+    "headers": {
+      "Authorization": "Bearer lab-bob-session"
+    },
+    "status": 404,
+    "expected": {
+      "error": "document_not_found"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    },
+    "json": {
+      "archived": false
+    }
+  },
+  {
+    "id": "readonly-failure-unchanged",
+    "method": "GET",
+    "path": "/documents/alice-notes",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session"
+    },
+    "status": 200,
+    "expected": {
+      "id": "alice-notes",
+      "title": "Alice 的笔记",
+      "archived": true
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    }
+  },
+  {
+    "id": "restore-own",
+    "method": "PATCH",
+    "path": "/documents/alice-notes",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session",
+      "Origin": "https://unrelated.example.test"
+    },
+    "status": 200,
+    "expected": {
+      "id": "alice-notes",
+      "title": "Alice 的笔记",
+      "archived": false
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    },
+    "json": {
+      "archived": false
+    }
+  },
+  {
+    "id": "body-null",
+    "method": "PATCH",
+    "path": "/documents/alice-notes",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session"
+    },
+    "status": 422,
+    "expected": {
+      "error": "invalid_input"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    },
+    "json": null
+  },
+  {
+    "id": "body-array",
+    "method": "PATCH",
+    "path": "/documents/alice-notes",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session"
+    },
+    "status": 422,
+    "expected": {
+      "error": "invalid_input"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    },
+    "json": []
+  },
+  {
+    "id": "body-missing",
+    "method": "PATCH",
+    "path": "/documents/alice-notes",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session"
+    },
+    "status": 422,
+    "expected": {
+      "error": "invalid_input"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    },
+    "json": {}
+  },
+  {
+    "id": "body-number",
+    "method": "PATCH",
+    "path": "/documents/alice-notes",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session"
+    },
+    "status": 422,
+    "expected": {
+      "error": "invalid_input"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    },
+    "json": {
+      "archived": 1
+    }
+  },
+  {
+    "id": "body-string",
+    "method": "PATCH",
+    "path": "/documents/alice-notes",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session"
+    },
+    "status": 422,
+    "expected": {
+      "error": "invalid_input"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    },
+    "json": {
+      "archived": "true"
+    }
+  },
+  {
+    "id": "body-null-value",
+    "method": "PATCH",
+    "path": "/documents/alice-notes",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session"
+    },
+    "status": 422,
+    "expected": {
+      "error": "invalid_input"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    },
+    "json": {
+      "archived": null
+    }
+  },
+  {
+    "id": "body-owner",
+    "method": "PATCH",
+    "path": "/documents/alice-notes",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session"
+    },
+    "status": 422,
+    "expected": {
+      "error": "invalid_input"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    },
+    "json": {
+      "archived": true,
+      "owner": "bob"
+    }
+  },
+  {
+    "id": "body-role",
+    "method": "PATCH",
+    "path": "/documents/alice-notes",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session"
+    },
+    "status": 422,
+    "expected": {
+      "error": "invalid_input"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    },
+    "json": {
+      "archived": true,
+      "role": "admin"
+    }
+  },
+  {
+    "id": "body-malformed",
+    "method": "PATCH",
+    "path": "/documents/alice-notes",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session"
+    },
+    "status": 422,
+    "expected": {
+      "error": "invalid_input"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    },
+    "raw": "{",
+    "content_type": "application/json"
+  },
+  {
+    "id": "body-duplicate",
+    "method": "PATCH",
+    "path": "/documents/alice-notes",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session"
+    },
+    "status": 422,
+    "expected": {
+      "error": "invalid_input"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    },
+    "raw": "{\"archived\":true,\"archived\":false}",
+    "content_type": "application/json"
+  },
+  {
+    "id": "body-escaped-duplicate",
+    "method": "PATCH",
+    "path": "/documents/alice-notes",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session"
+    },
+    "status": 422,
+    "expected": {
+      "error": "invalid_input"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    },
+    "raw": "{\"archived\":true,\"\\u0061rchived\":false}",
+    "content_type": "application/json"
+  },
+  {
+    "id": "body-bom",
+    "method": "PATCH",
+    "path": "/documents/alice-notes",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session"
+    },
+    "status": 422,
+    "expected": {
+      "error": "invalid_input"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    },
+    "raw": "﻿{\"archived\":false}",
+    "content_type": "application/json"
+  },
+  {
+    "id": "body-trailing",
+    "method": "PATCH",
+    "path": "/documents/alice-notes",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session"
+    },
+    "status": 422,
+    "expected": {
+      "error": "invalid_input"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    },
+    "raw": "{\"archived\":false}x",
+    "content_type": "application/json"
+  },
+  {
+    "id": "body-non-json-space",
+    "method": "PATCH",
+    "path": "/documents/alice-notes",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session"
+    },
+    "status": 422,
+    "expected": {
+      "error": "invalid_input"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    },
+    "raw": " {\"archived\":false}",
+    "content_type": "application/json"
+  },
+  {
+    "id": "media-before-json",
+    "method": "PATCH",
+    "path": "/documents/alice-notes",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session"
+    },
+    "status": 415,
+    "expected": {
+      "error": "unsupported_media_type"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    },
+    "raw": "{",
+    "content_type": "text/plain"
+  },
+  {
+    "id": "body-exact-4096",
+    "method": "PATCH",
+    "path": "/documents/alice-notes",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session"
+    },
+    "status": 200,
+    "expected": {
+      "id": "alice-notes",
+      "title": "Alice 的笔记",
+      "archived": false
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    },
+    "raw": "{\"archived\":false}                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              ",
+    "content_type": "Application/JSON ; charset=utf-8"
+  },
+  {
+    "id": "body-4097-before-media",
+    "method": "PATCH",
+    "path": "/documents/alice-notes",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session"
+    },
+    "status": 413,
+    "expected": {
+      "error": "request_too_large"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    },
+    "repeat_body": {
+      "character": "x",
+      "count": 4097
+    },
+    "content_type": "text/plain"
+  },
+  {
+    "id": "auth-before-body",
+    "method": "PATCH",
+    "path": "/documents/alice-notes",
+    "headers": {},
+    "status": 401,
+    "expected": {
+      "error": "authentication_required"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "WWW-Authenticate": "Bearer realm=\"session-authorization\""
+    },
+    "repeat_body": {
+      "character": "x",
+      "count": 4097
+    },
+    "content_type": "text/plain"
+  },
+  {
+    "id": "cookie-me",
+    "method": "GET",
+    "path": "/me",
+    "headers": {
+      "Cookie": "__Host-lab_session=lab-alice-session"
+    },
+    "status": 200,
+    "expected": {
+      "user_id": "alice"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    }
+  },
+  {
+    "id": "cookie-other-fields",
+    "method": "GET",
+    "path": "/me",
+    "headers": {
+      "Cookie": "preference=one; __Host-lab_session=lab-alice-session; theme=dark"
+    },
+    "status": 200,
+    "expected": {
+      "user_id": "alice"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    }
+  },
+  {
+    "id": "cookie-csrf",
+    "method": "GET",
+    "path": "/csrf",
+    "headers": {
+      "Cookie": "__Host-lab_session=lab-alice-session"
+    },
+    "status": 200,
+    "expected": {
+      "csrf_token": "lab-csrf-a"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    }
+  },
+  {
+    "id": "bearer-csrf",
+    "method": "GET",
+    "path": "/csrf",
+    "headers": {
+      "Authorization": "Bearer lab-bob-session"
+    },
+    "status": 200,
+    "expected": {
+      "csrf_token": "lab-csrf-b"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    }
+  },
+  {
+    "id": "csrf-both-missing",
+    "method": "PATCH",
+    "path": "/documents/alice-notes",
+    "headers": {
+      "Cookie": "__Host-lab_session=lab-alice-session"
+    },
+    "status": 403,
+    "expected": {
+      "error": "csrf_failed"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    },
+    "json": {
+      "archived": true
+    }
+  },
+  {
+    "id": "csrf-origin-missing",
+    "method": "PATCH",
+    "path": "/documents/alice-notes",
+    "headers": {
+      "Cookie": "__Host-lab_session=lab-alice-session",
+      "X-CSRF-Token": "lab-csrf-a"
+    },
+    "status": 403,
+    "expected": {
+      "error": "csrf_failed"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    },
+    "json": {
+      "archived": true
+    }
+  },
+  {
+    "id": "csrf-token-missing",
+    "method": "PATCH",
+    "path": "/documents/alice-notes",
+    "headers": {
+      "Cookie": "__Host-lab_session=lab-alice-session",
+      "Origin": "https://lab.example.test"
+    },
+    "status": 403,
+    "expected": {
+      "error": "csrf_failed"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    },
+    "json": {
+      "archived": true
+    }
+  },
+  {
+    "id": "csrf-null-origin",
+    "method": "PATCH",
+    "path": "/documents/alice-notes",
+    "headers": {
+      "Cookie": "__Host-lab_session=lab-alice-session",
+      "Origin": "null",
+      "X-CSRF-Token": "lab-csrf-a"
+    },
+    "status": 403,
+    "expected": {
+      "error": "csrf_failed"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    },
+    "json": {
+      "archived": true
+    }
+  },
+  {
+    "id": "csrf-similar-origin",
+    "method": "PATCH",
+    "path": "/documents/alice-notes",
+    "headers": {
+      "Cookie": "__Host-lab_session=lab-alice-session",
+      "Origin": "https://lab.example.test.attacker.test",
+      "X-CSRF-Token": "lab-csrf-a"
+    },
+    "status": 403,
+    "expected": {
+      "error": "csrf_failed"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    },
+    "json": {
+      "archived": true
+    }
+  },
+  {
+    "id": "csrf-slash-origin",
+    "method": "PATCH",
+    "path": "/documents/alice-notes",
+    "headers": {
+      "Cookie": "__Host-lab_session=lab-alice-session",
+      "Origin": "https://lab.example.test/",
+      "X-CSRF-Token": "lab-csrf-a"
+    },
+    "status": 403,
+    "expected": {
+      "error": "csrf_failed"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    },
+    "json": {
+      "archived": true
+    }
+  },
+  {
+    "id": "csrf-cross-session",
+    "method": "PATCH",
+    "path": "/documents/alice-notes",
+    "headers": {
+      "Cookie": "__Host-lab_session=lab-alice-session",
+      "Origin": "https://lab.example.test",
+      "X-CSRF-Token": "lab-csrf-b"
+    },
+    "status": 403,
+    "expected": {
+      "error": "csrf_failed"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    },
+    "json": {
+      "archived": true
+    }
+  },
+  {
+    "id": "csrf-duplicate-origin",
+    "method": "PATCH",
+    "path": "/documents/alice-notes",
+    "headers": {
+      "Cookie": "__Host-lab_session=lab-alice-session",
+      "X-CSRF-Token": "lab-csrf-a"
+    },
+    "status": 403,
+    "expected": {
+      "error": "csrf_failed"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    },
+    "header_pairs": [
+      ["Origin", "https://lab.example.test"],
+      ["Origin", "https://lab.example.test"]
+    ],
+    "json": {
+      "archived": true
+    }
+  },
+  {
+    "id": "csrf-duplicate-x-csrf-token",
+    "method": "PATCH",
+    "path": "/documents/alice-notes",
+    "headers": {
+      "Cookie": "__Host-lab_session=lab-alice-session",
+      "Origin": "https://lab.example.test"
+    },
+    "status": 403,
+    "expected": {
+      "error": "csrf_failed"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    },
+    "header_pairs": [
+      ["X-CSRF-Token", "lab-csrf-a"],
+      ["X-CSRF-Token", "lab-csrf-a"]
+    ],
+    "json": {
+      "archived": true
+    }
+  },
+  {
+    "id": "csrf-failures-unchanged",
+    "method": "GET",
+    "path": "/documents/alice-notes",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session"
+    },
+    "status": 200,
+    "expected": {
+      "id": "alice-notes",
+      "title": "Alice 的笔记",
+      "archived": false
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    }
+  },
+  {
+    "id": "cookie-write",
+    "method": "PATCH",
+    "path": "/documents/alice-notes",
+    "headers": {
+      "Cookie": "__Host-lab_session=lab-alice-session",
+      "Origin": "https://lab.example.test",
+      "X-CSRF-Token": "lab-csrf-a"
+    },
+    "status": 200,
+    "expected": {
+      "id": "alice-notes",
+      "title": "Alice 的笔记",
+      "archived": true
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    },
+    "json": {
+      "archived": true
+    }
+  },
+  {
+    "id": "cookie-restore",
+    "method": "PATCH",
+    "path": "/documents/alice-notes",
+    "headers": {
+      "Cookie": "__Host-lab_session=lab-alice-session",
+      "Origin": "https://lab.example.test",
+      "X-CSRF-Token": "lab-csrf-a"
+    },
+    "status": 200,
+    "expected": {
+      "id": "alice-notes",
+      "title": "Alice 的笔记",
+      "archived": false
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    },
+    "json": {
+      "archived": false
+    }
+  },
+  {
+    "id": "auth-cookie-combined",
+    "method": "GET",
+    "path": "/me",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session",
+      "Cookie": "__Host-lab_session=lab-bob-session"
+    },
+    "status": 400,
+    "expected": {
+      "error": "ambiguous_credentials"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    }
+  },
+  {
+    "id": "invalid-auth-no-cookie-fallback",
+    "method": "GET",
+    "path": "/me",
+    "headers": {
+      "Cookie": "__Host-lab_session=lab-alice-session",
+      "Authorization": "invalid"
+    },
+    "status": 400,
+    "expected": {
+      "error": "ambiguous_credentials"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    }
+  },
+  {
+    "id": "auth-duplicate-lines",
+    "method": "GET",
+    "path": "/me",
+    "headers": {},
+    "status": 400,
+    "expected": {
+      "error": "ambiguous_credentials"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    },
+    "header_pairs": [
+      ["Authorization", "Bearer lab-alice-session"],
+      ["Authorization", "Bearer lab-bob-session"]
+    ]
+  },
+  {
+    "id": "auth-merged-comma",
+    "method": "GET",
+    "path": "/me",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session, Bearer lab-bob-session"
+    },
+    "status": 400,
+    "expected": {
+      "error": "ambiguous_credentials"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    }
+  },
+  {
+    "id": "cookie-duplicate-target",
+    "method": "GET",
+    "path": "/me",
+    "headers": {
+      "Cookie": "__Host-lab_session=lab-alice-session; __Host-lab_session=lab-bob-session"
+    },
+    "status": 400,
+    "expected": {
+      "error": "ambiguous_credentials"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    }
+  },
+  {
+    "id": "cookie-duplicate-lines",
+    "method": "GET",
+    "path": "/me",
+    "headers": {},
+    "status": 400,
+    "expected": {
+      "error": "ambiguous_credentials"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    },
+    "header_pairs": [
+      ["Cookie", "__Host-lab_session=lab-alice-session"],
+      ["Cookie", "__Host-lab_session=lab-bob-session"]
+    ]
+  },
+  {
+    "id": "cookie-quoted",
+    "method": "GET",
+    "path": "/me",
+    "headers": {
+      "Cookie": "__Host-lab_session=\"lab-alice-session\""
+    },
+    "status": 401,
+    "expected": {
+      "error": "authentication_required"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "WWW-Authenticate": "Bearer realm=\"session-authorization\""
+    }
+  },
+  {
+    "id": "cookie-encoded",
+    "method": "GET",
+    "path": "/me",
+    "headers": {
+      "Cookie": "__Host-lab_session=lab%2Dalice-session"
+    },
+    "status": 401,
+    "expected": {
+      "error": "authentication_required"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "WWW-Authenticate": "Bearer realm=\"session-authorization\""
+    }
+  },
+  {
+    "id": "cookie-empty",
+    "method": "GET",
+    "path": "/me",
+    "headers": {
+      "Cookie": "__Host-lab_session="
+    },
+    "status": 401,
+    "expected": {
+      "error": "authentication_required"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "WWW-Authenticate": "Bearer realm=\"session-authorization\""
+    }
+  },
+  {
+    "id": "logout-csrf-failure",
+    "method": "POST",
+    "path": "/logout",
+    "headers": {
+      "Cookie": "__Host-lab_session=lab-alice-session"
+    },
+    "status": 403,
+    "expected": {
+      "error": "csrf_failed"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    },
+    "json": {}
+  },
+  {
+    "id": "logout-failure-still-valid",
+    "method": "GET",
+    "path": "/me",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session"
+    },
+    "status": 200,
+    "expected": {
+      "user_id": "alice"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    }
+  },
+  {
+    "id": "logout-extra-field",
+    "method": "POST",
+    "path": "/logout",
+    "headers": {
+      "Authorization": "Bearer lab-alice-session"
+    },
+    "status": 422,
+    "expected": {
+      "error": "invalid_input"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    },
+    "json": {
+      "all": true
+    }
+  },
+  {
+    "id": "logout-readonly",
+    "method": "POST",
+    "path": "/logout",
+    "headers": {
+      "Authorization": "Bearer lab-alice-readonly-session"
+    },
+    "status": 200,
+    "expected": {
+      "ok": true
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    },
+    "json": {},
+    "set_cookie": false
+  },
+  {
+    "id": "logout-replay",
+    "method": "GET",
+    "path": "/me",
+    "headers": {
+      "Authorization": "Bearer lab-alice-readonly-session"
+    },
+    "status": 401,
+    "expected": {
+      "error": "authentication_required"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "WWW-Authenticate": "Bearer realm=\"session-authorization\""
+    }
+  },
+  {
+    "id": "other-alice-session-survives",
+    "method": "GET",
+    "path": "/me",
+    "headers": {
+      "Authorization": "Bearer lab-alice-second-session"
+    },
+    "status": 200,
+    "expected": {
+      "user_id": "alice"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    }
+  },
+  {
+    "id": "logout-cookie",
+    "method": "POST",
+    "path": "/logout",
+    "headers": {
+      "Cookie": "__Host-lab_session=lab-alice-session",
+      "Origin": "https://lab.example.test",
+      "X-CSRF-Token": "lab-csrf-a"
+    },
+    "status": 200,
+    "expected": {
+      "ok": true
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    },
+    "json": {},
+    "set_cookie": true
+  },
+  {
+    "id": "logout-cookie-replay",
+    "method": "GET",
+    "path": "/me",
+    "headers": {
+      "Cookie": "__Host-lab_session=lab-alice-session"
+    },
+    "status": 401,
+    "expected": {
+      "error": "authentication_required"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store",
+      "WWW-Authenticate": "Bearer realm=\"session-authorization\""
+    }
+  },
+  {
+    "id": "bob-survives",
+    "method": "GET",
+    "path": "/me",
+    "headers": {
+      "Authorization": "Bearer lab-bob-session"
+    },
+    "status": 200,
+    "expected": {
+      "user_id": "bob"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    }
+  },
+  {
+    "id": "other-session-still-valid",
+    "method": "GET",
+    "path": "/me",
+    "headers": {
+      "Authorization": "Bearer lab-alice-second-session"
+    },
+    "status": 200,
+    "expected": {
+      "user_id": "alice"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    }
+  },
+  {
+    "id": "unknown-route",
+    "method": "GET",
+    "path": "/unknown",
+    "headers": {},
+    "status": 404,
+    "expected": {
+      "error": "route_not_found"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    }
+  },
+  {
+    "id": "wrong-method",
+    "method": "DELETE",
+    "path": "/me",
+    "headers": {
+      "Authorization": "Bearer lab-bob-session"
+    },
+    "status": 405,
+    "expected": {
+      "error": "method_not_allowed"
+    },
+    "response_headers": {
+      "Cache-Control": "no-store"
+    }
+  }
+]

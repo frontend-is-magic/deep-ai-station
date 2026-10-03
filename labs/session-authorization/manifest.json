@@ -1,0 +1,6 @@
+{
+  "id": "session-authorization",
+  "version": "session-authorization-v1",
+  "lessons": ["fullstack-auth", "fullstack-app-security"],
+  "languages": ["python", "typescript", "go"]
+}

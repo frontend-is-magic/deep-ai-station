@@ -1,0 +1,73 @@
+{
+  "notice": "Public fake sessions for loopback-only education; never production credentials.",
+  "sessions": [
+    {
+      "token": "lab-alice-session",
+      "user_id": "alice",
+      "can_write": true,
+      "expires_after_seconds": 3600,
+      "revoked": false,
+      "csrf_token": "lab-csrf-a"
+    },
+    {
+      "token": "lab-alice-second-session",
+      "user_id": "alice",
+      "can_write": true,
+      "expires_after_seconds": 3600,
+      "revoked": false,
+      "csrf_token": "lab-csrf-a2"
+    },
+    {
+      "token": "lab-alice-readonly-session",
+      "user_id": "alice",
+      "can_write": false,
+      "expires_after_seconds": 3600,
+      "revoked": false,
+      "csrf_token": "lab-csrf-ar"
+    },
+    {
+      "token": "lab-bob-session",
+      "user_id": "bob",
+      "can_write": true,
+      "expires_after_seconds": 3600,
+      "revoked": false,
+      "csrf_token": "lab-csrf-b"
+    },
+    {
+      "token": "lab-expired-session",
+      "user_id": "alice",
+      "can_write": true,
+      "expires_after_seconds": 0,
+      "revoked": false,
+      "csrf_token": "lab-csrf-e"
+    },
+    {
+      "token": "lab-revoked-session",
+      "user_id": "alice",
+      "can_write": true,
+      "expires_after_seconds": 3600,
+      "revoked": true,
+      "csrf_token": "lab-csrf-r"
+    }
+  ],
+  "documents": [
+    {
+      "id": "alice-notes",
+      "owner": "alice",
+      "title": "Alice 的笔记",
+      "archived": false
+    },
+    {
+      "id": "alice-plan",
+      "owner": "alice",
+      "title": "Alice 的计划",
+      "archived": false
+    },
+    {
+      "id": "bob-notes",
+      "owner": "bob",
+      "title": "Bob 的笔记",
+      "archived": false
+    }
+  ]
+}
