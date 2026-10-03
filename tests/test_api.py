@@ -214,6 +214,66 @@ def test_demo_events_have_explicit_mode_and_no_fake_usage():
     assert events[-1]["data"]["run_id"] == events[0]["data"]["run_id"]
 
 
+def test_agent_demo_runs_real_read_only_tools_without_claiming_model_decisions():
+    response = client.post(
+        "/api/playground/run",
+        json={"prompt": "MCP", "workflow": "agent", "lesson_id": "agent-mcp"},
+    )
+    events = [
+        {"event": frame.splitlines()[0][7:], "data": json.loads(frame.splitlines()[1][6:])}
+        for frame in response.text.split("\n\n")
+        if frame
+    ]
+    output = "".join(event["data"]["text"] for event in events if event["event"] == "delta")
+    assert "预设工具流程" in output and "没有调用语言模型" in output
+    assert "modelcontextprotocol.io" in output
+    assert events[-1]["data"]["workflow"] == "agent"
+    assert events[-1]["data"]["tool_count"] == 2 and events[-1]["data"]["usage"] is None
+
+
+def test_agent_model_limit_counts_each_request_instead_of_only_the_outer_run(monkeypatch):
+    import time
+
+    import backend.agent_loop as agent_module
+    import backend.app as api_module
+
+    monkeypatch.setenv("OPENAI_API_KEY", "test-only")
+    monkeypatch.setenv("PLAYGROUND_ACCESS_TOKEN", "test-access")
+    api_module._live_requests.clear()
+    queue = api_module._live_requests["live"]
+    queue.extend([time.monotonic()] * 8)
+    calls = []
+
+    async def stream(*args, **kwargs):
+        calls.append(kwargs)
+        yield {"event": "delta", "text": "已读取课程资料"}
+        yield {
+            "event": "done",
+            "model": "test-model",
+            "usage": None,
+            "tool_calls": [
+                {
+                    "id": f"call_{len(calls)}",
+                    "name": "knowledge_search",
+                    "arguments": {"query": "MCP"},
+                }
+            ],
+        }
+
+    monkeypatch.setattr(agent_module, "stream_generate", stream)
+    try:
+        response = client.post(
+            "/api/playground/run",
+            json={"prompt": "MCP", "workflow": "agent", "provider": "openai"},
+            headers={"X-Playground-Token": "test-access"},
+        )
+        assert len(calls) == 2 and len(queue) == 10
+        assert "event: error" in response.text and '"code": 429' in response.text
+        assert "event: done" not in response.text
+    finally:
+        api_module._live_requests.clear()
+
+
 @pytest.mark.parametrize(
     "body",
     [
@@ -222,6 +282,7 @@ def test_demo_events_have_explicit_mode_and_no_fake_usage():
         {"prompt": "x", "provider": "arbitrary"},
         {"prompt": "x", "temperature": 2},
         {"prompt": "x", "url": "https://example.com"},
+        {"prompt": "x", "workflow": "arbitrary"},
     ],
 )
 def test_run_rejects_invalid_input(body):

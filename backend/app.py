@@ -14,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 
+from backend.agent_loop import stream_agent
 from backend.curriculum import LESSONS, TRACKS
 from backend.exercises import exercise_bundle
 from backend.feed import get_feed
@@ -94,16 +95,19 @@ class RunInput(BaseModel):
     provider: Provider = "demo"
     track: Literal["agent", "fullstack"] = "agent"
     lesson_id: str | None = Field(default=None, min_length=1, max_length=100)
+    workflow: Literal["retrieval", "agent"] = "retrieval"
     temperature: float = Field(default=0.3, ge=0, le=1)
 
 
 _live_requests: dict[str, deque] = defaultdict(deque)
 
 
-def authorize_live(token: str | None):
+def authorize_live(token: str | None, *, consume: bool = True):
     expected = os.getenv("PLAYGROUND_ACCESS_TOKEN")
     if not expected or not token or not hmac.compare_digest(expected.encode(), token.encode()):
         raise HTTPException(401, "真实模型调用需要有效的实验访问码")
+    if not consume:
+        return
     # One shared access code has a bounded in-process quota. Production multi-instance
     # budgets additionally require provider-side quotas or a shared rate-limit store.
     queue = _live_requests["live"]
@@ -133,7 +137,7 @@ async def run(
     if body.provider != "demo":
         if not os.getenv(PROVIDERS[body.provider]["key"]):
             raise HTTPException(503, "该模型尚未配置")
-        authorize_live(x_playground_token)
+        authorize_live(x_playground_token, consume=body.workflow != "agent")
     run_id = str(uuid4())
 
     async def events():
@@ -147,6 +151,53 @@ async def run(
                 "status": "success",
             },
         )
+        if body.workflow == "agent":
+            try:
+                result = None
+                async with aclosing(
+                    stream_agent(
+                        body.provider,
+                        body.prompt,
+                        body.system,
+                        body.temperature,
+                        body.track,
+                        body.lesson_id,
+                        run_id,
+                        charge=lambda: authorize_live(x_playground_token),
+                    )
+                ) as stream:
+                    async for event in stream:
+                        if await request.is_disconnected():
+                            return
+                        if event["event"] == "trace":
+                            yield sse("trace", event["data"])
+                        elif event["event"] == "delta":
+                            yield sse("delta", {"text": event["text"]})
+                        else:
+                            result = event
+                if result is None:
+                    raise HTTPException(502, "Agent 运行未完成")
+                yield sse(
+                    "done",
+                    {
+                        "run_id": run_id,
+                        "mode": body.provider,
+                        "workflow": "agent",
+                        "lesson_id": body.lesson_id,
+                        "model": result["model"],
+                        "usage": result["usage"],
+                        "usage_complete": result["usage_complete"],
+                        "steps": result["steps"],
+                        "tool_count": result["tool_count"],
+                        "truncated": result.get("truncated", False),
+                        "duration_ms": round((time.monotonic() - start) * 1000),
+                    },
+                )
+            except HTTPException as exc:
+                yield sse(
+                    "error", {"message": exc.detail, "code": exc.status_code, "run_id": run_id}
+                )
+            return
         selected = retrieve(body.prompt, body.track)
         if course:
             selected = [course, *[item for item in selected if item["id"] != course["id"]]][:3]
@@ -213,6 +264,7 @@ async def run(
                     "title": "请求模型服务",
                     "detail": f"{body.provider} · 输出上限 1200 tokens",
                     "status": "running",
+                    "id": f"{run_id}:model:1",
                 },
             )
             try:
@@ -247,6 +299,15 @@ async def run(
                             yield sse("delta", {"text": event["text"]})
                         else:
                             result = event
+                yield sse(
+                    "trace",
+                    {
+                        "title": "请求模型服务",
+                        "detail": f"{body.provider} · 供应商响应已完成",
+                        "status": "success",
+                        "id": f"{run_id}:model:1",
+                    },
+                )
                 if result.get("truncated"):
                     yield sse(
                         "trace",
@@ -257,6 +318,15 @@ async def run(
                         },
                     )
             except HTTPException as exc:
+                yield sse(
+                    "trace",
+                    {
+                        "title": "请求模型服务",
+                        "detail": "供应商响应未完成",
+                        "status": "error",
+                        "id": f"{run_id}:model:1",
+                    },
+                )
                 yield sse(
                     "error", {"message": exc.detail, "code": exc.status_code, "run_id": run_id}
                 )
