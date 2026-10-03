@@ -30,6 +30,8 @@ pnpm dev
 
 演示模式无需密钥。真实模式只读取服务端环境变量，字段见 [.env.example](.env.example)。模型名称可通过 `OPENAI_MODEL`、`ANTHROPIC_MODEL`、`DEEPSEEK_MODEL` 调整。
 
+2026-10-03 核对官方清单后，默认采用 `gpt-4.1-mini`、`claude-sonnet-4-6`、`deepseek-flash`。旧 Sonnet 4 与 `deepseek-chat` 已退役；DeepSeek 明确关闭 thinking，避免教学回答预算被思考占用。模型可用性与费用仍以用户控制台为准；当前未做真实服务调用。参考：[OpenAI 模型](https://developers.openai.com/api/docs/models/gpt-4.1-mini)、[Claude 退役清单](https://platform.claude.com/docs/en/about-claude/model-deprecations)、[DeepSeek 官方配置](https://api-docs.deepseek.com/quick_start/pricing/)。
+
 本地通过受保护的 shell 环境传入配置；线上使用 Vercel 托管 Environment Variables。当前程序不会自动读取 `.env`。不要把密钥写进源码、VITE_ 变量、聊天或文档。
 
 `PLAYGROUND_ACCESS_TOKEN` 与供应商密钥同时配置后才启用真实调用。访问码只在页面内存中使用。服务内部限流是单实例保护；公开大规模使用前应配置共享限流与供应商费用上限。
