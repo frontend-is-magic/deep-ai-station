@@ -1,0 +1,6 @@
+{
+  "id": "document-chunking",
+  "version": "document-chunking-v1",
+  "lessons": ["agent-chunking"],
+  "languages": ["python"]
+}

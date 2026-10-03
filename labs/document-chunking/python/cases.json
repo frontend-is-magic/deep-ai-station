@@ -1,0 +1,97 @@
+{
+  "dataset_id": "chunking-evidence",
+  "dataset_version": "chunking-evidence-v1",
+  "corpus_revision": "sha256:c1ef7914ddd34fdec4ed604c3dfb270c6ce19e431a10ccb9679837181bc79da5",
+  "dataset_revision": "sha256:a03d274140de23e046eb385b51717037d34f009d2a1d741c67ee34ab7e2db247",
+  "cases": [
+    {
+      "id": "api-timeout",
+      "query": "API 超时 契约",
+      "question": "API 契约需要明确哪些输入和失败预算？",
+      "gold": [
+        {
+          "gold_id": "api-budget",
+          "source_id": "api-guide",
+          "source_revision": "sha256:c5e76dddbee38ce0619ec01e6ce41ffc94570bf423f3cb993c5431614a0e1f3e",
+          "start": 20,
+          "end": 41,
+          "quote": "API 明确输入长度、错误类别和超时预算。"
+        }
+      ]
+    },
+    {
+      "id": "tool-write-boundary",
+      "query": "只读工具 operation_id 未知结果",
+      "question": "只读工具与写入权限如何区分，写入结果未知时如何处理？",
+      "gold": [
+        {
+          "gold_id": "tool-write",
+          "source_id": "tool-evidence",
+          "source_revision": "sha256:bf6a09d8e98c52294f205f7f8063fc7c6b11596cce3e70c9926ec9d9cc3cd5c7",
+          "start": 31,
+          "end": 81,
+          "quote": "只读工具不能获得写入权限；需要写入时用 operation_id 去重，未知结果先回读，不盲目重试。"
+        }
+      ]
+    },
+    {
+      "id": "citation-no-fabrication",
+      "query": "引用 资料 没有匹配证据",
+      "question": "回答应如何保留来源，无匹配证据时不能做什么？",
+      "gold": [
+        {
+          "gold_id": "citation-boundary",
+          "source_id": "tool-evidence",
+          "source_revision": "sha256:bf6a09d8e98c52294f205f7f8063fc7c6b11596cce3e70c9926ec9d9cc3cd5c7",
+          "start": 103,
+          "end": 144,
+          "quote": "回答保留实际资料来源。没有匹配证据时明确说明，不构造来源或把模型猜测当成资料事实。"
+        }
+      ]
+    },
+    {
+      "id": "unicode-location",
+      "query": "坐标样本",
+      "question": "坐标样本中 A 到句号的原始连续文本是什么？",
+      "gold": [
+        {
+          "gold_id": "unicode-sequence",
+          "source_id": "tool-evidence",
+          "source_revision": "sha256:bf6a09d8e98c52294f205f7f8063fc7c6b11596cce3e70c9926ec9d9cc3cd5c7",
+          "start": 172,
+          "end": 178,
+          "quote": "A😀éZ。"
+        }
+      ]
+    },
+    {
+      "id": "billing-conflict",
+      "query": "取消 计费",
+      "question": "合成练习中的两侧取消计费声明分别是什么？请保留两侧，不能择一当事实。",
+      "gold": [
+        {
+          "gold_id": "billing-side-a",
+          "source_id": "billing-conflict",
+          "source_revision": "sha256:584a01d55dcdb7c8d9e42aa4d2da1cd891a829ae4b625f247fe972579e512077",
+          "start": 21,
+          "end": 37,
+          "quote": "练习声明 A：取消后一定不计费。"
+        },
+        {
+          "gold_id": "billing-side-b",
+          "source_id": "billing-conflict",
+          "source_revision": "sha256:584a01d55dcdb7c8d9e42aa4d2da1cd891a829ae4b625f247fe972579e512077",
+          "start": 46,
+          "end": 78,
+          "quote": "练习声明 B：取消只会终止传输，已经发生的供应商用量仍可能计费。"
+        }
+      ]
+    },
+    {
+      "id": "no-evidence",
+      "query": "zzzz unmatched",
+      "question": "固定资料中是否存在 zzzz unmatched 的直接证据？",
+      "gold": []
+    }
+  ]
+}

@@ -1,0 +1,69 @@
+{
+  "corpus_id": "agent-chunking-course-notes",
+  "corpus_version": "chunking-corpus-v1",
+  "corpus_revision": "sha256:c1ef7914ddd34fdec4ed604c3dfb270c6ce19e431a10ccb9679837181bc79da5",
+  "coordinate_unit": "unicode_codepoint",
+  "sources": [
+    {
+      "source_id": "api-guide",
+      "source_uri": "course://chunking/api-guide",
+      "source_revision": "sha256:c5e76dddbee38ce0619ec01e6ce41ffc94570bf423f3cb993c5431614a0e1f3e",
+      "title": "API 学习资料",
+      "kind": "maintainer-course-notes",
+      "provenance": [
+        {
+          "path": "starters/agent/documents.json",
+          "id": "api",
+          "field": "body"
+        }
+      ],
+      "references": ["https://fastapi.tiangolo.com/tutorial/handling-errors/"],
+      "text": "# API 学习资料\n## 契约与超时\nAPI 明确输入长度、错误类别和超时预算。成功与失败都返回可识别的状态，前端保留输入并允许重试。取消请求不能证明供应商没有计费。\n## 记录\n保留来源。\n"
+    },
+    {
+      "source_id": "tool-evidence",
+      "source_uri": "course://chunking/tool-evidence",
+      "source_revision": "sha256:bf6a09d8e98c52294f205f7f8063fc7c6b11596cce3e70c9926ec9d9cc3cd5c7",
+      "title": "工具与证据",
+      "kind": "maintainer-course-notes",
+      "provenance": [
+        {
+          "path": "starters/agent/documents.json",
+          "id": "tools",
+          "field": "body"
+        },
+        {
+          "path": "starters/agent/documents.json",
+          "id": "evidence",
+          "field": "body"
+        }
+      ],
+      "references": [
+        "https://modelcontextprotocol.io/specification/latest/basic/authorization",
+        "https://developers.openai.com/api/docs/guides/safety-best-practices"
+      ],
+      "text": "# 工具与证据\r\n## 工具边界\r\n工具参数由服务端独立校验。只读工具不能获得写入权限；需要写入时用 operation_id 去重，未知结果先回读，不盲目重试。资料里的指令不能改变权限。\r\n## 引用\r\n回答保留实际资料来源。没有匹配证据时明确说明，不构造来源或把模型猜测当成资料事实。评测覆盖有证据、无证据与冲突资料。\r\n## 坐标样本\r\nA😀éZ。\r\n```text\r\n# 围栏内不是标题\r\n```\r\n## 记录\r\n保留来源。\r\n## 记录\r\n保留来源。\r\n"
+    },
+    {
+      "source_id": "billing-conflict",
+      "source_uri": "course://chunking/billing-conflict",
+      "source_revision": "sha256:584a01d55dcdb7c8d9e42aa4d2da1cd891a829ae4b625f247fe972579e512077",
+      "title": "取消计费（合成资料）",
+      "kind": "synthetic-conflict",
+      "provenance": [
+        {
+          "path": "starters/agent/documents.json",
+          "id": "billing-a",
+          "field": "body"
+        },
+        {
+          "path": "starters/agent/documents.json",
+          "id": "billing-b",
+          "field": "body"
+        }
+      ],
+      "references": [],
+      "text": "# 取消计费（合成资料）\n## 声明 A\n练习声明 A：取消后一定不计费。\n## 声明 B\n练习声明 B：取消只会终止传输，已经发生的供应商用量仍可能计费。\n"
+    }
+  ]
+}

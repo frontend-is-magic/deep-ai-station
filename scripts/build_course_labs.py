@@ -220,6 +220,23 @@ CHECKPOINT_FILES = {
     ],
 }
 CHECKPOINT_SHARED = ["README.md", "CONTRACT.md", "EVIDENCE.md", "AGENTS.md", ".gitignore"]
+CHUNKING_FILES = {
+    "python": [
+        "app.py",
+        "loader.py",
+        "chunking.py",
+        "retrieval.py",
+        "corpus.json",
+        "cases.json",
+        "test_loader.py",
+        "test_chunking.py",
+        "test_retrieval.py",
+        "test_cli.py",
+        "pyproject.toml",
+        "uv.lock",
+    ],
+}
+CHUNKING_SHARED = ["README.md", "CONTRACT.md", "EVIDENCE.md", "AGENTS.md", ".gitignore"]
 LABS = {
     "api-contract": (FILES, SHARED),
     "sqlite-storage": (STORAGE_FILES, STORAGE_SHARED),
@@ -229,6 +246,7 @@ LABS = {
     "agent-write-safety": (WRITE_FILES, WRITE_SHARED),
     "mcp-readonly": (MCP_FILES, MCP_SHARED),
     "workflow-checkpoint": (CHECKPOINT_FILES, CHECKPOINT_SHARED),
+    "document-chunking": (CHUNKING_FILES, CHUNKING_SHARED),
 }
 
 
