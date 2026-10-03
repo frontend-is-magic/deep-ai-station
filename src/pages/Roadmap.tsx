@@ -1,0 +1,166 @@
+import { useState } from 'react';
+import { useAtom } from 'jotai';
+import { Link, useParams } from 'react-router-dom';
+import {
+  ArrowRight,
+  Check,
+  CheckCircle2,
+  ChevronDown,
+  Clock3,
+  FlaskConical,
+  Layers3,
+} from 'lucide-react';
+import { progressAtom } from '@/lib/state';
+import type { Track } from '@/lib/types';
+import { languageNames } from '@/lib/utils';
+import { PageHeading } from '@/components/common';
+import { Button } from '@/components/ui/button';
+
+export default function Roadmap({ tracks }: { tracks: Track[] }) {
+  const { trackId } = useParams();
+  const track = tracks.find((x) => x.id === trackId);
+  const [progress, setProgress] = useAtom(progressAtom);
+  const [collapsed, setCollapsed] = useState<string[]>([]);
+  if (!track)
+    return (
+      <div className="state-panel">
+        <h1>学习路线不存在</h1>
+        <Link to="/">返回总览</Link>
+      </div>
+    );
+  const done = track.lessons.filter((x) => progress.completed.includes(x.id)).length;
+  const next = track.lessons.find((x) => !progress.completed.includes(x.id)) || track.lessons[0];
+  return (
+    <div className="page">
+      <PageHeading
+        eyebrow={`LEARNING PATH / ${track.id === 'agent' ? '01' : '02'}`}
+        title={track.title}
+        description={track.description}
+      >
+        <Button asChild>
+          <Link to={`/lesson/${next.id}`}>
+            {done ? '继续学习' : '开始第一课'}
+            <ArrowRight size={16} />
+          </Link>
+        </Button>
+      </PageHeading>
+      <div className="roadmap-overview">
+        <div>
+          <Layers3 size={19} />
+          <strong>{track.stages.length} 个阶段</strong>
+          <span>{track.lessons.length} 节课程 · 逐步完成，无需解锁</span>
+        </div>
+        <div className="overview-progress">
+          <span>
+            {done}/{track.lessons.length} 已完成
+          </span>
+          <div className="progress-bar">
+            <span style={{ width: `${(done / track.lessons.length) * 100}%` }} />
+          </div>
+          <strong>{Math.round((done / track.lessons.length) * 100)}%</strong>
+        </div>
+      </div>
+      {track.id === 'fullstack' && (
+        <div className="language-selector">
+          <div>
+            <strong>选择你的服务端语言</strong>
+            <p>保持相同 API 契约，对照不同框架的实现。</p>
+          </div>
+          <div className="segmented-control">
+            {track.languages.map((language) => (
+              <button
+                key={language}
+                className={progress.language === language ? 'selected' : ''}
+                onClick={() => setProgress((p) => ({ ...p, language }))}
+              >
+                {languageNames[language]}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      <div className="roadmap-stages">
+        {track.stages.map((stage) => {
+          const isCollapsed = collapsed.includes(stage.id);
+          const stageDone = stage.lessons.filter((id) => progress.completed.includes(id)).length;
+          return (
+            <section key={stage.id} className="stage">
+              <div
+                className={`stage-marker ${stageDone === stage.lessons.length ? 'completed' : ''}`}
+              >
+                {stageDone === stage.lessons.length ? (
+                  <Check size={19} />
+                ) : (
+                  String(stage.number).padStart(2, '0')
+                )}
+              </div>
+              <div className="stage-content">
+                <button
+                  className="stage-heading"
+                  aria-expanded={!isCollapsed}
+                  onClick={() =>
+                    setCollapsed((x) =>
+                      x.includes(stage.id) ? x.filter((id) => id !== stage.id) : [...x, stage.id],
+                    )
+                  }
+                >
+                  <div>
+                    <p className="eyebrow">STAGE {String(stage.number).padStart(2, '0')}</p>
+                    <h2>{stage.title}</h2>
+                    <p>{stage.description}</p>
+                  </div>
+                  <span>
+                    {stageDone}/{stage.lessons.length}
+                    <ChevronDown className={isCollapsed ? '-rotate-90' : ''} size={18} />
+                  </span>
+                </button>
+                {!isCollapsed && (
+                  <div className="stage-lessons">
+                    {stage.lessons.map((id) => {
+                      const lesson = track.lessons.find((x) => x.id === id)!;
+                      const completed = progress.completed.includes(id);
+                      return (
+                        <Link
+                          to={`/lesson/${id}`}
+                          className={`lesson-row ${completed ? 'completed' : ''}`}
+                          key={id}
+                        >
+                          <span className="lesson-status">
+                            {completed ? <CheckCircle2 size={20} /> : <span />}
+                          </span>
+                          <div>
+                            <h3>{lesson.title}</h3>
+                            <p>{lesson.objective}</p>
+                          </div>
+                          <span className="badge">{lesson.level}</span>
+                          <span className="lesson-time">
+                            <Clock3 size={14} />
+                            {lesson.minutes} min
+                          </span>
+                          <ArrowRight size={17} />
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </section>
+          );
+        })}
+      </div>
+      <div className="roadmap-cta">
+        <FlaskConical size={24} />
+        <div>
+          <h3>读懂之后，亲手验证</h3>
+          <p>把课程示例带到实验空间，观察完整运行流程。</p>
+        </div>
+        <Button variant="dark" asChild>
+          <Link to={`/playground?track=${track.id}`}>
+            进入 Playground
+            <ArrowRight size={16} />
+          </Link>
+        </Button>
+      </div>
+    </div>
+  );
+}
