@@ -21,13 +21,13 @@ PROVIDERS = {
     "anthropic": {
         "key": "ANTHROPIC_API_KEY",
         "model_env": "ANTHROPIC_MODEL",
-        "model": "claude-sonnet-4-20250514",
+        "model": "claude-sonnet-4-6",
         "url": "https://api.anthropic.com/v1/messages",
     },
     "deepseek": {
         "key": "DEEPSEEK_API_KEY",
         "model_env": "DEEPSEEK_MODEL",
-        "model": "deepseek-chat",
+        "model": "deepseek-flash",
         "url": "https://api.deepseek.com/chat/completions",
     },
 }
@@ -123,6 +123,10 @@ async def stream_generate(
         "stream": True,
         "stream_options": {"include_usage": True},
     }
+    if provider == "deepseek":
+        # Current DeepSeek models default to thinking. This bounded tutorial
+        # requests non-thinking output so the 1200-token budget serves the answer.
+        body["thinking"] = {"type": "disabled"}
     if provider == "anthropic":
         headers = {"x-api-key": key, "anthropic-version": "2023-06-01"}
         body = {

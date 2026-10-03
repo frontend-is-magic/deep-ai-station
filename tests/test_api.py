@@ -275,11 +275,22 @@ async def test_provider_adapters_validate_message_contract(monkeypatch, provider
         "deepseek": "DEEPSEEK_API_KEY",
     }[provider]
     monkeypatch.setenv(env, "test-only")
+    monkeypatch.delenv(env.replace("API_KEY", "MODEL"), raising=False)
 
     def handler(request):
         body = json.loads(request.content)
         assert body["max_tokens"] == 1200
         assert body["stream"] is True
+        assert (
+            body["model"]
+            == {
+                "openai": "gpt-4.1-mini",
+                "anthropic": "claude-sonnet-4-6",
+                "deepseek": "deepseek-flash",
+            }[provider]
+        )
+        if provider == "deepseek":
+            assert body["thinking"] == {"type": "disabled"}
         assert body["messages"][-1]["content"] == "test prompt"
         if provider == "anthropic":
             assert body["system"] == "test system"
