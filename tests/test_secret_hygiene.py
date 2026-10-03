@@ -282,3 +282,31 @@ def test_staged_database_url_template_is_rejected_without_printing_connection_st
     diagnostic = output.out + output.err + str(failure.value)
     for private_part in [fake_url, "fixture-user", "fixture-value", "database.invalid"]:
         assert private_part not in diagnostic
+
+
+@pytest.mark.parametrize("ignore_template", [".gitignore", "labs/mcp-readonly/shared/.gitignore"])
+def test_mcp_connection_configs_are_ignored_and_rejected_inside_forced_zip(
+    repository, capsys, ignore_template
+):
+    root, git = repository
+    template = Path(__file__).resolve().parents[1] / ignore_template
+    (root / ".gitignore").write_bytes(template.read_bytes())
+    paths = [".mcp.json", "mcp_config.json", "mcp-settings.json", ".mcp/connections.json"]
+    contents = b'{"auth":"test-only-private-config"}'
+    for name in paths:
+        target = root / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(contents)
+        git("check-ignore", "--", name)
+    scanner.main()
+    assert "sensitive-path" not in capsys.readouterr().out
+    with zipfile.ZipFile(root / "lesson.zip", "w") as archive:
+        for name in paths:
+            archive.writestr(name, contents)
+    git("add", "lesson.zip")
+    with pytest.raises(SystemExit):
+        scanner.main()
+    captured = capsys.readouterr()
+    for name in paths:
+        assert f"sensitive-path: index:lesson.zip!{name}" in captured.out
+    assert contents.decode() not in captured.out + captured.err
