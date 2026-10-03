@@ -38,6 +38,7 @@ import type {
 import { PageHeading } from '@/components/common';
 import { Button } from '@/components/ui/button';
 import RetrievalEvaluation from '@/components/RetrievalEvaluation';
+import ToolContractExperiment from '@/components/ToolContractExperiment';
 
 interface CheckResult {
   mode: string;
@@ -87,16 +88,11 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
   const [params, setParams] = useSearchParams();
   const [progress, setProgress] = useAtom(progressAtom);
   const [drafts, setDrafts] = useAtom(codeDraftsAtom);
-  const [trackId, setTrackId] = useState<TrackId>(
-    params.get('track') === 'fullstack' ? 'fullstack' : 'agent',
-  );
-  const [mode, setMode] = useState(
-    params.get('mode') === 'evaluation'
-      ? 'evaluation'
-      : params.get('mode') === 'code'
-        ? 'code'
-        : 'agent',
-  );
+  const trackId: TrackId = params.get('track') === 'fullstack' ? 'fullstack' : 'agent';
+  const requestedMode = params.get('mode');
+  const mode = ['evaluation', 'code', 'tool-contract'].includes(requestedMode || '')
+    ? requestedMode!
+    : 'agent';
   const [provider, setProvider] = useState<LiveProvider>('demo');
   const [workflow, setWorkflow] = useState<RunWorkflow>(
     params.get('workflow') === 'agent' ? 'agent' : 'retrieval',
@@ -142,6 +138,9 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
   const [language, setLanguage] = useState<Language>(
     trackId === 'agent' ? 'python' : progress.language,
   );
+  useEffect(() => {
+    setLanguage(trackId === 'agent' ? 'python' : progress.language);
+  }, [trackId, progress.language]);
   const track = tracks.find((x) => x.id === trackId)!;
   const initialCode =
     selectedLesson?.snippets[language] || track.lessons[0].snippets[language] || '';
@@ -160,14 +159,27 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
     return () => {
       mounted.current = false;
       c.abort();
-      controller.current?.abort();
+      const previous = controller.current;
+      controller.current = null;
+      previous?.abort();
     };
   }, []);
   useEffect(() => {
+    // History navigation can change the visible experiment while a request is pending.
+    const previous = controller.current;
+    if (previous) {
+      controller.current = null;
+      previous.abort();
+      setRunning(false);
+      setLiveUsage(null);
+      setOutput('');
+      setTrace([]);
+      setRunInfo(null);
+    }
     setCheckResult(null);
     setExecution(null);
     setError('');
-  }, [draftKey]);
+  }, [draftKey, mode]);
   function downloadCode() {
     const extension = { python: 'py', typescript: 'ts', go: 'go' }[language];
     const url = URL.createObjectURL(new Blob([code], { type: 'text/plain;charset=utf-8' }));
@@ -178,7 +190,6 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
     URL.revokeObjectURL(url);
   }
   function switchMode(next: string) {
-    setMode(next);
     setError('');
     setParams(
       (p) => {
@@ -193,7 +204,6 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
     controller.current?.abort();
     controller.current = null;
     setLiveUsage(null);
-    setTrackId(value);
     setLanguage(value === 'agent' ? 'python' : progress.language);
     setParams({ track: value, mode, workflow }, { replace: true });
     setOutput('');
@@ -365,7 +375,17 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
       }
     }
   }
+  function stopCodeRequest() {
+    const previous = controller.current;
+    controller.current = null;
+    previous?.abort();
+    setRunning(false);
+    setCheckResult(null);
+    setExecution(null);
+    setError('本次操作已停止，请重新运行。');
+  }
   async function check() {
+    if (running) return;
     setRunning(true);
     setError('');
     setExecution(null);
@@ -378,13 +398,15 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
         body: JSON.stringify({ language, code }),
         signal: c.signal,
       });
-      if (mounted.current) setCheckResult(result);
+      if (mounted.current && controller.current === c) setCheckResult(result);
     } catch (e) {
-      if (mounted.current)
+      if (mounted.current && controller.current === c)
         setError(c.signal.aborted ? '检查已停止' : e instanceof Error ? e.message : '检查失败');
     } finally {
-      if (mounted.current) setRunning(false);
-      controller.current = null;
+      if (mounted.current && controller.current === c) {
+        setRunning(false);
+        controller.current = null;
+      }
     }
   }
   async function executeCode() {
@@ -402,15 +424,17 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
         headers: { 'Content-Type': 'application/json', 'X-Playground-Token': token },
         body: JSON.stringify({ language, code }),
       });
-      if (mounted.current) setExecution(result);
+      if (mounted.current && controller.current === c) setExecution(result);
     } catch (e) {
-      if (mounted.current)
+      if (mounted.current && controller.current === c)
         setError(
           c.signal.aborted ? '隔离运行已停止' : e instanceof Error ? e.message : '隔离运行失败',
         );
     } finally {
-      if (mounted.current) setRunning(false);
-      if (controller.current === c) controller.current = null;
+      if (mounted.current && controller.current === c) {
+        setRunning(false);
+        controller.current = null;
+      }
     }
   }
   const displayedUsage =
@@ -478,6 +502,14 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
             <FlaskConical size={16} />
             检索评测
           </button>
+          <button
+            disabled={running}
+            className={mode === 'tool-contract' ? 'selected' : ''}
+            onClick={() => switchMode('tool-contract')}
+          >
+            <FlaskConical size={16} />
+            工具契约
+          </button>
         </div>
         <label className="track-select">
           学习方向
@@ -512,8 +544,6 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
                   controller.current?.abort();
                   controller.current = null;
                   setLiveUsage(null);
-                  setTrackId(record.track);
-                  setMode('agent');
                   setWorkflow(record.workflow || 'retrieval');
                   setLanguage(record.track === 'agent' ? 'python' : progress.language);
                   setParams(
@@ -562,7 +592,13 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
           )}
         </div>
       )}
-      {mode === 'evaluation' ? (
+      {mode === 'tool-contract' ? (
+        <ToolContractExperiment
+          track={trackId}
+          lesson={selectedLesson}
+          lessons={tracks.flatMap((item) => item.lessons)}
+        />
+      ) : mode === 'evaluation' ? (
         <RetrievalEvaluation track={trackId} lesson={selectedLesson} />
       ) : mode === 'agent' ? (
         <>
@@ -972,7 +1008,7 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
                   检查代码
                 </Button>
                 {running ? (
-                  <Button variant="outline" onClick={() => controller.current?.abort()}>
+                  <Button variant="outline" onClick={stopCodeRequest}>
                     <Square size={15} />
                     停止运行
                   </Button>

@@ -18,6 +18,7 @@ import { recordLessonVisit } from '@/lib/resume';
 import type { Track } from '@/lib/types';
 import { languageNames } from '@/lib/utils';
 import { courseLabFor } from '@/lib/course-labs';
+import { toolContractLessonEligible } from '@/lib/tool-contract';
 import { Button } from '@/components/ui/button';
 import EvidenceCard from '@/components/EvidenceCard';
 import LanguagePractice from '@/components/LanguagePractice';
@@ -198,6 +199,14 @@ export default function LessonPage({ tracks }: { tracks: Track[] }) {
               下载本课练习资料
             </a>
           </Button>
+          {toolContractLessonEligible(lesson) && (
+            <Button variant="outline" asChild>
+              <Link to={'/playground?track=agent&lesson=' + lesson.id + '&mode=tool-contract'}>
+                <FlaskConical size={16} />
+                运行工具契约实验
+              </Link>
+            </Button>
+          )}
           {courseLab && (
             <section
               aria-label={courseLab.title}
