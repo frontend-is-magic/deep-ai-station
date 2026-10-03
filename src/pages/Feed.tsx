@@ -3,7 +3,7 @@ import { useAtom } from 'jotai';
 import { ArrowUpRight, Bookmark, Check, Radio, RefreshCw, Search } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { FeedResponse } from '@/lib/types';
-import { progressAtom } from '@/lib/state';
+import { progressAtom, toggleBookmark } from '@/lib/state';
 import { formatDate } from '@/lib/utils';
 import { ErrorPanel, Loading, PageHeading } from '@/components/common';
 import { Button } from '@/components/ui/button';
@@ -31,8 +31,15 @@ export default function Feed() {
       });
     return () => controller.abort();
   }, [refresh]);
+  const available = onlySaved
+    ? [
+        ...new Map(
+          [...(feed?.items || []), ...(progress.savedItems || [])].map((item) => [item.id, item]),
+        ).values(),
+      ]
+    : feed?.items || [];
   const items =
-    feed?.items.filter(
+    available.filter(
       (item) =>
         (track === 'all' || item.track === track) &&
         (!onlySaved || progress.bookmarks.includes(item.id)) &&
@@ -121,14 +128,13 @@ export default function Feed() {
                     <button
                       className={`save-button ${saved ? 'saved' : ''}`}
                       aria-label={`${saved ? '取消收藏' : '收藏'}：${item.title}`}
-                      onClick={() =>
-                        setProgress((p) => ({
-                          ...p,
-                          bookmarks: saved
-                            ? p.bookmarks.filter((id) => id !== item.id)
-                            : [...p.bookmarks, item.id],
-                        }))
+                      disabled={!saved && progress.bookmarks.length >= 200}
+                      title={
+                        !saved && progress.bookmarks.length >= 200
+                          ? '已达到 200 条收藏上限'
+                          : undefined
                       }
+                      onClick={() => setProgress((p) => toggleBookmark(p, item))}
                     >
                       {saved ? <Check size={17} /> : <Bookmark size={17} />}
                     </button>

@@ -53,6 +53,7 @@ export interface Progress {
   version: 1;
   completed: string[];
   bookmarks: string[];
+  savedItems?: FeedItem[];
   notes: Record<string, string>;
   language: Language;
   runs: RunRecord[];

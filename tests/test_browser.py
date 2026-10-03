@@ -1,3 +1,4 @@
+import json
 import os
 
 import pytest
@@ -89,6 +90,43 @@ def test_bookmarks_and_search(page):
     page.get_by_label("搜索课程", exact=True).fill("FastAPI")
     expect(page.get_by_role("dialog")).to_contain_text("路由与分层架构")
     page.get_by_role("button", name="关闭弹窗", exact=True).click()
+
+
+def test_news_bookmark_survives_source_loss_and_reload(page):
+    article = {
+        "id": "live-test",
+        "title": "离线仍可回看的官方动态",
+        "summary": "资料摘要已保存",
+        "source": "官方测试源",
+        "url": "https://go.dev/blog/context",
+        "track": "fullstack",
+        "tags": ["Go"],
+        "kind": "news",
+        "published": "2026-10-03T00:00:00Z",
+    }
+    page.route(
+        "**/api/feed*",
+        lambda route: route.fulfill(
+            json={
+                "items": [article],
+                "sources": [],
+                "fetched_at": "2026-10-03",
+                "mode": "live+curated",
+            }
+        ),
+    )
+    goto(page, "/feed")
+    page.get_by_role("button", name="收藏：离线仍可回看的官方动态", exact=True).click()
+    page.unroute_all()
+    page.route("**/api/feed*", lambda route: route.abort())
+    goto(page, "/library")
+    page.get_by_role("button", name="收藏资料", exact=True).click()
+    expect(page.get_by_role("heading", name=article["title"], exact=True)).to_be_visible()
+    page.reload()
+    page.get_by_role("button", name="收藏资料", exact=True).click()
+    expect(page.get_by_role("heading", name=article["title"], exact=True)).to_be_visible()
+    progress = json.loads(page.evaluate("localStorage.getItem('deep-ai-station:v1')"))
+    assert progress["savedItems"][0]["url"] == article["url"]
 
 
 def test_mobile_navigation_has_no_horizontal_overflow(page):

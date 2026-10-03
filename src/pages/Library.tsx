@@ -29,7 +29,11 @@ export default function Library({ tracks }: { tracks: Track[] }) {
   const lessons = tracks.flatMap((t) => t.lessons);
   const completed = lessons.filter((l) => progress.completed.includes(l.id));
   const notes = lessons.filter((l) => progress.notes[l.id]?.trim());
-  const saved = feed?.items.filter((x) => progress.bookmarks.includes(x.id)) || [];
+  const saved = [
+    ...new Map(
+      [...(feed?.items || []), ...(progress.savedItems || [])].map((item) => [item.id, item]),
+    ).values(),
+  ].filter((item) => progress.bookmarks.includes(item.id));
   return (
     <div className="page">
       <PageHeading
@@ -132,7 +136,7 @@ export default function Library({ tracks }: { tracks: Track[] }) {
           )}
           {progress.bookmarks.length > saved.length && (
             <div className="info-box">
-              部分实时订阅收藏需要在信息流同步后查看。收藏 ID 已保留，可通过导出记录备份。
+              部分早期收藏只保存了 ID。再次同步并取消、重新收藏后，资料摘要就能在这里随时查看。
             </div>
           )}
         </div>
