@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAtom } from 'jotai';
 import { CheckCircle2, RotateCcw } from 'lucide-react';
 import { progressAtom } from '@/lib/state';
+import { editLatestProgress } from '@/lib/progress-write';
 import { MAX_PRACTICE_RECORDS, practiceFor, removePractice, savePractice } from '@/lib/practice';
 import type { Language } from '@/lib/types';
 import { languageNames } from '@/lib/utils';
@@ -25,18 +26,25 @@ export default function LanguagePractice({
   function markComplete() {
     if (!confirmed || record || atCapacity) return;
     const completedAt = new Date().toISOString();
-    setProgress((previous) =>
-      savePractice(previous, {
-        lesson_id: lessonId,
-        language,
-        completed_at: completedAt,
-      }),
+    setProgress(
+      (previous) =>
+        editLatestProgress(previous, (current) =>
+          savePractice(current, {
+            lesson_id: lessonId,
+            language,
+            completed_at: completedAt,
+          }),
+        ).progress,
     );
     setConfirmed(false);
   }
 
   function remove() {
-    setProgress((previous) => removePractice(previous, lessonId, language));
+    setProgress(
+      (previous) =>
+        editLatestProgress(previous, (current) => removePractice(current, lessonId, language))
+          .progress,
+    );
     setConfirmed(false);
   }
 

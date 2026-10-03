@@ -3,7 +3,8 @@ import { useAtom } from 'jotai';
 import { ArrowUpRight, Bookmark, Check, Radio, RefreshCw, Search } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { FeedResponse, Track } from '@/lib/types';
-import { progressAtom, toggleBookmark } from '@/lib/state';
+import { progressAtom } from '@/lib/state';
+import { editLatestProgress, setBookmarkSaved } from '@/lib/progress-write';
 import { formatDate } from '@/lib/utils';
 import { ErrorPanel, Loading, PageHeading } from '@/components/common';
 import { Button } from '@/components/ui/button';
@@ -135,7 +136,14 @@ export default function Feed({ tracks }: { tracks: Track[] }) {
                           ? '已达到 200 条收藏上限'
                           : undefined
                       }
-                      onClick={() => setProgress((p) => toggleBookmark(p, item))}
+                      onClick={() =>
+                        setProgress(
+                          (previous) =>
+                            editLatestProgress(previous, (current) =>
+                              setBookmarkSaved(current, item, !saved),
+                            ).progress,
+                        )
+                      }
                     >
                       {saved ? <Check size={17} /> : <Bookmark size={17} />}
                     </button>

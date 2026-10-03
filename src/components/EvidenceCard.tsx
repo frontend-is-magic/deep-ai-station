@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { useAtom } from 'jotai';
+import { useAtom, useStore } from 'jotai';
 import { Download } from 'lucide-react';
 import { latestProgress, progressAtom } from '@/lib/state';
+import { editLatestProgress, RESET_NOTICE } from '@/lib/progress-write';
 import { MAX_EVIDENCE_RECORDS, evidenceFor, evidenceMarkdown, saveEvidence } from '@/lib/evidence';
 import { languageNames } from '@/lib/utils';
 import type { EvidenceRecord, Language } from '@/lib/types';
@@ -51,6 +52,7 @@ export default function EvidenceCard({
   labTitle?: string;
 }) {
   const [progress, setProgress] = useAtom(progressAtom);
+  const store = useStore();
   const [message, setMessage] = useState('');
   const record = evidenceFor(progress, lesson.id, language);
   const capacityReached = !record && (progress.evidence?.length || 0) >= MAX_EVIDENCE_RECORDS;
@@ -58,31 +60,45 @@ export default function EvidenceCard({
 
   function update(field: EvidenceField, value: string) {
     const updatedAt = new Date().toISOString();
-    setMessage('');
+    let reset = false;
     setProgress((previous) => {
-      const current = latestProgress(previous);
-      const existing = evidenceFor(current, lesson.id, language);
-      const next: EvidenceRecord = {
-        lesson_id: lesson.id,
-        language,
-        revision: existing?.revision || '',
-        command: existing?.command || '',
-        success: existing?.success || '',
-        failure: existing?.failure || '',
-        pending: existing?.pending || '',
-        [field]: value,
-        updated_at: updatedAt,
-      };
-      return saveEvidence(current, next);
+      const result = editLatestProgress(
+        previous,
+        (current) => {
+          const existing = evidenceFor(current, lesson.id, language);
+          const next: EvidenceRecord = {
+            lesson_id: lesson.id,
+            language,
+            revision: existing?.revision || '',
+            command: existing?.command || '',
+            success: existing?.success || '',
+            failure: existing?.failure || '',
+            pending: existing?.pending || '',
+            [field]: value,
+            updated_at: updatedAt,
+          };
+          return saveEvidence(current, next);
+        },
+        { resetId: progress.history_reset_id },
+      );
+      reset = result.reset;
+      return result.progress;
     });
+    setMessage(reset ? RESET_NOTICE : '');
   }
 
   function download() {
-    if (!record || !hasContent) return;
+    const current = latestProgress(store.get(progressAtom));
+    const currentRecord = evidenceFor(current, lesson.id, language);
+    setProgress(current);
+    if (!currentRecord || !fields.some((field) => currentRecord[field.key].trim())) {
+      setMessage('当前实践记录已删除或为空，未下载；请检查当前记录后重新填写。');
+      return;
+    }
     let url: string | undefined;
     try {
       url = URL.createObjectURL(
-        new Blob([evidenceMarkdown(lesson, record, { labTitle })], {
+        new Blob([evidenceMarkdown(lesson, currentRecord, { labTitle })], {
           type: 'text/markdown;charset=utf-8',
         }),
       );
@@ -169,10 +185,12 @@ export default function EvidenceCard({
         下载实践证据 Markdown
       </Button>
       <p role="status" className="break-words text-sm text-slate-600">
-        {capacityReached
-          ? `实践记录已达到 ${MAX_EVIDENCE_RECORDS} 条容量；当前课程与语言无法新增，已有记录不会被覆盖。`
-          : message ||
-            (hasContent ? '本课实践记录随学习记录保存，可导出备份。' : '尚未填写实践证据。')}
+        {message ||
+          (capacityReached
+            ? `实践记录已达到 ${MAX_EVIDENCE_RECORDS} 条容量；当前课程与语言无法新增，已有记录不会被覆盖。`
+            : hasContent
+              ? '本课实践记录随学习记录保存，可导出备份。'
+              : '尚未填写实践证据。')}
       </p>
     </section>
   );

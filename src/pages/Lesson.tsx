@@ -13,7 +13,13 @@ import {
   ExternalLink,
   FlaskConical,
 } from 'lucide-react';
-import { latestProgress, progressAtom } from '@/lib/state';
+import { progressAtom } from '@/lib/state';
+import {
+  editLatestProgress,
+  RESET_NOTICE,
+  setLessonCompleted,
+  setLessonNote,
+} from '@/lib/progress-write';
 import { MAX_QUIZ_REVIEWS, addQuizReview, removeQuizReview } from '@/lib/quiz-review';
 import { recordLessonVisit } from '@/lib/resume';
 import type { Track } from '@/lib/types';
@@ -47,6 +53,8 @@ export default function LessonPage({ tracks }: { tracks: Track[] }) {
   } | null>(null);
   const [checks, setChecks] = useState<number[]>([]);
   const [copyState, setCopyState] = useState('');
+  const [noteMessage, setNoteMessage] = useState('');
+  const [completionMessage, setCompletionMessage] = useState('');
   const visitedLesson = useRef<string | undefined>(undefined);
   const validLessonId = lesson?.id;
   const validTrackId = track?.id;
@@ -60,8 +68,13 @@ export default function LessonPage({ tracks }: { tracks: Track[] }) {
   // An explicit course link selects its language once; ordinary visits preserve preferences.
   useEffect(() => {
     if (!requestedLanguage) return;
-    setProgress((value) =>
-      value.language === requestedLanguage ? value : { ...value, language: requestedLanguage },
+    setProgress(
+      (previous) =>
+        editLatestProgress(previous, (current) =>
+          current.language === requestedLanguage
+            ? current
+            : { ...current, language: requestedLanguage },
+        ).progress,
     );
     setCopyState('');
   }, [validLessonId, requestedLanguage, setProgress]);
@@ -73,13 +86,18 @@ export default function LessonPage({ tracks }: { tracks: Track[] }) {
     if (visitedLesson.current === validLessonId) return;
     visitedLesson.current = validLessonId;
     const visitedAt = new Date().toISOString();
-    setProgress((value) =>
-      recordLessonVisit(value, { id: validLessonId, track: validTrackId }, visitedAt),
+    setProgress(
+      (previous) =>
+        editLatestProgress(previous, (current) =>
+          recordLessonVisit(current, { id: validLessonId, track: validTrackId }, visitedAt),
+        ).progress,
     );
   }, [validLessonId, validTrackId, setProgress]);
   useEffect(() => {
     setChecks([]);
     setCopyState('');
+    setNoteMessage('');
+    setCompletionMessage('');
   }, [lessonId]);
   useEffect(() => {
     // A revised question must not restore a previously checked answer if it changes back.
@@ -123,12 +141,59 @@ export default function LessonPage({ tracks }: { tracks: Track[] }) {
     const currentLesson = lesson;
     const addedAt = new Date().toISOString();
     setQuizState({ key: quizKey, answer, checked: true });
+    setProgress(
+      (previous) =>
+        editLatestProgress(previous, (current) =>
+          answer === currentLesson.quiz.answer
+            ? removeQuizReview(current, currentLesson.id)
+            : addQuizReview(current, currentLesson.id, addedAt),
+        ).progress,
+    );
+  }
+  function updateNote(value: string) {
+    if (!lesson) return;
+    const lessonId = lesson.id;
+    let reset = false;
+    let capacityReached = false;
     setProgress((previous) => {
-      const current = latestProgress(previous);
-      return answer === currentLesson.quiz.answer
-        ? removeQuizReview(current, currentLesson.id)
-        : addQuizReview(current, currentLesson.id, addedAt);
+      const result = editLatestProgress(
+        previous,
+        (current) => {
+          const edit = setLessonNote(current, lessonId, value);
+          capacityReached = edit.capacityReached;
+          return edit.progress;
+        },
+        { resetId: progress.history_reset_id },
+      );
+      reset = result.reset;
+      return result.progress;
     });
+    setNoteMessage(
+      reset
+        ? RESET_NOTICE
+        : capacityReached
+          ? '课程笔记已达到 1000 篇上限，本课笔记未保存；可清空一篇已有笔记后再新增。'
+          : '',
+    );
+  }
+  function updateCompletion() {
+    if (!lesson) return;
+    const lessonId = lesson.id;
+    const shouldComplete = !completed;
+    let capacityReached = false;
+    setProgress(
+      (previous) =>
+        editLatestProgress(previous, (current) => {
+          const edit = setLessonCompleted(current, lessonId, shouldComplete);
+          capacityReached = edit.capacityReached;
+          return edit.progress;
+        }).progress,
+    );
+    setCompletionMessage(
+      capacityReached
+        ? '完成记录已达到 2000 条上限，本课标记未保存；可取消一条已有完成标记后再新增。'
+        : '',
+    );
   }
   async function copy() {
     try {
@@ -194,7 +259,12 @@ export default function LessonPage({ tracks }: { tracks: Track[] }) {
                     aria-pressed={language === value}
                     className={language === value ? 'selected' : ''}
                     onClick={() => {
-                      setProgress((p) => ({ ...p, language: value }));
+                      setProgress(
+                        (previous) =>
+                          editLatestProgress(previous, (current) =>
+                            current.language === value ? current : { ...current, language: value },
+                          ).progress,
+                      );
                       if (searchParams.has('language')) {
                         setSearchParams(
                           (params) => {
@@ -499,19 +569,13 @@ export default function LessonPage({ tracks }: { tracks: Track[] }) {
             <Button
               disabled={!completed && !ready}
               variant={completed ? 'outline' : 'default'}
-              onClick={() =>
-                setProgress((p) => ({
-                  ...p,
-                  completed: completed
-                    ? p.completed.filter((id) => id !== lesson.id)
-                    : [...new Set([...p.completed, lesson.id])],
-                }))
-              }
+              onClick={updateCompletion}
             >
               <CheckCircle2 size={16} />
               {completed ? '取消完成标记' : '标记本课完成'}
             </Button>
             {!completed && !ready && <small>先检查答案并答对，再确认全部验收项。</small>}
+            {completionMessage && <p role="status">{completionMessage}</p>}
           </section>
           <LanguagePractice
             key={`${lesson.id}:${language}`}
@@ -527,11 +591,10 @@ export default function LessonPage({ tracks }: { tracks: Track[] }) {
               placeholder="我学到了什么？下一步想验证什么？"
               value={progress.notes[lesson.id] || ''}
               maxLength={10000}
-              onChange={(e) =>
-                setProgress((p) => ({ ...p, notes: { ...p.notes, [lesson.id]: e.target.value } }))
-              }
+              onChange={(event) => updateNote(event.target.value)}
             />
             <small>自动保存到当前浏览器</small>
+            {noteMessage && <p role="status">{noteMessage}</p>}
           </div>
         </aside>
       </div>

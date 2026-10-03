@@ -11,6 +11,7 @@ import {
   Layers3,
 } from 'lucide-react';
 import { progressAtom } from '@/lib/state';
+import { editLatestProgress } from '@/lib/progress-write';
 import { nextIncompleteLesson, resumeLesson } from '@/lib/resume';
 import type { Track } from '@/lib/types';
 import { languageNames } from '@/lib/utils';
@@ -118,7 +119,14 @@ export default function Roadmap({ tracks }: { tracks: Track[] }) {
               <button
                 key={language}
                 className={progress.language === language ? 'selected' : ''}
-                onClick={() => setProgress((p) => ({ ...p, language }))}
+                onClick={() =>
+                  setProgress(
+                    (previous) =>
+                      editLatestProgress(previous, (current) =>
+                        current.language === language ? current : { ...current, language },
+                      ).progress,
+                  )
+                }
               >
                 {languageNames[language]}
               </button>

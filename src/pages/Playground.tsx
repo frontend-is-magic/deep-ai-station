@@ -1068,7 +1068,13 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
                     onChange={(e) => {
                       const value = e.target.value as Language;
                       setLanguage(value);
-                      if (trackId === 'fullstack') setProgress((p) => ({ ...p, language: value }));
+                      if (trackId === 'fullstack')
+                        setProgress((previous) => {
+                          const current = latestProgress(previous);
+                          return current.language === value
+                            ? current
+                            : { ...current, language: value };
+                        });
                     }}
                   >
                     {(['python', 'typescript', 'go'] as Language[]).map((lang) => (
