@@ -313,7 +313,12 @@ def test_mcp_connection_configs_are_ignored_and_rejected_inside_forced_zip(
 
 
 @pytest.mark.parametrize(
-    "ignore_template", [".gitignore", "labs/workflow-checkpoint/shared/.gitignore"]
+    "ignore_template",
+    [
+        ".gitignore",
+        "labs/workflow-checkpoint/shared/.gitignore",
+        "labs/document-chunking/shared/.gitignore",
+    ],
 )
 def test_checkpoint_runtime_state_is_ignored_and_rejected_inside_forced_zip(
     repository, capsys, ignore_template

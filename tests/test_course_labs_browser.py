@@ -313,6 +313,26 @@ def assert_standalone_archive(path, lab_id, language, lesson_id):
             )
             assert "revision_conflict" in archive.read("CONTRACT.md").decode()
             assert "before-commit" in archive.read("CONTRACT.md").decode()
+        elif lab_id == "document-chunking":
+            assert manifest["languages"] == ["python"]
+            assert {
+                "app.py",
+                "loader.py",
+                "chunking.py",
+                "retrieval.py",
+                "corpus.json",
+                "cases.json",
+                "test_loader.py",
+                "test_chunking.py",
+                "test_retrieval.py",
+                "test_cli.py",
+            } <= files
+            corpus = json.loads(archive.read("corpus.json"))
+            dataset = json.loads(archive.read("cases.json"))
+            assert corpus["corpus_version"] == "chunking-corpus-v1"
+            assert len(corpus["sources"]) == 3 and len(dataset["cases"]) == 6
+            assert "unicode_codepoint" in archive.read("CONTRACT.md").decode()
+            assert "revision_mismatch" in archive.read("CONTRACT.md").decode()
         elif lab_id == "api-contract":
             assert_api_contract_archive(archive, language, files)
         elif lab_id == "sse-stream":
@@ -478,6 +498,13 @@ def test_course_labs_are_limited_to_their_bound_lessons(page):
             "可运行检查点与重启恢复实验",
             "仅使用包内固定资料与纯计算节点",
             "待执行：提交后未响应，检查原运行并从新版本恢复",
+        ),
+        (
+            "document-chunking",
+            "agent-chunking",
+            "可运行文档切分与引用实验",
+            "仅使用包内固定资料与词法检索",
+            "待执行：错误来源版本应拒绝，原文引用仍可逐字回读",
         ),
     ],
 )

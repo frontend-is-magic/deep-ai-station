@@ -9,7 +9,8 @@ export interface CourseLab {
     | 'sse-stream'
     | 'agent-write-safety'
     | 'mcp-readonly'
-    | 'workflow-checkpoint';
+    | 'workflow-checkpoint'
+    | 'document-chunking';
   lessons: readonly string[];
   languages: readonly Language[];
   title: string;
@@ -18,6 +19,16 @@ export interface CourseLab {
 }
 
 const courseLabs: readonly CourseLab[] = [
+  {
+    id: 'document-chunking',
+    lessons: ['agent-chunking'],
+    languages: ['python'],
+    title: '可运行文档切分与引用实验',
+    description:
+      '比较标题分段与重叠滑窗，观察完整证据召回、排序和索引成本。按来源、版本与原文坐标回读引用，检查中文、emoji、重复段落及冲突资料。',
+    notice:
+      '仅使用包内固定资料与词法检索，无模型或外部请求。下载后按 README 运行，将实际指标、失败输入和原文回读记入下方证据卡；不会自动完成课程或 Python 实践。',
+  },
   {
     id: 'workflow-checkpoint',
     lessons: ['agent-state-machine'],

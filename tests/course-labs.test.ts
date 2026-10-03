@@ -28,6 +28,14 @@ describe('course lab language availability', () => {
     expect(courseLabFor('agent-memory', 'python')).toBeUndefined();
   });
 
+  it('offers the chunking lab only for its lesson and Python', () => {
+    expect(courseLabFor('agent-chunking', 'python')?.id).toBe('document-chunking');
+    expect(courseLabFor('agent-chunking')?.languages).toEqual(['python']);
+    expect(courseLabFor('agent-chunking', 'go')).toBeUndefined();
+    expect(courseLabFor('agent-chunking', 'typescript')).toBeUndefined();
+    expect(courseLabFor('agent-rag', 'python')).toBeUndefined();
+  });
+
   it('retains all three language downloads for the existing fullstack labs', () => {
     for (const lesson of [
       'fullstack-routing',

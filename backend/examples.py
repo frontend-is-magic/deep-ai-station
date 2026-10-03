@@ -134,21 +134,29 @@ AGENT_EXAMPLES = {
         print(prepare_write("write-1", True, True, receipts))
     """),
     "chunking": code(r"""
+        import json
         from hashlib import sha256
 
 
-        def chunks(text, size=80, overlap=16):
+        # 代码点滑窗片段；完整标题切分和引用回读见本课独立实验。
+        def chunks(text, size=80, overlap=16, *, source_id="course-note"):
             if size <= 0 or not 0 <= overlap < size:
                 raise ValueError("invalid_chunk_window")
+            revision = "sha256:" + sha256(text.encode("utf-8")).hexdigest()
             for start in range(0, len(text), size - overlap):
-                content = text[start : start + size]
-                yield {
-                    "id": sha256(content.encode()).hexdigest()[:12],
-                    "start": start,
-                    "end": start + len(content),
-                    "text": content,
+                end = min(start + size, len(text))
+                identity = {
+                    "source_id": source_id, "source_revision": revision,
+                    "start": start, "end": end,
+                    "splitter": "codepoint-window-v1", "size": size, "overlap": overlap,
                 }
-                if start + size >= len(text):
+                encoded = json.dumps(identity, sort_keys=True, separators=(",", ":")).encode()
+                yield {
+                    "id": "sha256:" + sha256(encoded).hexdigest(),
+                    "source_id": source_id, "source_revision": revision,
+                    "start": start, "end": end, "text": text[start:end],
+                }
+                if end == len(text):
                     break
 
 
