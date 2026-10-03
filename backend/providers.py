@@ -8,6 +8,7 @@ import httpx
 from fastapi import HTTPException
 
 from backend.sandbox import sandbox_capabilities
+from backend.tool_protocol import ToolAccumulator, anthropic_messages
 
 Provider = Literal["demo", "openai", "anthropic", "deepseek"]
 STREAM_TIMEOUT = 45
@@ -108,6 +109,10 @@ async def stream_generate(
     system: str,
     temperature: float,
     client: httpx.AsyncClient | None = None,
+    *,
+    messages: list[dict] | None = None,
+    tools: list[dict] | None = None,
+    tool_choice: Literal["auto", "none"] = "auto",
 ) -> AsyncIterator[dict]:
     config = PROVIDERS[provider]
     key = os.getenv(config["key"])
@@ -115,9 +120,11 @@ async def stream_generate(
         raise HTTPException(503, "该模型尚未配置")
     model = os.getenv(config["model_env"], config["model"])
     headers = {"Authorization": f"Bearer {key}"}
+    messages = messages if messages is not None else [{"role": "user", "content": prompt}]
     body = {
         "model": model,
-        "messages": [{"role": "system", "content": system}, {"role": "user", "content": prompt}],
+        "messages": [{"role": "system", "content": system}]
+        + [{key: value for key, value in m.items() if key != "is_error"} for m in messages],
         "max_tokens": 1200,
         "temperature": temperature,
         "stream": True,
@@ -132,11 +139,29 @@ async def stream_generate(
         body = {
             "model": model,
             "system": system,
-            "messages": [{"role": "user", "content": prompt}],
+            "messages": anthropic_messages(messages),
             "max_tokens": 1200,
             "temperature": temperature,
             "stream": True,
         }
+    if tools:
+        if provider == "anthropic":
+            body["tools"] = [
+                {
+                    "name": tool["name"],
+                    "description": tool["description"],
+                    "input_schema": tool["parameters"],
+                }
+                for tool in tools
+            ]
+            body["tool_choice"] = {"type": tool_choice}
+            if tool_choice == "auto":
+                body["tool_choice"]["disable_parallel_tool_use"] = True
+        else:
+            body["tools"] = [{"type": "function", "function": tool} for tool in tools]
+            body["tool_choice"] = tool_choice
+            if provider == "openai":
+                body["parallel_tool_calls"] = False
     own_client = client is None
     client = client or httpx.AsyncClient(timeout=40)
     try:
@@ -149,6 +174,7 @@ async def stream_generate(
             output_size = 0
             ended = False
             finish_reason = None
+            tool_parts = ToolAccumulator()
             async for payload in _sse_payloads(response):
                 if provider != "anthropic" and payload == "[DONE]":
                     ended = True
@@ -171,17 +197,47 @@ async def stream_generate(
                         delta = data.get("delta", {})
                         if delta.get("type") == "text_delta":
                             text = delta.get("text")
+                        elif delta.get("type") == "input_json_delta":
+                            if not tools or tool_choice == "none":
+                                raise ValueError("tools_not_allowed")
+                            tool_parts.add(data.get("index"), fragment=delta.get("partial_json"))
                     elif kind == "content_block_start":
                         block = data.get("content_block", {})
                         if block.get("type") == "text":
                             text = block.get("text")
+                        elif block.get("type") == "tool_use":
+                            if not tools or tool_choice == "none":
+                                raise ValueError("tools_not_allowed")
+                            tool_parts.add(
+                                data.get("index"),
+                                id=block.get("id"),
+                                name=block.get("name"),
+                                initial=block.get("input"),
+                            )
+                    elif kind == "content_block_stop":
+                        tool_parts.close(data.get("index"))
                     # Pings, thinking deltas and unknown future events are not answer text.
                 else:
                     usage.update(_usage_counts(data.get("usage")))
                     choices = data.get("choices", [])
                     if choices:
-                        text = choices[0].get("delta", {}).get("content")
+                        delta = choices[0].get("delta", {})
+                        text = delta.get("content")
                         finish_reason = choices[0].get("finish_reason") or finish_reason
+                        for call in delta.get("tool_calls") or []:
+                            if (
+                                not tools
+                                or tool_choice == "none"
+                                or call.get("type", "function") != "function"
+                            ):
+                                raise ValueError("tools_not_allowed")
+                            function = call.get("function") or {}
+                            tool_parts.add(
+                                call.get("index"),
+                                id=call.get("id"),
+                                name=function.get("name"),
+                                fragment=function.get("arguments"),
+                            )
                 if text is not None:
                     if not isinstance(text, str):
                         raise ValueError("invalid_text")
@@ -193,14 +249,20 @@ async def stream_generate(
             if (
                 not ended
                 or not output_size
-                or finish_reason in {"aborted", "insufficient_system_resource"}
+                and not tool_parts.calls
+                or finish_reason in {"aborted", "insufficient_system_resource", "pause_turn"}
             ):
                 raise ValueError("incomplete_stream")
+            truncated = finish_reason in {"length", "max_tokens"}
+            calls = [] if truncated else tool_parts.finish(require_closed=provider == "anthropic")
+            if not truncated and bool(calls) != (finish_reason in {"tool_calls", "tool_use"}):
+                raise ValueError("invalid_tool_finish")
             yield {
                 "event": "done",
                 "usage": usage or None,
                 "model": model,
-                "truncated": finish_reason in {"length", "max_tokens"},
+                "truncated": truncated,
+                **({"tool_calls": calls} if tools else {}),
             }
     except (httpx.TimeoutException, TimeoutError) as exc:
         raise HTTPException(504, "模型请求超时，请稍后重试") from exc
@@ -209,7 +271,14 @@ async def stream_generate(
         raise HTTPException(
             code, "模型服务限流" if code == 429 else "模型服务请求失败，请检查服务端配置"
         ) from exc
-    except (httpx.RequestError, ValueError, KeyError, TypeError, AttributeError) as exc:
+    except (
+        httpx.RequestError,
+        ValueError,
+        KeyError,
+        TypeError,
+        AttributeError,
+        RecursionError,
+    ) as exc:
         raise HTTPException(502, "模型响应不可用，请稍后重试") from exc
     finally:
         if own_client:
