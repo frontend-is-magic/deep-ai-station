@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useAtom } from 'jotai';
 import { Download } from 'lucide-react';
-import { progressAtom } from '@/lib/state';
-import { evidenceFor, evidenceMarkdown, saveEvidence } from '@/lib/evidence';
+import { latestProgress, progressAtom } from '@/lib/state';
+import { MAX_EVIDENCE_RECORDS, evidenceFor, evidenceMarkdown, saveEvidence } from '@/lib/evidence';
 import { languageNames } from '@/lib/utils';
 import type { EvidenceRecord, Language } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -44,21 +44,24 @@ const fields: { key: EvidenceField; label: string; placeholder: string; limit: n
 export default function EvidenceCard({
   lesson,
   language,
+  labTitle,
 }: {
   lesson: { id: string; title: string };
   language: Language;
+  labTitle?: string;
 }) {
   const [progress, setProgress] = useAtom(progressAtom);
   const [message, setMessage] = useState('');
   const record = evidenceFor(progress, lesson.id, language);
-  const capacityReached = !record && (progress.evidence?.length || 0) >= 24;
+  const capacityReached = !record && (progress.evidence?.length || 0) >= MAX_EVIDENCE_RECORDS;
   const hasContent = fields.some((field) => Boolean(record?.[field.key].trim()));
 
   function update(field: EvidenceField, value: string) {
     const updatedAt = new Date().toISOString();
     setMessage('');
     setProgress((previous) => {
-      const existing = evidenceFor(previous, lesson.id, language);
+      const current = latestProgress(previous);
+      const existing = evidenceFor(current, lesson.id, language);
       const next: EvidenceRecord = {
         lesson_id: lesson.id,
         language,
@@ -70,7 +73,7 @@ export default function EvidenceCard({
         [field]: value,
         updated_at: updatedAt,
       };
-      return saveEvidence(previous, next);
+      return saveEvidence(current, next);
     });
   }
 
@@ -79,7 +82,9 @@ export default function EvidenceCard({
     let url: string | undefined;
     try {
       url = URL.createObjectURL(
-        new Blob([evidenceMarkdown(lesson, record)], { type: 'text/markdown;charset=utf-8' }),
+        new Blob([evidenceMarkdown(lesson, record, { labTitle })], {
+          type: 'text/markdown;charset=utf-8',
+        }),
       );
       const link = document.createElement('a');
       link.href = url;
@@ -95,18 +100,22 @@ export default function EvidenceCard({
 
   return (
     <section
-      aria-label="毕业实践证据"
+      aria-label={labTitle ? '实验实践证据' : '毕业实践证据'}
       className="my-7 min-w-0 space-y-4 rounded-xl border border-slate-200 bg-white p-4 sm:p-5"
     >
       <div>
-        <h2>记录毕业实践证据</h2>
+        <h2>{labTitle ? '记录本课实验依据' : '记录毕业实践证据'}</h2>
+        {labTitle && <p className="break-words text-sm text-slate-600">当前实验：{labTitle}</p>}
         <p className="text-sm text-slate-600">
           当前记录：{languageNames[language]}
           。自动保存到当前浏览器，并随学习记录备份；不同课程和语言分别记录。不要填写密钥、访问码或认证信息。
         </p>
         <p className="text-sm text-slate-600">
-          内容由你填写，不自动勾选验收项或完成课程，也不表示平台已验证。
+          {labTitle
+            ? '内容由你填写，不自动完成课程或语言实践，也不表示平台已验证。'
+            : '内容由你填写，不自动勾选验收项或完成课程，也不表示平台已验证。'}
         </p>
+        <p className="text-sm text-slate-600">清空本课五项内容会移除这条记录并释放名额。</p>
       </div>
       <div className="grid min-w-0 gap-4">
         {fields.map((field) => {
@@ -161,7 +170,7 @@ export default function EvidenceCard({
       </Button>
       <p role="status" className="break-words text-sm text-slate-600">
         {capacityReached
-          ? '实践记录已达到 24 条容量；当前课程与语言无法新增，已有记录不会被覆盖。'
+          ? `实践记录已达到 ${MAX_EVIDENCE_RECORDS} 条容量；当前课程与语言无法新增，已有记录不会被覆盖。`
           : message ||
             (hasContent ? '本课实践记录随学习记录保存，可导出备份。' : '尚未填写实践证据。')}
       </p>

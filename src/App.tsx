@@ -21,6 +21,7 @@ import {
 import { api } from './lib/api';
 import {
   emptyProgress,
+  latestProgress,
   progressAtom,
   validateProgress,
   getStorageIssue,
@@ -97,13 +98,26 @@ export default function App() {
     navigation.find((nav) => nav.to === location.pathname)?.label ||
     (location.pathname.startsWith('/lesson/') ? '课程学习' : '项目文档');
   function exportProgress() {
-    const blob = new Blob([JSON.stringify(progress, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'deep-ai-station-progress.json';
-    link.click();
-    URL.revokeObjectURL(url);
+    let url: string | undefined;
+    try {
+      const blob = new Blob([JSON.stringify(latestProgress(progress), null, 2)], {
+        type: 'application/json',
+      });
+      url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'deep-ai-station-progress.json';
+      link.click();
+      setNotice(
+        blob.size > 2_000_000
+          ? '已导出完整记录，但文件超过 2 MB，无法直接导回当前版本。请保留原文件，并精简副本后导入；当前记录未改变。'
+          : '学习记录已导出',
+      );
+    } catch {
+      setNotice('导出未完成，请重试。');
+    } finally {
+      if (url) URL.revokeObjectURL(url);
+    }
   }
   async function importProgress(file?: File) {
     if (!file) return;

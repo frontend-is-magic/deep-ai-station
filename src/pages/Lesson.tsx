@@ -208,26 +208,34 @@ export default function LessonPage({ tracks }: { tracks: Track[] }) {
             </Button>
           )}
           {courseLab && (
-            <section
-              aria-label={courseLab.title}
-              className="my-7 space-y-3 rounded-xl border border-lime-200 bg-lime-50 p-5"
-            >
-              <h2>{courseLab.title}</h2>
-              <p>
-                下载 {languageNames[language]} {courseLab.description}
-              </p>
-              <Button
-                variant="outline"
-                className="h-auto max-w-full whitespace-normal py-2 text-left"
-                asChild
+            <>
+              <section
+                aria-label={courseLab.title}
+                className="my-7 space-y-3 rounded-xl border border-lime-200 bg-lime-50 p-5"
               >
-                <a href={`/labs/${courseLab.id}-${language}.zip`} download>
-                  <Download size={16} className="shrink-0" aria-hidden="true" />
-                  <span>下载实验 · {languageNames[language]}</span>
-                </a>
-              </Button>
-              <p className="text-sm text-slate-600">{courseLab.notice}</p>
-            </section>
+                <h2>{courseLab.title}</h2>
+                <p>
+                  下载 {languageNames[language]} {courseLab.description}
+                </p>
+                <Button
+                  variant="outline"
+                  className="h-auto max-w-full whitespace-normal py-2 text-left"
+                  asChild
+                >
+                  <a href={`/labs/${courseLab.id}-${language}.zip`} download>
+                    <Download size={16} className="shrink-0" aria-hidden="true" />
+                    <span>下载实验 · {languageNames[language]}</span>
+                  </a>
+                </Button>
+                <p className="text-sm text-slate-600">{courseLab.notice}</p>
+              </section>
+              <EvidenceCard
+                key={`${lesson.id}:${language}`}
+                lesson={lesson}
+                language={language}
+                labTitle={courseLab.title}
+              />
+            </>
           )}
           {((track.id === 'agent' && ['retrieval', 'evaluation'].includes(lesson.stage)) ||
             lesson.id === 'fullstack-ai-rag' ||

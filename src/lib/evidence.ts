@@ -1,5 +1,7 @@
 import type { EvidenceRecord, Language, Progress } from './types';
 
+export const MAX_EVIDENCE_RECORDS = 48;
+
 const fields = [
   'lesson_id',
   'language',
@@ -36,7 +38,7 @@ export function validEvidenceRecord(value: unknown): value is EvidenceRecord {
 export function validEvidenceRecords(value: unknown): value is EvidenceRecord[] {
   return (
     Array.isArray(value) &&
-    value.length <= 24 &&
+    value.length <= MAX_EVIDENCE_RECORDS &&
     Array.from(value).every(validEvidenceRecord) &&
     new Set(value.map((record) => `${record.lesson_id}:${record.language}`)).size === value.length
   );
@@ -59,7 +61,18 @@ export function saveEvidence(progress: Progress, record: EvidenceRecord): Progre
   const index = previous.findIndex(
     (item) => item.lesson_id === record.lesson_id && item.language === record.language,
   );
-  if (index < 0 && previous.length >= 24) return progress;
+  const empty = [
+    record.revision,
+    record.command,
+    record.success,
+    record.failure,
+    record.pending,
+  ].every((text) => !text.trim());
+  if (empty) {
+    if (index < 0) return progress;
+    return { ...progress, evidence: previous.filter((_, position) => position !== index) };
+  }
+  if (index < 0 && previous.length >= MAX_EVIDENCE_RECORDS) return progress;
   const evidence = [...previous];
   if (index < 0) evidence.push({ ...record });
   else evidence[index] = { ...record };
@@ -75,17 +88,20 @@ function plainText(value: string): string {
 export function evidenceMarkdown(
   lesson: { id: string; title: string },
   record: EvidenceRecord,
+  options?: { labTitle?: string },
 ): string {
   const languages: Record<Language, string> = {
     python: 'Python',
     typescript: 'TypeScript',
     go: 'Go',
   };
+  const labTitle = options?.labTitle;
   return [
-    '# 毕业实践证据',
+    labTitle === undefined ? '# 毕业实践证据' : '# 实验实践证据',
     '这是学习者自行记录的实践证据，未经平台核验；保存或导出不会证明验收通过，也不会自动完成课程。请勿记录密钥、访问码或其他认证信息。',
     '## 来源课程',
     plainText(`${lesson.title}\n课程 ID：${lesson.id}`),
+    ...(labTitle === undefined ? [] : ['## 对应实验', plainText(labTitle)]),
     '## 语言',
     plainText(languages[record.language]),
     '## 更新时间',

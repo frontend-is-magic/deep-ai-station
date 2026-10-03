@@ -5,11 +5,14 @@ import { describe, expect, it } from 'vitest';
 import {
   evidenceFor,
   evidenceMarkdown,
+  MAX_EVIDENCE_RECORDS,
   saveEvidence,
   validEvidenceRecord,
+  validEvidenceRecords,
 } from '../src/lib/evidence';
+import { courseLabFor } from '../src/lib/course-labs';
 import { emptyProgress, validateProgress } from '../src/lib/state';
-import type { EvidenceRecord, Progress } from '../src/lib/types';
+import type { EvidenceRecord, Language, Progress } from '../src/lib/types';
 
 function record(overrides: Partial<EvidenceRecord> = {}): EvidenceRecord {
   return {
@@ -97,11 +100,13 @@ describe('practice evidence import', () => {
     ).toBe(true);
     expect(validateProgress({ ...emptyProgress, evidence: null })).toBe(false);
     expect(validateProgress({ ...emptyProgress, evidence: Array(1) })).toBe(false);
-    const evidence = Array.from({ length: 25 }, (_, index) =>
+    const evidence = Array.from({ length: MAX_EVIDENCE_RECORDS + 1 }, (_, index) =>
       record({ lesson_id: `fullstack-course-${index}` }),
     );
     expect(validateProgress({ ...emptyProgress, evidence })).toBe(false);
-    expect(validateProgress({ ...emptyProgress, evidence: evidence.slice(0, 24) })).toBe(true);
+    expect(
+      validateProgress({ ...emptyProgress, evidence: evidence.slice(0, MAX_EVIDENCE_RECORDS) }),
+    ).toBe(true);
   });
 });
 
@@ -112,6 +117,39 @@ describe('practice evidence saving', () => {
       completed: ['fullstack-http'],
       bookmarks: ['article-example'],
       notes: { 'fullstack-integration': '已有实践笔记' },
+      practice: [
+        { lesson_id: 'fullstack-integration', language: 'go', completed_at: record().updated_at },
+      ],
+      resume: {
+        last_track: 'agent',
+        positions: {
+          agent: { lesson_id: 'agent-research-agent', visited_at: record().updated_at },
+        },
+      },
+      savedItems: [
+        {
+          id: 'article-example',
+          title: '官方资料',
+          summary: '已保存摘要',
+          source: '官方',
+          url: 'https://example.com/guide',
+          track: 'agent',
+          tags: ['指南'],
+          kind: 'guide',
+          published: null,
+        },
+      ],
+      runs: [
+        {
+          id: 'saved-run',
+          prompt: '已有问题',
+          answer: '已有回答',
+          provider: 'demo',
+          track: 'fullstack',
+          date: record().updated_at,
+          duration_ms: 100,
+        },
+      ],
       evidence: [
         record(),
         record({ language: 'go' }),
@@ -125,6 +163,10 @@ describe('practice evidence saving', () => {
     expect(saved.completed).toBe(original.completed);
     expect(saved.bookmarks).toBe(original.bookmarks);
     expect(saved.runs).toBe(original.runs);
+    expect(saved.practice).toBe(original.practice);
+    expect(saved.resume).toBe(original.resume);
+    expect(saved.savedItems).toBe(original.savedItems);
+    expect(saved.language).toBe(original.language);
     expect(saved.evidence?.[1]).toBe(original.evidence?.[1]);
     expect(saved.evidence?.[2]).toBe(original.evidence?.[2]);
     expect(original.evidence?.[0].command).toBe('uv run pytest');
@@ -135,7 +177,7 @@ describe('practice evidence saving', () => {
   it('refuses invalid input and full-capacity additions but permits updating a full list', () => {
     const full: Progress = {
       ...emptyProgress,
-      evidence: Array.from({ length: 24 }, (_, index) =>
+      evidence: Array.from({ length: MAX_EVIDENCE_RECORDS }, (_, index) =>
         record({ lesson_id: `fullstack-course-${index}` }),
       ),
     };
@@ -144,7 +186,7 @@ describe('practice evidence saving', () => {
     const update = record({ lesson_id: 'fullstack-course-12', success: '更新后的实际结果' });
     const saved = saveEvidence(full, update);
     expect(saved).not.toBe(full);
-    expect(saved.evidence).toHaveLength(24);
+    expect(saved.evidence).toHaveLength(MAX_EVIDENCE_RECORDS);
     expect(evidenceFor(saved, update.lesson_id, 'python')).toEqual(update);
     const malformed = { ...emptyProgress, evidence: [record(), record()] };
     expect(saveEvidence(malformed, record({ language: 'go' }))).toBe(malformed);
@@ -198,5 +240,201 @@ describe('practice evidence Markdown export', () => {
     expect(html).not.toContain('<img');
     expect(html).not.toContain('<h1>injected heading</h1>');
     expect((html.match(/<code class="language-text">/g) || []).length).toBe(8);
+  });
+});
+
+describe('experiment evidence compatibility and capacity', () => {
+  it('uses the shared 48-record boundary for validation and saving without mutating rejected input', () => {
+    expect(MAX_EVIDENCE_RECORDS).toBe(48);
+    const records = Array.from({ length: 47 }, (_, index) =>
+      record({ lesson_id: `fullstack-existing-${index}` }),
+    );
+    const original: Progress = { ...emptyProgress, evidence: records };
+    const last = record({ lesson_id: 'fullstack-routing', language: 'go' });
+    const full = saveEvidence(original, last);
+    expect(validEvidenceRecords(full.evidence)).toBe(true);
+    expect(validateProgress(JSON.parse(JSON.stringify(full)))).toBe(true);
+    expect(full.evidence).toHaveLength(48);
+    expect(original.evidence).toHaveLength(47);
+    expect(saveEvidence(full, record({ ...last, language: 'python' }))).toBe(full);
+    expect(validEvidenceRecords([...full.evidence!, record({ ...last, language: 'python' })])).toBe(
+      false,
+    );
+    expect(saveEvidence(full, { ...last, failure: '更新后的失败案例' }).evidence).toHaveLength(48);
+  });
+
+  it('keeps old 24-record backups, legacy identifiers and non-ISO valid dates readable', () => {
+    const old: Progress = {
+      ...emptyProgress,
+      evidence: Array.from({ length: 24 }, (_, index) =>
+        record({
+          lesson_id: `fullstack-legacy--${index}-`,
+          updated_at: 'Oct 03 2026 12:34:56 GMT+0000',
+        }),
+      ),
+    };
+    const restored = JSON.parse(JSON.stringify(old));
+    expect(validateProgress(restored)).toBe(true);
+    const saved = saveEvidence(restored, record({ lesson_id: 'fullstack-database' }));
+    expect(saved.version).toBe(1);
+    expect(saved.evidence).toHaveLength(25);
+    expect(saved.evidence?.slice(0, 24)).toEqual(old.evidence);
+    expect(evidenceFor(saved, 'fullstack-legacy--0-', 'python')).toEqual(old.evidence?.[0]);
+  });
+
+  it('roundtrips the actual 27 lab and 12 capstone course-language combinations', () => {
+    const labLessons = [
+      'fullstack-routing',
+      'fullstack-validation',
+      'fullstack-database',
+      'fullstack-migrations',
+      'fullstack-auth',
+      'fullstack-app-security',
+      'fullstack-ai-rag',
+      'fullstack-ai-stream',
+      'fullstack-async',
+    ];
+    const fullstackCapstones = ['fullstack-product', 'fullstack-integration', 'fullstack-launch'];
+    const agentCapstones = [
+      'agent-research-agent',
+      'agent-research-workflow',
+      'agent-research-release',
+    ];
+    const languages: Language[] = ['typescript', 'go', 'python'];
+    for (const lessonId of labLessons) expect(courseLabFor(lessonId)).toBeDefined();
+    const records = [
+      ...[...labLessons, ...fullstackCapstones].flatMap((lesson_id) =>
+        languages.map((language) =>
+          record({ lesson_id, language, success: `${lesson_id}/${language}` }),
+        ),
+      ),
+      ...agentCapstones.map((lesson_id) => record({ lesson_id, language: 'python' })),
+    ];
+    expect(records).toHaveLength(39);
+    const saved = records.reduce(saveEvidence, emptyProgress);
+    expect(saved.evidence).toHaveLength(39);
+    const restored = JSON.parse(JSON.stringify(saved));
+    expect(validateProgress(restored)).toBe(true);
+    for (const expected of records)
+      expect(evidenceFor(restored, expected.lesson_id, expected.language)).toEqual(expected);
+    const changed = saveEvidence(
+      restored,
+      record({ lesson_id: 'fullstack-database', language: 'go', success: '仅更新 Go' }),
+    );
+    expect(evidenceFor(changed, 'fullstack-database', 'go')?.success).toBe('仅更新 Go');
+    expect(evidenceFor(changed, 'fullstack-database', 'python')?.success).toBe(
+      'fullstack-database/python',
+    );
+    expect(evidenceFor(changed, 'fullstack-database', 'typescript')?.success).toBe(
+      'fullstack-database/typescript',
+    );
+    expect(changed.evidence).toHaveLength(39);
+    expect(restored.completed).toEqual([]);
+    expect(restored.practice).toBeUndefined();
+  });
+});
+
+describe('experiment evidence Markdown export', () => {
+  it('adds the lab title without changing the two-argument capstone document', () => {
+    const evidence = record({ lesson_id: 'fullstack-database' });
+    const lesson = { id: evidence.lesson_id, title: '数据持久化' };
+    const original = evidenceMarkdown(lesson, evidence);
+    expect(original).toMatch(/^# 毕业实践证据\n/);
+    expect(original).not.toContain('## 对应实验');
+    expect(evidenceMarkdown(lesson, evidence, {})).toBe(original);
+    expect(evidenceMarkdown(lesson, evidence, { labTitle: undefined })).toBe(original);
+    const exported = evidenceMarkdown(lesson, evidence, { labTitle: '可运行 SQLite 数据实验' });
+    expect(exported).toMatch(/^# 实验实践证据\n/);
+    expect(exported).toContain('## 对应实验\n\n```text\n可运行 SQLite 数据实验\n```');
+    expect(exported).toContain('未经平台核验');
+    expect(exported).toContain('不会自动完成课程');
+    expect(exported).toContain(evidence.failure);
+    expect(exported).toContain(evidence.pending);
+  });
+
+  it('keeps malicious lab titles and every editable value inside dynamic plain-text fences', () => {
+    const attack =
+      '````````\n<h1>伪造实验</h1>\n<img src="https://example.com/pixel">\n# injected heading\n[escape](javascript:alert(1))';
+    const evidence = record({
+      revision: attack,
+      command: attack,
+      success: attack,
+      failure: attack,
+      pending: attack,
+    });
+    const lesson = { id: 'course\n' + attack, title: attack };
+    const markdown = evidenceMarkdown(lesson, evidence, { labTitle: attack });
+    expect(markdown).toContain('## 对应实验\n\n`````````text\n' + attack + '\n`````````');
+    const html = renderToStaticMarkup(createElement(ReactMarkdown, { children: markdown }));
+    expect(html).toContain('&lt;h1&gt;伪造实验&lt;/h1&gt;');
+    expect(html).not.toContain('<img');
+    expect(html).not.toContain('<h1>伪造实验</h1>');
+    expect(html).not.toContain('<h1>injected heading</h1>');
+    expect(html).not.toContain('<a ');
+    expect((html.match(/<code class="language-text">/g) || []).length).toBe(9);
+  });
+});
+
+describe('clearing evidence and recovering capacity', () => {
+  const blank = { revision: '  ', command: '\t', success: '\n', failure: '', pending: ' \n\t ' };
+
+  it('clears an existing full-capacity record and releases its slot for a new combination', () => {
+    const full: Progress = {
+      ...emptyProgress,
+      notes: { 'fullstack-database': '保留的课程笔记' },
+      completed: ['fullstack-database'],
+      evidence: Array.from({ length: MAX_EVIDENCE_RECORDS }, (_, index) =>
+        record({ lesson_id: `fullstack-existing-${index}` }),
+      ),
+    };
+    const cleared = saveEvidence(full, record({ lesson_id: 'fullstack-existing-12', ...blank }));
+    expect(cleared.evidence).toHaveLength(47);
+    expect(evidenceFor(cleared, 'fullstack-existing-12', 'python')).toBeUndefined();
+    expect(cleared.evidence).toEqual(full.evidence!.filter((_, index) => index !== 12));
+    expect(cleared.notes).toBe(full.notes);
+    expect(cleared.completed).toBe(full.completed);
+    expect(full.evidence).toHaveLength(48);
+    const saved = saveEvidence(
+      cleared,
+      record({ lesson_id: 'fullstack-database', language: 'go' }),
+    );
+    expect(saved.evidence).toHaveLength(48);
+    expect(evidenceFor(saved, 'fullstack-database', 'go')).toEqual(
+      record({ lesson_id: 'fullstack-database', language: 'go' }),
+    );
+  });
+
+  it('does not occupy a slot for a new blank combination or resurrect cleared values', () => {
+    expect(saveEvidence(emptyProgress, record(blank))).toBe(emptyProgress);
+    const progress = saveEvidence(emptyProgress, record());
+    const cleared = saveEvidence(progress, record(blank));
+    expect(cleared.evidence).toEqual([]);
+    const incoming = record({
+      revision: '',
+      command: '新命令',
+      success: '',
+      failure: '',
+      pending: '',
+    });
+    const saved = saveEvidence(cleared, incoming);
+    expect(saved.evidence).toEqual([incoming]);
+    expect(saved.evidence?.[0].revision).toBe('');
+    expect(saved.evidence?.[0].success).toBe('');
+    expect(saved.evidence?.[0].failure).toBe('');
+    expect(saved.evidence?.[0].pending).toBe('');
+  });
+
+  it('reads legacy empty records until explicitly cleared and preserves another language', () => {
+    const legacy = record({ ...blank, language: 'python' });
+    const other = record({ language: 'go' });
+    const progress: Progress = { ...emptyProgress, evidence: [legacy, other] };
+    const restored = JSON.parse(JSON.stringify(progress));
+    expect(validateProgress(restored)).toBe(true);
+    expect(evidenceFor(restored, legacy.lesson_id, 'python')).toEqual(legacy);
+    const cleared = saveEvidence(restored, legacy);
+    expect(cleared.evidence).toEqual([other]);
+    expect(evidenceFor(cleared, legacy.lesson_id, 'python')).toBeUndefined();
+    expect(evidenceFor(cleared, legacy.lesson_id, 'go')).toEqual(other);
+    expect(restored.evidence).toEqual([legacy, other]);
   });
 });

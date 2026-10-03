@@ -181,6 +181,7 @@ function validRunUsage(value: unknown): value is Record<string, number> {
 export function readRunUsage(value: unknown): Record<string, number> | null {
   return validRunUsage(value) ? value : null;
 }
+const PROGRESS_STORAGE_KEY = 'deep-ai-station:v1';
 const storage = createJSONStorage<Progress>(() => localStorage);
 let storageIssue: string | null = null;
 const storageListeners = new Set<() => void>();
@@ -195,6 +196,23 @@ function notifyStorageIssue(issue: string | null) {
   storageIssue = issue;
   storageListeners.forEach((listener) => listener());
 }
+function readStoredProgress(): Progress | undefined {
+  try {
+    const raw = localStorage.getItem(PROGRESS_STORAGE_KEY);
+    if (raw === null) return emptyProgress;
+    const value: unknown = JSON.parse(raw);
+    return validateProgress(value) ? value : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+// Read just before an evidence field edit/export. This narrows stale-tab writes,
+// but localStorage is not a transaction across tabs. Failed saves stay in memory.
+export function latestProgress(fallback: Progress): Progress {
+  return storageIssue === null ? (readStoredProgress() ?? fallback) : fallback;
+}
+
 const guardedStorage = {
   getItem(key: string, fallback: Progress) {
     try {
@@ -223,14 +241,20 @@ const guardedStorage = {
     return (
       storage.subscribe?.(
         key,
-        (value) => callback(validateProgress(value) ? value : fallback),
+        () => {
+          if (storageIssue !== null) return;
+          // An older queued event can arrive after this tab has saved newer data.
+          // Read the current value instead of rolling the UI back to e.newValue.
+          const latest = readStoredProgress();
+          if (latest !== undefined) callback(latest);
+        },
         fallback,
       ) || (() => {})
     );
   },
 };
 export const progressAtom = atomWithStorage<Progress>(
-  'deep-ai-station:v1',
+  PROGRESS_STORAGE_KEY,
   emptyProgress,
   guardedStorage,
   { getOnInit: true },
