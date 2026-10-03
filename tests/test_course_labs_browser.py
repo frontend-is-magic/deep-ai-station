@@ -22,6 +22,11 @@ LABS = {
         "version": "sqlite-storage-v1",
         "lessons": ("fullstack-database", "fullstack-migrations"),
     },
+    "text-upload": {
+        "title": "可运行受限文本上传实验",
+        "version": "text-upload-v1",
+        "lessons": ("fullstack-ai-rag",),
+    },
     "session-authorization": {
         "title": "可运行会话与授权实验",
         "version": "session-authorization-v1",
@@ -180,6 +185,48 @@ def assert_session_archive(archive, language, files):
     }
 
 
+def assert_upload_archive(archive, language, files):
+    assert {"fixtures.json", "contract-cases.json"} <= files
+    source_files = {
+        "python": {"app.py", "repository.py", "test_app.py"},
+        "typescript": {"src/app.ts", "src/repository.ts", "src/app.test.ts"},
+        "go": {"main.go", "app_test.go"},
+    }
+    assert source_files[language] <= files
+    cases = json.loads(archive.read("contract-cases.json"))
+    assert {case["status"] for case in cases} >= {
+        200,
+        201,
+        400,
+        401,
+        403,
+        404,
+        405,
+        409,
+        413,
+        415,
+        422,
+    }
+    assert {case["id"] for case in cases} >= {
+        "auth-before-size",
+        "readonly-before-body",
+        "duplicate-filename",
+        "duplicate-content-type",
+        "utf8-invalid",
+        "multibyte-too-large",
+        "foreign-download",
+        "foreign-metadata",
+        "total-byte-quota",
+        "exact-total-8192",
+        "document-count-quota",
+        "quota-failure-no-residue",
+        "same-name-did-not-overwrite",
+    }
+    assert any("body_base64" in case for case in cases)
+    assert any("expected_body_base64" in case for case in cases)
+    assert "不落盘" in archive.read("CONTRACT.md").decode()
+
+
 def assert_standalone_archive(path, lab_id, language, lesson_id):
     source = ROOT / "labs" / lab_id
     with zipfile.ZipFile(path) as archive:
@@ -217,6 +264,8 @@ def assert_standalone_archive(path, lab_id, language, lesson_id):
         assert lesson_id in manifest["lessons"] and language in manifest["languages"]
         if lab_id == "api-contract":
             assert_api_contract_archive(archive, language, files)
+        elif lab_id == "text-upload":
+            assert_upload_archive(archive, language, files)
         elif lab_id == "session-authorization":
             assert_session_archive(archive, language, files)
         else:
@@ -252,6 +301,12 @@ def test_course_lab_downloads_follow_language_and_preserve_reference_bundle(
     if lab_id == "sqlite-storage":
         expect(card).to_contain_text("v1→v2 迁移")
         expect(card).to_contain_text("owner 只是教学输入，不代表登录认证")
+    elif lab_id == "text-upload":
+        expect(card).to_contain_text("UTF-8 与字节上限")
+        expect(card).to_contain_text("owner 隔离")
+        expect(card).to_contain_text("原子配额")
+        expect(card).to_contain_text("内存数据重启清空")
+        expect(card).to_contain_text("不解析或执行内容")
     elif lab_id == "session-authorization":
         expect(card).to_contain_text("会话过期与撤销")
         expect(card).to_contain_text("owner 隔离")

@@ -165,7 +165,7 @@ def verify(language, port, lab="api-contract", request_case=request, restart_cas
             if unformatted.strip():
                 raise RuntimeError("Go lab is not formatted")
             go_tests = ["go", "test", "-mod=readonly"]
-            if lab == "session-authorization":
+            if lab in {"session-authorization", "text-upload"}:
                 go_tests.append("-race")
             command([*go_tests, "./..."], folder, env)
             command(["go", "build", "-mod=readonly", "-o", "lab-server", "."], folder, env)

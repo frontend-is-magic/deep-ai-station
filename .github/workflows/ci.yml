@@ -87,3 +87,4 @@ jobs:
       - run: uv run --no-project --python 3.12 python scripts/verify_course_labs.py --language ${{ matrix.language }}
       - run: uv run --no-project --python 3.12 python scripts/verify_sqlite_labs.py --language ${{ matrix.language }}
       - run: uv run --no-project --python 3.12 python scripts/verify_session_labs.py --language ${{ matrix.language }}
+      - run: uv run --no-project --python 3.12 python scripts/verify_upload_labs.py --language ${{ matrix.language }}

@@ -90,10 +90,47 @@ AUTH_SHARED = [
     "fixtures.json",
     "contract-cases.json",
 ]
+UPLOAD_FILES = {
+    "python": [
+        "app.py",
+        "auth.py",
+        "errors.py",
+        "repository.py",
+        "resources.py",
+        "service.py",
+        "test_app.py",
+        "pyproject.toml",
+        "uv.lock",
+    ],
+    "typescript": [
+        "src/app.ts",
+        "src/auth.ts",
+        "src/repository.ts",
+        "src/request.ts",
+        "src/service.ts",
+        "src/resources.ts",
+        "src/server.ts",
+        "src/app.test.ts",
+        "package.json",
+        "pnpm-lock.yaml",
+        "tsconfig.json",
+    ],
+    "go": ["app.go", "auth.go", "repository.go", "main.go", "app_test.go", "go.mod", "go.sum"],
+}
+UPLOAD_SHARED = [
+    "README.md",
+    "CONTRACT.md",
+    "EVIDENCE.md",
+    "AGENTS.md",
+    ".gitignore",
+    "fixtures.json",
+    "contract-cases.json",
+]
 LABS = {
     "api-contract": (FILES, SHARED),
     "sqlite-storage": (STORAGE_FILES, STORAGE_SHARED),
     "session-authorization": (AUTH_FILES, AUTH_SHARED),
+    "text-upload": (UPLOAD_FILES, UPLOAD_SHARED),
 }
 
 

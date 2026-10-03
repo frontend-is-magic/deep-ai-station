@@ -28,6 +28,12 @@
 
 主线对该精确提交用独立 checkout 和原复现步骤验证：取消 ACK 后0个新请求，保留第一轮实际模拟用量11，model_calls=1、tool_calls=0，重读数据库一致。原始 ASGI 断开与 handler task 取消保留先前已知用量、轨迹和未知在途用量；五种跨用户访问均404。这里全部使用 MockTransport，真实模型调用为0。[对应 CI](https://github.com/frontend-is-magic/deep-ai-research-assistant/actions/runs/37135580210) 成功，包含实际 PostgreSQL 回归；生产和真实模型需查看后续独立验收记录。
 
+## 先做本地同域预检
+
+云端分支现提供固定 Vercel CLI 62.2.0 的 `node scripts/preflight_vercel.mjs`。脚本在独立临时副本和空 CLI 配置中运行 `vercel dev -L`，不登录或部署。它检查首页/静态资源、FastAPI健康、零模型演示，以及缺身份、模型配置、耐久数据库时的拒绝；清理后重新绑定6个自有监听端口确认释放。进程清理使用Linux `/proc`，应在云端任务或对应Linux CI环境复验，不能直接当作macOS通用脚本。
+
+最终提交 [1f7e28f](https://github.com/frontend-is-magic/deep-ai-research-assistant/commit/1f7e28f4be9da15e1c5fd2f624c6ca1a79eaa1ac) 的 [完整CI](https://github.com/frontend-is-magic/deep-ai-research-assistant/actions/runs/37138680836) 成功。前置目录/TLS和首次CI安装路径失败及修正保留在EVIDENCE中，没有关闭TLS验证。这个结果证明本地CLI组合可以工作；Vercel平台发布、Python云端断连与真实模型仍需各自验收。
+
 ## 交付与边界
 
 [开发 PR](https://github.com/frontend-is-magic/deep-ai-research-assistant/pull/1) 与 [Actions](https://github.com/frontend-is-magic/deep-ai-research-assistant/actions) 反映后续进展。main 保留稳定版本，develop 持续迭代；这份跟读文档不把某次历史 CI 解释为最新提交或生产环境已验证。
