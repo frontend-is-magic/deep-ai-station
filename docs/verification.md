@@ -2,6 +2,13 @@
 
 本文件记录实际执行证据，未完成事项保留真实状态。
 
+## 2026-10-03 / LangChain 官方资讯恢复
+
+- 已核对新的 [LangChain 官方 RSS](https://www.langchain.com/blog/rss.xml)，返回 200 / `application/rss+xml`，现有安全解析器得到 8 条来自 `www.langchain.com` 的带日期文章。服务改用固定新入口及对应官方域名，继续拒绝任意重定向、认证 URL 和伪装域名。
+- 通过本地前端同域 `/api/feed?refresh=true` 实际同步得到 56 条内容：8 条精选资料，加 6 个来源各最多 8 条资讯；本次六个来源均为 live。该结果记录当次公开源状态，不代表未来可用性或 Vercel 线上成功。
+- 8 项资讯相关测试通过，新增验证 LangChain 规范域名文章可进入 live / cached、非法来源被过滤且缓存命中不重复请求；平台 94 项非浏览器 pytest 全部通过。真实本地 headless 页面显示 56 条内容、6 / 6 可用源和 8 条 LangChain 链接，375px 无横向溢出；测试浏览器已关闭。
+- Vercel 连接器发布被自动审批拒绝，理由是目标账户、项目与认证状态未确认；已将目标信息与具体发布授权合并到已有的独立人工配置对话，其他开发继续推进。
+
 ## 2026-10-03 / 多语言完整毕业骨架
 
 - 全栈毕业阶段已提供 React + FastAPI / Hono / Gin 三套完整项目 ZIP，含源码、锁文件、固定公开资料、共同契约、测试、AGENTS、.gitignore 和证据模板。`scripts/build_starters.py --check` 验证共享 fixture 与三个下载包逐字节一致；构建只打包固定文件白名单。
@@ -10,6 +17,7 @@
 - `scripts/run_starter_e2e.py` 实际启动固定维护者代码，headless 验证同一 React 前端分别连接 FastAPI、Hono、Gin。三条链路验证演示引用、无证据不调用模型、真实模式未配置时拒绝、375px 无溢出、刷新清空会话历史。脚本以不含模型密钥的环境运行，结束后已确认自有 8010 / 5174 端口释放；既有 8000 / 5173 预览继续保留。
 - 平台 `pnpm check` 通过 18 项 Vitest、类型与生产构建；93 项非浏览器 pytest、Ruff 格式和静态检查通过。24 条 headless 用户流程全部通过，新增按所选语言下载实际 ZIP 并检查后端入口、锁文件与无开发产物。
 - GitHub CI 已加入三个骨架的冻结安装、各自校验、ZIP 一致性与 React → API 验证。平台 Vitest 限定 `tests/`；骨架 Node 测试由独立任务运行，避免误将 Node 测试或编译产物作为 Vitest 测试。
+- [完整远端 CI](https://github.com/frontend-is-magic/deep-ai-station/actions/runs/37123126587) 已通过，核对提交 `718867e`，main 与 develop 已普通快进到该毕业骨架版本。
 - Vercel Python Function 排除骨架源码与开发依赖，下载 ZIP 随静态前端产物发布。真实 OpenAI 调用仅以 mock 验证；账号、上传、数据库、跨实例预算与生产部署仍是毕业实践任务。当前未产生模型或沙箱费用，未使用重置卡。
 - 本轮使用 headless 验证，没有恢复已释放的桌面控制。Vercel 发布、真实供应商和真实 E2B 验收仍等待已有独立人工配置对话；下方内置 Browser 核心验收证据保持原状态。
 
