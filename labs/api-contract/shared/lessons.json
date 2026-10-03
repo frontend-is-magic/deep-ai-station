@@ -1,0 +1,17 @@
+[
+  {
+    "id": "tools",
+    "title": "工具契约",
+    "body": "工具应声明参数、返回值与权限边界。"
+  },
+  {
+    "id": "http",
+    "title": "HTTP API",
+    "body": "HTTP 请求通过路由返回稳定的 JSON 契约。"
+  },
+  {
+    "id": "validation",
+    "title": "输入校验",
+    "body": "使用明确类型，拒绝未知字段、空白与过长问题。"
+  }
+]

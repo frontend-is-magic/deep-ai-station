@@ -1,0 +1,483 @@
+[
+  {
+    "id": "health",
+    "method": "GET",
+    "path": "/health",
+    "status": 200,
+    "expected": {
+      "status": "ok",
+      "lab": "api-contract-v1"
+    }
+  },
+  {
+    "id": "found",
+    "method": "GET",
+    "path": "/lessons/tools",
+    "status": 200,
+    "expected": {
+      "id": "tools",
+      "title": "工具契约"
+    }
+  },
+  {
+    "id": "not-found",
+    "method": "GET",
+    "path": "/lessons/missing",
+    "status": 404,
+    "expected": {
+      "error": "lesson_not_found"
+    }
+  },
+  {
+    "id": "search",
+    "method": "POST",
+    "path": "/search",
+    "status": 200,
+    "expected": {
+      "question": "工具",
+      "items": [
+        {
+          "id": "tools",
+          "title": "工具契约"
+        }
+      ]
+    },
+    "json": {
+      "question": "工具"
+    }
+  },
+  {
+    "id": "trim",
+    "method": "POST",
+    "path": "/search",
+    "status": 200,
+    "expected": {
+      "question": "工具",
+      "items": [
+        {
+          "id": "tools",
+          "title": "工具契约"
+        }
+      ]
+    },
+    "json": {
+      "question": " \n工具\t "
+    }
+  },
+  {
+    "id": "case-insensitive",
+    "method": "POST",
+    "path": "/search",
+    "status": 200,
+    "expected": {
+      "question": "http",
+      "items": [
+        {
+          "id": "http",
+          "title": "HTTP API"
+        }
+      ]
+    },
+    "json": {
+      "question": "http"
+    }
+  },
+  {
+    "id": "body-match",
+    "method": "POST",
+    "path": "/search",
+    "status": 200,
+    "expected": {
+      "question": "参数",
+      "items": [
+        {
+          "id": "tools",
+          "title": "工具契约"
+        }
+      ]
+    },
+    "json": {
+      "question": "参数"
+    }
+  },
+  {
+    "id": "no-match",
+    "method": "POST",
+    "path": "/search",
+    "status": 200,
+    "expected": {
+      "question": "火星盆栽",
+      "items": []
+    },
+    "json": {
+      "question": "火星盆栽"
+    }
+  },
+  {
+    "id": "unicode-limit",
+    "method": "POST",
+    "path": "/search",
+    "status": 200,
+    "expected": {
+      "question": "🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂",
+      "items": []
+    },
+    "json": {
+      "question": "🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂"
+    }
+  },
+  {
+    "id": "blank",
+    "method": "POST",
+    "path": "/search",
+    "status": 422,
+    "expected": {
+      "error": "invalid_input"
+    },
+    "json": {
+      "question": " \t\n "
+    }
+  },
+  {
+    "id": "missing",
+    "method": "POST",
+    "path": "/search",
+    "status": 422,
+    "expected": {
+      "error": "invalid_input"
+    },
+    "json": {}
+  },
+  {
+    "id": "number",
+    "method": "POST",
+    "path": "/search",
+    "status": 422,
+    "expected": {
+      "error": "invalid_input"
+    },
+    "json": {
+      "question": 3
+    }
+  },
+  {
+    "id": "null",
+    "method": "POST",
+    "path": "/search",
+    "status": 422,
+    "expected": {
+      "error": "invalid_input"
+    },
+    "json": {
+      "question": null
+    }
+  },
+  {
+    "id": "boolean",
+    "method": "POST",
+    "path": "/search",
+    "status": 422,
+    "expected": {
+      "error": "invalid_input"
+    },
+    "json": {
+      "question": true
+    }
+  },
+  {
+    "id": "array",
+    "method": "POST",
+    "path": "/search",
+    "status": 422,
+    "expected": {
+      "error": "invalid_input"
+    },
+    "json": {
+      "question": ["工具"]
+    }
+  },
+  {
+    "id": "root-array",
+    "method": "POST",
+    "path": "/search",
+    "status": 422,
+    "expected": {
+      "error": "invalid_input"
+    },
+    "json": []
+  },
+  {
+    "id": "root-null",
+    "method": "POST",
+    "path": "/search",
+    "status": 422,
+    "expected": {
+      "error": "invalid_input"
+    },
+    "json": null
+  },
+  {
+    "id": "extra",
+    "method": "POST",
+    "path": "/search",
+    "status": 422,
+    "expected": {
+      "error": "invalid_input"
+    },
+    "json": {
+      "question": "工具",
+      "admin": true
+    }
+  },
+  {
+    "id": "too-long",
+    "method": "POST",
+    "path": "/search",
+    "status": 422,
+    "expected": {
+      "error": "invalid_input"
+    },
+    "json": {
+      "question": "🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂"
+    }
+  },
+  {
+    "id": "malformed",
+    "method": "POST",
+    "path": "/search",
+    "status": 422,
+    "expected": {
+      "error": "invalid_input"
+    },
+    "raw": "{\"question\":",
+    "content_type": "application/json"
+  },
+  {
+    "id": "trailing-json",
+    "method": "POST",
+    "path": "/search",
+    "status": 422,
+    "expected": {
+      "error": "invalid_input"
+    },
+    "raw": "{\"question\":\"工具\"} {}",
+    "content_type": "application/json"
+  },
+  {
+    "id": "wrong-media",
+    "method": "POST",
+    "path": "/search",
+    "status": 415,
+    "expected": {
+      "error": "unsupported_media_type"
+    },
+    "raw": "{\"question\":\"工具\"}",
+    "content_type": "text/plain"
+  },
+  {
+    "id": "with-charset",
+    "method": "POST",
+    "path": "/search",
+    "status": 200,
+    "expected": {
+      "question": "工具",
+      "items": [
+        {
+          "id": "tools",
+          "title": "工具契约"
+        }
+      ]
+    },
+    "raw": "{\"question\":\"工具\"}",
+    "content_type": "application/json; charset=utf-8"
+  },
+  {
+    "id": "oversized",
+    "method": "POST",
+    "path": "/search",
+    "status": 413,
+    "expected": {
+      "error": "request_too_large"
+    },
+    "repeat_body": {
+      "character": "x",
+      "count": 4097
+    },
+    "content_type": "application/json"
+  },
+  {
+    "id": "unicode-whitespace",
+    "method": "POST",
+    "path": "/search",
+    "status": 200,
+    "expected": {
+      "question": "工具",
+      "items": [
+        {
+          "id": "tools",
+          "title": "工具契约"
+        }
+      ]
+    },
+    "raw": "{\"question\": \"工具 \"}",
+    "content_type": "application/json"
+  },
+  {
+    "id": "ideographic-space",
+    "method": "POST",
+    "path": "/search",
+    "status": 200,
+    "expected": {
+      "question": "工具",
+      "items": [
+        {
+          "id": "tools",
+          "title": "工具契约"
+        }
+      ]
+    },
+    "raw": "{\"question\": \"　工具　\"}",
+    "content_type": "application/json"
+  },
+  {
+    "id": "bom-is-not-whitespace",
+    "method": "POST",
+    "path": "/search",
+    "status": 200,
+    "expected": {
+      "question": "﻿工具﻿",
+      "items": []
+    },
+    "json": {
+      "question": "﻿工具﻿"
+    }
+  },
+  {
+    "id": "control-is-not-whitespace",
+    "method": "POST",
+    "path": "/search",
+    "status": 200,
+    "expected": {
+      "question": "\u001c工具\u001c",
+      "items": []
+    },
+    "json": {
+      "question": "\u001c工具\u001c"
+    }
+  },
+  {
+    "id": "isolated-high-surrogate",
+    "method": "POST",
+    "path": "/search",
+    "status": 422,
+    "expected": {
+      "error": "invalid_input"
+    },
+    "raw": "{\"question\":\"\\ud800\"}",
+    "content_type": "application/json"
+  },
+  {
+    "id": "isolated-low-surrogate",
+    "method": "POST",
+    "path": "/search",
+    "status": 422,
+    "expected": {
+      "error": "invalid_input"
+    },
+    "raw": "{\"question\":\"\\udfff\"}",
+    "content_type": "application/json"
+  },
+  {
+    "id": "escaped-emoji",
+    "method": "POST",
+    "path": "/search",
+    "status": 200,
+    "expected": {
+      "question": "🙂",
+      "items": []
+    },
+    "raw": "{\"question\":\"\\ud83d\\ude42\"}",
+    "content_type": "application/json"
+  },
+  {
+    "id": "literal-escape",
+    "method": "POST",
+    "path": "/search",
+    "status": 200,
+    "expected": {
+      "question": "\\ud800",
+      "items": []
+    },
+    "raw": "{\"question\":\"\\\\ud800\"}",
+    "content_type": "application/json"
+  },
+  {
+    "id": "non-json-whitespace",
+    "method": "POST",
+    "path": "/search",
+    "status": 422,
+    "expected": {
+      "error": "invalid_input"
+    },
+    "raw": " {\"question\":\"工具\"}",
+    "content_type": "application/json"
+  },
+  {
+    "id": "json-bom",
+    "method": "POST",
+    "path": "/search",
+    "status": 422,
+    "expected": {
+      "error": "invalid_input"
+    },
+    "raw": "﻿{\"question\":\"工具\"}",
+    "content_type": "application/json"
+  },
+  {
+    "id": "media-incomplete-parameter",
+    "method": "POST",
+    "path": "/search",
+    "status": 200,
+    "expected": {
+      "question": "工具",
+      "items": [
+        {
+          "id": "tools",
+          "title": "工具契约"
+        }
+      ]
+    },
+    "raw": "{\"question\":\"工具\"}",
+    "content_type": "application/json; charset"
+  },
+  {
+    "id": "media-unclosed-parameter",
+    "method": "POST",
+    "path": "/search",
+    "status": 200,
+    "expected": {
+      "question": "工具",
+      "items": [
+        {
+          "id": "tools",
+          "title": "工具契约"
+        }
+      ]
+    },
+    "raw": "{\"question\":\"工具\"}",
+    "content_type": "application/json; charset=\"unterminated"
+  },
+  {
+    "id": "unicode-case-is-preserved",
+    "method": "POST",
+    "path": "/search",
+    "status": 200,
+    "expected": {
+      "question": "İ",
+      "items": []
+    },
+    "json": {
+      "question": "İ"
+    }
+  }
+]

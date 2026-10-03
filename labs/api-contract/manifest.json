@@ -1,0 +1,6 @@
+{
+  "id": "api-contract",
+  "version": "api-contract-v1",
+  "lessons": ["fullstack-routing", "fullstack-validation"],
+  "languages": ["python", "typescript", "go"]
+}
