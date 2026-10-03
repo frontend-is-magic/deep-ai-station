@@ -1,0 +1,25 @@
+{
+  "name": "session-authorization-lab-typescript",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.32.1",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "test": "pnpm build && node --test dist/app.test.js",
+    "check": "prettier --check src package.json tsconfig.json pnpm-lock.yaml && pnpm test"
+  },
+  "dependencies": {
+    "hono": "4.13.12",
+    "@hono/node-server": "2.1.3"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.1",
+    "typescript": "5.9.3",
+    "prettier": "3.9.9"
+  }
+}
