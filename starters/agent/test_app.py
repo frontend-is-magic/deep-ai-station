@@ -331,3 +331,33 @@ async def test_overall_deadline_closes_waiting_stream(monkeypatch):
     with pytest.raises(HTTPException) as error:
         await generate("API", lambda: None, factory)
     assert error.value.status_code == 504 and stream.closed
+
+
+async def test_disconnect_retrieves_simultaneous_provider_failure(monkeypatch):
+    import gc
+    import app as api_module
+
+    async def fail(*_args):
+        raise HTTPException(502, "provider_invalid_response")
+
+    class Disconnected:
+        async def is_disconnected(self):
+            return True
+
+    monkeypatch.setattr(api_module, "generate", fail)
+    endpoint = next(route.endpoint for route in create_app().routes if route.path == "/api/ask")
+    loop = asyncio.get_running_loop()
+    previous = loop.get_exception_handler()
+    unhandled = []
+    loop.set_exception_handler(lambda _loop, context: unhandled.append(context))
+    try:
+        with pytest.raises(HTTPException) as error:
+            await endpoint(
+                api_module.Question(prompt="API", mode="openai"), Disconnected(), "test-access"
+            )
+        assert error.value.status_code == 499
+        gc.collect()
+        await asyncio.sleep(0)
+        assert unhandled == []
+    finally:
+        loop.set_exception_handler(previous)

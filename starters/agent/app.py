@@ -5,7 +5,6 @@ import hmac
 import os
 import time
 from collections import deque
-from contextlib import suppress
 from typing import Literal
 
 import httpx
@@ -115,8 +114,7 @@ def create_app(client_factory=httpx.AsyncClient):
         finally:
             if not task.done():
                 task.cancel()
-                with suppress(asyncio.CancelledError):
-                    await task
+            await asyncio.gather(task, return_exceptions=True)
 
     return api
 

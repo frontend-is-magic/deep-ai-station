@@ -6,7 +6,6 @@ import json
 import os
 import time
 from collections import deque
-from contextlib import suppress
 from pathlib import Path
 from typing import Literal
 from uuid import uuid4
@@ -188,8 +187,7 @@ def create_app(client_factory=httpx.AsyncClient):
             finally:
                 if not task.done():
                     task.cancel()
-                    with suppress(asyncio.CancelledError):
-                        await task
+                await asyncio.gather(task, return_exceptions=True)
         return {
             "run_id": str(uuid4()),
             "mode": mode,
