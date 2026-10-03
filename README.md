@@ -36,7 +36,7 @@ pnpm dev
 
 请求使用 OpenAI 兼容的 `messages`、`tool_calls` 与 Chat Completions SSE 输入输出格式，实际 base URL 固定为 `https://api.deepseek.com`，请求发送到 `/chat/completions`。DeepSeek 明确关闭 thinking，使用 `max_tokens` 限制教学回答输出。模型可用性与费用仍以用户控制台为准；当前未做真实服务调用。参考：[DeepSeek 官方配置](https://api-docs.deepseek.com/quick_start/pricing/)、[Chat Completions](https://api-docs.deepseek.com/api/create-chat-completion/)。课程和信息流中的 OpenAI 官方资料继续作为学习参考。
 
-本地通过受保护的 shell 环境传入配置；线上使用 Vercel 托管 Environment Variables。当前程序不会自动读取 `.env`。不要把密钥写进源码、VITE_ 变量、聊天或文档。敏感配置、私钥、认证缓存和日志已加入根目录与毕业包的 `.gitignore`；只有空值 `.env.example` 可提交。CI 检查已跟踪文件及 ZIP 的敏感路径和常见凭据特征，该检查不替代对新凭据类型的审查。
+本地通过受保护的 shell 环境传入配置；线上使用 Vercel 托管 Environment Variables。当前程序不会自动读取 `.env`。不要把密钥写进源码、VITE_ 变量、聊天或文档。敏感配置、私钥、认证缓存和日志已加入根目录与毕业包的 `.gitignore`；只有空值 `.env.example` 可提交。提交前脚本同时检查 Git 暂存区、工作区及 ZIP 的敏感路径和常见凭据特征，CI 再执行同一检查，该检查不替代对新凭据类型的审查。
 
 `PLAYGROUND_ACCESS_TOKEN` 与 `DEEPSEEK_API_KEY` 同时配置后才启用真实调用。访问码只在页面内存中使用。服务内部限流是单实例保护；公开大规模使用前应配置共享限流与供应商费用上限。
 

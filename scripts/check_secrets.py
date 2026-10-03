@@ -2,6 +2,7 @@
 
 import fnmatch
 import io
+import os
 import re
 import shutil
 import subprocess
@@ -101,34 +102,52 @@ def scan(name: str, data: bytes) -> list[tuple[str, str]]:
     return issues
 
 
-def main():
-    files = (
-        subprocess.check_output(  # noqa: S603 - fixed Git arguments, no user commands.
-            [
-                shutil.which("git") or "/usr/bin/git",
-                "ls-files",
-                "-z",
-                "--cached",
-                "--others",
-                "--exclude-standard",
-            ],
-            cwd=ROOT,
-        )
-        .decode()
-        .split("\0")
+def git_output(*arguments: str) -> bytes:
+    return subprocess.check_output(  # noqa: S603 - internal Git arguments, never shell code.
+        [shutil.which("git") or "/usr/bin/git", *arguments], cwd=ROOT
     )
+
+
+def main():
     issues = []
+    index_count = 0
+    for entry in git_output("ls-files", "--stage", "-z").split(b"\0"):
+        if not entry:
+            continue
+        metadata, raw_name = entry.split(b"\t", 1)
+        mode, blob, _stage = metadata.decode("ascii").split()
+        if mode not in {"100644", "100755", "120000"}:
+            continue  # Gitlinks and sparse directory entries are not file blobs.
+        name = os.fsdecode(raw_name)
+        data = git_output("cat-file", "blob", blob)
+        found = (
+            [(name, rule) for rule in audit(name, data)] if mode == "120000" else scan(name, data)
+        )
+        index_count += 1
+        issues.extend((f"index:{path}", rule) for path, rule in found)
+    files = os.fsdecode(
+        git_output("ls-files", "-z", "--cached", "--others", "--exclude-standard")
+    ).split("\0")
     count = 0
     for name in sorted(set(files) - {""}):
         path = ROOT / name
-        if path.is_file():
+        if path.is_symlink():
             count += 1
-            issues.extend(scan(name, path.read_bytes()))
+            issues.extend(
+                (f"worktree:{name}", rule) for rule in audit(name, os.fsencode(path.readlink()))
+            )
+        elif path.is_file():
+            count += 1
+            issues.extend(
+                (f"worktree:{member}", rule) for member, rule in scan(name, path.read_bytes())
+            )
     for name, rule in issues:
         print(f"{rule}: {name}")
     if issues:
         raise SystemExit("Secret hygiene check failed; matching values were not printed.")
-    print(f"Secret hygiene: {count} repository files and embedded ZIP members checked.")
+    print(
+        f"Secret hygiene: {index_count} index blobs, {count} worktree files and embedded ZIP members checked."
+    )
 
 
 if __name__ == "__main__":
