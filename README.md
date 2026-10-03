@@ -81,6 +81,8 @@ uv run python -m scripts.compile_go_examples
 
 `python3 scripts/verify_checkpoint_lab.py` 验证 [检查点与重启恢复实验](labs/workflow-checkpoint/shared/README.md)：独立 CLI 进程把固定研究工作流的节点输出持久化到 SQLite，通过提交前后故障、实际重启与同版本竞争，区分未提交、已提交但未响应和已完成。仅使用固定资料，不调用模型或运行用户代码。
 
+`python3 scripts/verify_chunking_lab.py` 验证 [文档切分与引用实验](labs/document-chunking/shared/README.md)：对固定 Markdown 比较标题分段与重叠滑窗，按独立原文区间计算召回和成本，再通过来源、版本与代码点范围精确回读。解包验收独立核对 UTF-8 坐标、完整引用、损坏拒绝及确定性；没有模型或外部请求。
+
 SSE 实验另附共享 React 客户端，比较三种后端的增量、失败、总 deadline、真实 HTTP 断连与并发隔离。`python3 scripts/verify_stream_labs.py --browser` 从仓库外解包、冻结安装并验证实际浏览器到三后端的流；原生测试观察 Producer 取消和一次清理，页面停止不替代服务端证据。详见[流式实验](labs/sse-stream/shared/README.md)。
 
 完整毕业骨架的启动与校验见 [多语言项目](starters/README.md) 与 [Agent 研究助手](starters/agent/README.md)。三种语言使用共用固定契约；研究助手另有证据存在、证据不足和合成冲突案例。四个项目分别验证 React 到实际后端的演示请求；维护者脚本不接受学习者代码。真实 DeepSeek adapter 仅经过 mock 验证，账号、上传、数据库和生产发布仍是后续实践任务。

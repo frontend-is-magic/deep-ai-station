@@ -18,7 +18,9 @@
 
 `workflow-checkpoint-v1` 对应 Agent 工作流与状态机课，提供 Python / SQLite 的检索→起草→引用校验实验。通过原运行 ID 和 expected revision，练习真实进程退出后的检查点恢复、竞争拒绝及损坏状态保留。[运行](workflow-checkpoint/shared/README.md) · [契约](workflow-checkpoint/shared/CONTRACT.md)。仅使用包内固定资料和纯计算节点，无模型或外部副作用。
 
-每个实验的 `shared/` 放契约、案例与说明，语言子目录放完整实现，manifest 记录版本/课时/语言。SQLite 的共享 SQL 在 `shared/migrations/`。当前共 18 个下载包。`public/labs/` 为固定白名单生成的确定性 ZIP，不包含依赖缓存、数据文件或秘密配置。
+`document-chunking-v1` 对应 Agent 文档切分与索引课，提供 Python 标准库的标题分段、重叠滑窗、固定词法检索与原文回读。保留原始换行、来源版本、代码点和 UTF-8 字节范围，用六道固定题比较完整证据召回、排序与实际字符成本。[运行](document-chunking/shared/README.md) · [契约](document-chunking/shared/CONTRACT.md)。资料是五段现有课程正文与明确标注的教学包装；不调用模型，不代表通用 RAG 质量。
+
+每个实验的 `shared/` 放契约、案例与说明，语言子目录放完整实现，manifest 记录版本/课时/语言。SQLite 的共享 SQL 在 `shared/migrations/`。当前共 19 个下载包。`public/labs/` 为固定白名单生成的确定性 ZIP，不包含依赖缓存、数据文件或秘密配置。
 
 ```sh
 python3 scripts/build_course_labs.py
@@ -31,6 +33,8 @@ python3 scripts/verify_stream_labs.py --browser
 python3 scripts/verify_agent_write_lab.py
 python3 scripts/verify_agent_write_lab.py --browser
 python3 scripts/verify_mcp_lab.py
+python3 scripts/verify_checkpoint_lab.py
+python3 scripts/verify_chunking_lab.py
 # 三语言实验的验证脚本可选择一种语言
 python3 scripts/verify_sqlite_labs.py --language go
 ```
