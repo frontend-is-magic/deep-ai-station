@@ -13,6 +13,7 @@ import {
   Route,
 } from 'lucide-react';
 import { progressAtom } from '@/lib/state';
+import { nextIncompleteLesson, resumeLesson } from '@/lib/resume';
 import type { Track } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { TextLink } from '@/components/common';
@@ -21,7 +22,11 @@ export default function Home({ tracks }: { tracks: Track[] }) {
   const progress = useAtomValue(progressAtom);
   const lessons = tracks.flatMap((x) => x.lessons);
   const completed = lessons.filter((x) => progress.completed.includes(x.id));
-  const next = lessons.find((x) => !progress.completed.includes(x.id)) || lessons[0];
+  const resumed = resumeLesson(progress, tracks);
+  const activeTrack = tracks.find((track) => track.id === resumed?.track);
+  const next = nextIncompleteLesson(progress, activeTrack?.lessons ?? lessons);
+  const primary = resumed ?? next;
+  const resumeLabel = resumed && progress.completed.includes(resumed.id) ? '回顾本课' : '继续本课';
   return (
     <div className="page home-page">
       <div className="welcome-line">
@@ -49,8 +54,14 @@ export default function Home({ tracks }: { tracks: Track[] }) {
           </p>
           <div className="hero-actions">
             <Button asChild>
-              <Link to={`/lesson/${next.id}`}>
-                {completed.length ? '继续我的学习' : '开始学习之旅'}
+              <Link to={primary ? `/lesson/${primary.id}` : `/roadmap/${tracks[0].id}`}>
+                {resumed
+                  ? resumeLabel
+                  : next
+                    ? completed.length
+                      ? '学习下一课'
+                      : '开始学习之旅'
+                    : '查看学习路线'}
                 <ArrowRight size={16} />
               </Link>
             </Button>
@@ -199,32 +210,67 @@ export default function Home({ tracks }: { tracks: Track[] }) {
       </section>
       <section className="home-bottom-grid">
         <div className="continue-card">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">ONE STEP AT A TIME</p>
-              <h2>{completed.length ? '继续上次的旅程' : '从第一块积木开始'}</h2>
+          <p className="eyebrow">ONE STEP AT A TIME</p>
+          {resumed && (
+            <section aria-label="上次学习" className="resume-section">
+              <div className="section-heading">
+                <h2>上次学习</h2>
+                <span className="badge">
+                  {progress.completed.includes(resumed.id) ? '已完成 · 可回顾' : '尚未完成'}
+                </span>
+              </div>
+              <Link to={`/lesson/${resumed.id}`} className="next-lesson">
+                <span className="lesson-icon">
+                  {resumed.track === 'agent' ? <Bot size={22} /> : <Braces size={22} />}
+                </span>
+                <div>
+                  <span className="subtle-label">
+                    {activeTrack?.title} / {resumed.level}
+                  </span>
+                  <h3>{resumed.title}</h3>
+                  <p>{resumed.objective}</p>
+                </div>
+                <ArrowRight size={20} />
+              </Link>
+              <div className="continue-footer">
+                <span>只记录访问位置，完成与实践仍由你确认</span>
+                <TextLink to={`/lesson/${resumed.id}`}>{resumeLabel}</TextLink>
+              </div>
+            </section>
+          )}
+          <section aria-label="下一节未完成课" className="resume-section">
+            <div className="section-heading">
+              <h2>{next ? '下一节未完成课' : '课程已完成'}</h2>
             </div>
-            <span className="badge">推荐下一课</span>
-          </div>
-          <Link to={`/lesson/${next.id}`} className="next-lesson">
-            <span className="lesson-icon">
-              <Bot size={22} />
-            </span>
-            <div>
-              <span className="subtle-label">
-                {next.track === 'agent' ? 'AI AGENT 工程' : 'AI 全栈工程'} / {next.level}
-              </span>
-              <h3>{next.title}</h3>
-              <p>{next.objective}</p>
-            </div>
-            <ArrowRight size={20} />
-          </Link>
-          <div className="continue-footer">
-            <span>
-              <Clock3 size={14} />约 {next.minutes} 分钟 · 包含动手练习
-            </span>
-            <TextLink to={`/lesson/${next.id}`}>进入课程</TextLink>
-          </div>
+            {next ? (
+              <>
+                <Link to={`/lesson/${next.id}`} className="next-lesson">
+                  <span className="lesson-icon">
+                    {next.track === 'agent' ? <Bot size={22} /> : <Braces size={22} />}
+                  </span>
+                  <div>
+                    <span className="subtle-label">
+                      {next.track === 'agent' ? 'AI AGENT 工程' : 'AI 全栈工程'} / {next.level}
+                    </span>
+                    <h3>{next.title}</h3>
+                    <p>{next.objective}</p>
+                  </div>
+                  <ArrowRight size={20} />
+                </Link>
+                <div className="continue-footer">
+                  <span>
+                    <Clock3 size={14} />约 {next.minutes} 分钟 · 按路线顺序推荐
+                  </span>
+                  <TextLink to={`/lesson/${next.id}`}>进入课程</TextLink>
+                </div>
+              </>
+            ) : (
+              <p className="resume-empty">
+                {activeTrack ? `${activeTrack.title}的课程均已完成。` : '两条路线的课程均已完成。'}
+                可以回顾课程、继续实践，或从上方选择其他路线。
+              </p>
+            )}
+          </section>
         </div>
         <div className="explore-card">
           <Radio size={23} />

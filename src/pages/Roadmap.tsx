@@ -11,6 +11,7 @@ import {
   Layers3,
 } from 'lucide-react';
 import { progressAtom } from '@/lib/state';
+import { nextIncompleteLesson, resumeLesson } from '@/lib/resume';
 import type { Track } from '@/lib/types';
 import { languageNames } from '@/lib/utils';
 import { PageHeading } from '@/components/common';
@@ -36,7 +37,10 @@ export default function Roadmap({ tracks }: { tracks: Track[] }) {
       (record) => record.language === language && knownLessons.has(record.lesson_id),
     ).length,
   }));
-  const next = track.lessons.find((x) => !progress.completed.includes(x.id)) || track.lessons[0];
+  const resumed = resumeLesson(progress, tracks, track.id);
+  const next = nextIncompleteLesson(progress, track.lessons);
+  const primary = resumed ?? next;
+  const resumeLabel = resumed && progress.completed.includes(resumed.id) ? '回顾本课' : '继续本课';
   return (
     <div className="page">
       <PageHeading
@@ -44,12 +48,14 @@ export default function Roadmap({ tracks }: { tracks: Track[] }) {
         title={track.title}
         description={track.description}
       >
-        <Button asChild>
-          <Link to={`/lesson/${next.id}`}>
-            {done ? '继续学习' : '开始第一课'}
-            <ArrowRight size={16} />
-          </Link>
-        </Button>
+        {primary && (
+          <Button asChild>
+            <Link to={`/lesson/${primary.id}`}>
+              {resumed ? resumeLabel : done ? '学习下一课' : '开始第一课'}
+              <ArrowRight size={16} />
+            </Link>
+          </Button>
+        )}
       </PageHeading>
       <div className="roadmap-overview">
         <div>
@@ -66,6 +72,40 @@ export default function Roadmap({ tracks }: { tracks: Track[] }) {
           </div>
           <strong>{Math.round((done / track.lessons.length) * 100)}%</strong>
         </div>
+      </div>
+      <div className="route-resume-grid">
+        <section aria-label="上次学习" className="route-resume-card">
+          <h2>本路线上次学习</h2>
+          {resumed ? (
+            <>
+              <p>{resumed.title}</p>
+              <Link className="text-link" to={`/lesson/${resumed.id}`}>
+                {resumeLabel}
+                <ArrowRight size={16} />
+              </Link>
+            </>
+          ) : (
+            <p>
+              {next
+                ? '还没有有效的访问记录，可从下一节未完成课开始。'
+                : '还没有有效的访问记录，可从下方选择课时回顾。'}
+            </p>
+          )}
+        </section>
+        <section aria-label="下一节未完成课" className="route-resume-card">
+          <h2>{next ? '下一节未完成课' : '本路线课程已完成'}</h2>
+          {next ? (
+            <>
+              <p>{next.title}</p>
+              <Link className="text-link" to={`/lesson/${next.id}`}>
+                进入课程
+                <ArrowRight size={16} />
+              </Link>
+            </>
+          ) : (
+            <p>可以从下方回顾课程，继续记录各语言的实践结果。</p>
+          )}
+        </section>
       </div>
       {track.id === 'fullstack' && (
         <div className="language-selector">

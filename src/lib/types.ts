@@ -79,6 +79,14 @@ export interface PracticeRecord {
   language: Language;
   completed_at: string;
 }
+export interface LearningPosition {
+  lesson_id: string;
+  visited_at: string;
+}
+export interface ResumeState {
+  last_track: TrackId;
+  positions: Partial<Record<TrackId, LearningPosition>>;
+}
 export interface Progress {
   version: 1;
   completed: string[];
@@ -89,6 +97,7 @@ export interface Progress {
   runs: RunRecord[];
   evidence?: EvidenceRecord[];
   practice?: PracticeRecord[];
+  resume?: ResumeState;
 }
 export interface Capabilities {
   providers: { id: string; name: string; enabled: boolean; model: string | null }[];

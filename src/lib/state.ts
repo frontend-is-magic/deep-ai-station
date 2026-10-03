@@ -2,6 +2,7 @@ import { atomWithStorage, createJSONStorage } from 'jotai/utils';
 import type { FeedItem, Progress } from './types';
 import { validEvidenceRecords } from './evidence';
 import { validPracticeRecords } from './practice';
+import { validResume } from './resume';
 
 export const emptyProgress: Progress = {
   version: 1,
@@ -75,11 +76,13 @@ export function validateProgress(value: unknown): value is Progress {
         'runs',
         'evidence',
         'practice',
+        'resume',
       ].includes(key),
     ) &&
     p.version === 1 &&
     (p.evidence === undefined || validEvidenceRecords(p.evidence)) &&
     (p.practice === undefined || validPracticeRecords(p.practice)) &&
+    (p.resume === undefined || validResume(p.resume)) &&
     safeStrings(p.completed) &&
     safeStrings(p.bookmarks) &&
     (p.savedItems === undefined ||

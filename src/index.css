@@ -743,6 +743,52 @@ kbd {
   border-radius: 11px;
   padding: 23px;
 }
+.resume-section + .resume-section {
+  border-top: 1px solid #edf0e7;
+  margin-top: 22px;
+  padding-top: 22px;
+}
+.resume-section .section-heading {
+  margin-bottom: 0;
+}
+.resume-section .next-lesson > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.resume-section .continue-footer {
+  flex-wrap: wrap;
+}
+.resume-section .continue-footer > span {
+  flex-wrap: wrap;
+}
+.resume-empty {
+  font-size: 13px;
+  color: #64695c;
+  line-height: 1.7;
+}
+.route-resume-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.route-resume-card {
+  min-width: 0;
+  border: 1px solid #e3e7db;
+  border-radius: 11px;
+  background: #fff;
+  padding: 20px;
+  overflow-wrap: anywhere;
+}
+.route-resume-card h2 {
+  margin: 0;
+  font-size: 14px;
+}
+.route-resume-card p {
+  color: #64695c;
+  font-size: 13px;
+  line-height: 1.7;
+}
 .continue-card h2 {
   font-size: 16px;
 }

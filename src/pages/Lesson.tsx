@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAtom } from 'jotai';
 import { Link, useParams } from 'react-router-dom';
 import {
@@ -14,6 +14,7 @@ import {
   FlaskConical,
 } from 'lucide-react';
 import { progressAtom } from '@/lib/state';
+import { recordLessonVisit } from '@/lib/resume';
 import type { Track } from '@/lib/types';
 import { languageNames } from '@/lib/utils';
 import { courseLabFor } from '@/lib/course-labs';
@@ -29,6 +30,21 @@ export default function LessonPage({ tracks }: { tracks: Track[] }) {
   const [answer, setAnswer] = useState<number | null>(null);
   const [checks, setChecks] = useState<number[]>([]);
   const [copyState, setCopyState] = useState('');
+  const visitedLesson = useRef<string | undefined>(undefined);
+  const validLessonId = lesson?.id;
+  const validTrackId = track?.id;
+  useEffect(() => {
+    if (!validLessonId || !validTrackId) {
+      visitedLesson.current = undefined;
+      return;
+    }
+    if (visitedLesson.current === validLessonId) return;
+    visitedLesson.current = validLessonId;
+    const visitedAt = new Date().toISOString();
+    setProgress((value) =>
+      recordLessonVisit(value, { id: validLessonId, track: validTrackId }, visitedAt),
+    );
+  }, [validLessonId, validTrackId, setProgress]);
   useEffect(() => {
     setAnswer(null);
     setChecks([]);
