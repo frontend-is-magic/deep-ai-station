@@ -64,6 +64,16 @@ export interface RunRecord {
   date: string;
   duration_ms: number;
 }
+export interface EvidenceRecord {
+  lesson_id: string;
+  language: Language;
+  revision: string;
+  command: string;
+  success: string;
+  failure: string;
+  pending: string;
+  updated_at: string;
+}
 export interface Progress {
   version: 1;
   completed: string[];
@@ -72,6 +82,7 @@ export interface Progress {
   notes: Record<string, string>;
   language: Language;
   runs: RunRecord[];
+  evidence?: EvidenceRecord[];
 }
 export interface Capabilities {
   providers: { id: string; name: string; enabled: boolean; model: string | null }[];

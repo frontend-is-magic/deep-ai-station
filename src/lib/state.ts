@@ -1,5 +1,6 @@
 import { atomWithStorage, createJSONStorage } from 'jotai/utils';
 import type { FeedItem, Progress } from './types';
+import { validEvidenceRecords } from './evidence';
 
 export const emptyProgress: Progress = {
   version: 1,
@@ -63,11 +64,19 @@ export function validateProgress(value: unknown): value is Progress {
   const p = value as Progress;
   return (
     Object.keys(p).every((key) =>
-      ['version', 'completed', 'bookmarks', 'savedItems', 'notes', 'language', 'runs'].includes(
-        key,
-      ),
+      [
+        'version',
+        'completed',
+        'bookmarks',
+        'savedItems',
+        'notes',
+        'language',
+        'runs',
+        'evidence',
+      ].includes(key),
     ) &&
     p.version === 1 &&
+    (p.evidence === undefined || validEvidenceRecords(p.evidence)) &&
     safeStrings(p.completed) &&
     safeStrings(p.bookmarks) &&
     (p.savedItems === undefined ||
