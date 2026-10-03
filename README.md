@@ -6,7 +6,7 @@ AI Agent 与 AI 全栈工程的学习空间，连接路线、官方信息源和�
 - 全栈路线支持 TypeScript / Hono、Go / Gin、Python / FastAPI 参考实现。
 - 官方 RSS / Atom 信息流、明确来源状态、筛选与收藏。
 - Agent 工作流教学演示、OpenAI / Anthropic / DeepSeek 服务端适配器、SSE 事件、停止与运行历史。
-- 代码实验目前是静态检查：Python AST 与 TS/Go 文本检查，不执行代码。真实模型必须配置服务端密钥与实验访问码。
+- 代码实验支持静态检查，以及配置后的 E2B 隔离运行。Python/TS 使用独立 Code Interpreter，Go 使用预装编译器的受信模板；未配置时明确禁用运行。
 - Jotai 浏览器进度、笔记和收藏，支持导出/导入；当前不包含账号与跨设备同步。
 
 ## 本地运行
@@ -33,15 +33,20 @@ pnpm dev
 
 `PLAYGROUND_ACCESS_TOKEN` 与供应商密钥同时配置后才启用真实调用。访问码只在页面内存中使用。服务内部限流是单实例保护；公开大规模使用前应配置共享限流与供应商费用上限。
 
+隔离代码运行配置见 [沙箱说明](docs/sandbox.md)，由 `E2B_API_KEY` 与访问码启用；Go 另外需要 `E2B_GO_TEMPLATE`。没有向应用主机、模板或用户沙箱传入模型密钥。
+
 ## 验证
 
 ```sh
 pnpm check
-uv run ruff check backend api tests
-uv run ruff format --check backend api tests
+uv run ruff check backend api tests scripts
+uv run ruff format --check backend api tests scripts
 uv run pytest -m 'not e2e'
 uv run playwright install chromium
 uv run pytest -m e2e
+uv run python -m scripts.export_examples /tmp/examples.json
+node scripts/check_examples.mjs /tmp/examples.json
+go run scripts/check_examples.go /tmp/examples.json
 ```
 
 浏览器验收使用 Codex 内置 Browser。自动化测试只使用 headless Chromium。
