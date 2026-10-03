@@ -2,13 +2,20 @@
 
 本文件记录实际执行证据，未完成事项保留真实状态。
 
+## 2026-10-04 / 云端毕业项目跟读入口与独立复验
+
+- 三节 Agent 毕业课新增公开项目源码、验收证据与开发 PR 入口，原骨架下载和个人证据卡继续保留；[跟读指南](cloud-capstone.md) 解释骨架、独立项目与对应提交验证的关系，并以实际取消缺陷说明为何要检查后续请求数。
+- `pnpm check` 通过69项Vitest、Prettier、TypeScript与生产构建。3条原毕业证据流程和1条临时headless入口检查通过：三个毕业课的链接/安全新窗口属性、原下载入口、普通课隐藏、点击外链后个人记录不变、刷新保留与375px布局。外链导航在测试context中拦截，不把该测试当作GitHub实时可用性证明；目标仓库、PR和验收文档已通过GitHub API读取。已查看移动截图，自有5175服务和浏览器关闭，既有749c9a0预览不变。
+- 云端 `3e1da918caa9ebf503b5946e0e421aaf0957e14d` 的 [push CI](https://github.com/frontend-is-magic/deep-ai-research-assistant/actions/runs/37135580210) 与 [PR CI](https://github.com/frontend-is-magic/deep-ai-research-assistant/actions/runs/37135583272) 成功，包含SQLite/PostgreSQL取消与租约回归。主线独立checkout、冻结依赖重跑原取消复现：ACK后0新请求，model_calls=1、tool_calls=0、模拟usage=11、完整性true且重读一致；原始ASGI断开与handler取消保留已知用量及未知在途标记，五种跨owner请求均404/no-store。定向SQLite测试11 passed，14项PostgreSQL相关测试因本地未配置而skip，实际PostgreSQL证据来自该提交CI。
+- 独立部署配置审查和8项无凭据失败关闭检查通过。Vercel连接器对已知scope返回403授权不足，已并入原人工配置聊天；未绕过认证。实际Vercel Python断开传播、原生Browser、生产与真实模型仍须独立验收，当前证据不替代这些环节。0真实模型/沙箱调用，未使用重置卡。
+
 ## 2026-10-03 / 三语言 SQLite 数据与迁移实验
 
 - 数据建模、迁移两课接入 `sqlite-storage-v1`，Python sqlite3 / TypeScript node:sqlite / Go modernc SQLite 共用 SQL、CLI 契约和独立 ZIP。实际验证迁移版本、旧数据与审计保留、组合唯一/布尔/外键约束、同状态幂等、owner 范围内的 progress/audit keyset 分页及1000ms写锁竞争；更新与审计在同一事务，未来版本拒绝且不写入。
 - `scripts/verify_sqlite_labs.py` 在仓库外冻结安装，Python60项、TS54项、Go12个顶层测试组通过；每语言另运行6组78次独立 CLI 进程，覆盖重启持久化、输入字节/类型/日期、旧库升级、未来版本拒绝、审计失败与迁移回填失败后的真实回滚。响应比较严格区分 JSON boolean 和整数。没有模型调用、没有启动监听服务。
 - 交叉审查修复 TS 标识符正则对尾换行的接受差异，并统一迁移/写入先获取事务再检查版本、空路径拒绝、BOM与精确4096字节规则。共享文档明确可信教学 owner 不等于登录认证、同状态幂等不等于 request-id 去重、不处理时钟倒退，也不承诺 v1/v2 写入器共存。文档游标上限及锁文件格式已修正，最终六个实验ZIP重建与逐字节一致性通过。
 - 平台 `pnpm check` 通过69项Vitest、Prettier、TypeScript及生产构建；166项非浏览器pytest通过。相关headless为10条仓库流程加1条独立视觉检查，全部通过：四课实际下载12个实验ZIP和12个原资料包，检查源码/锁/迁移/manifest、笔记与完成/实践/证据不受下载影响、旧实验入口、备份恢复及375px。已查看SQLite下载卡截图，无横向溢出；自有5175监听关闭，原749c9a0的8000/5173待许可预览不变。
-- SQLite .db/.sqlite/.sqlite3 的 -wal/-shm/-journal 已加入根目录及全部下载模板的忽略与敏感扫描；真实Git强制暂存和ZIP覆盖用例验证工作区清理后仍拦截暂存副本。保护提交 `0015210` 的 [完整CI](https://github.com/frontend-is-magic/deep-ai-station/actions/runs/37133424402) 已成功。SQLite功能本身的远端CI、原生Browser和Production以随后具体回执为准。
+- SQLite .db/.sqlite/.sqlite3 的 -wal/-shm/-journal 已加入根目录及全部下载模板的忽略与敏感扫描；真实Git强制暂存和ZIP覆盖用例验证工作区清理后仍拦截暂存副本。保护提交 `0015210` 的 [完整CI](https://github.com/frontend-is-magic/deep-ai-station/actions/runs/37133424402) 已成功。SQLite功能提交 `8bd512a46c22c0a81bd15246753582dedd8043b8` 的 [完整CI](https://github.com/frontend-is-magic/deep-ai-station/actions/runs/37134633268) 及 Vercel Preview `6829706313` 已成功；未登录健康检查302部署保护。原生Browser和Production以随后具体回执为准。
 
 ## 2026-10-03 / 语言实践与共同课程进度分离
 

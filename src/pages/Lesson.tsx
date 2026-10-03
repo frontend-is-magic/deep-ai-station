@@ -230,6 +230,54 @@ export default function LessonPage({ tracks }: { tracks: Track[] }) {
               </p>
             </section>
           )}
+          {track.id === 'agent' && lesson.stage === 'capstone' && (
+            <section
+              aria-label="云端毕业项目示例"
+              className="my-7 space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-5"
+            >
+              <h2>跟读云端毕业项目</h2>
+              <p>
+                Deep AI Research Assistant 在公开仓库持续迭代，把研究助手扩展为版本化资料库、
+                用户隔离的研究记录与可导出报告。先运行演示，再沿着提交和测试理解每一步改动。
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" className="h-auto whitespace-normal py-2" asChild>
+                  <a
+                    href="https://github.com/frontend-is-magic/deep-ai-research-assistant/tree/develop"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <ExternalLink size={16} className="shrink-0" aria-hidden="true" />
+                    源码与运行说明
+                  </a>
+                </Button>
+                <Button variant="outline" className="h-auto whitespace-normal py-2" asChild>
+                  <a
+                    href="https://github.com/frontend-is-magic/deep-ai-research-assistant/blob/develop/EVIDENCE.md"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <ExternalLink size={16} className="shrink-0" aria-hidden="true" />
+                    查看验收证据
+                  </a>
+                </Button>
+                <Button variant="ghost" className="h-auto whitespace-normal py-2" asChild>
+                  <a
+                    href="https://github.com/frontend-is-magic/deep-ai-research-assistant/pull/1"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <ExternalLink size={16} className="shrink-0" aria-hidden="true" />
+                    跟踪开发进展
+                  </a>
+                </Button>
+              </div>
+              <p className="text-sm text-slate-600">
+                按对应提交的验收记录评估完成范围；真实模型与生产环境需单独验收。
+                阅读示例后，把自己运行的版本和结果记入下方实践证据。
+              </p>
+            </section>
+          )}
           {((track.id === 'fullstack' && lesson.stage === 'ship') ||
             (track.id === 'agent' && lesson.stage === 'capstone')) && (
             <EvidenceCard key={`${lesson.id}:${language}`} lesson={lesson} language={language} />
