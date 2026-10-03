@@ -7,12 +7,17 @@ from uuid import uuid4
 
 from fastapi import HTTPException
 
+from backend.quota import admit, quota_configured
+
 OUTPUT_LIMIT = 20_000
 _slots = asyncio.Semaphore(2)
 
 
 def sandbox_capabilities() -> dict:
-    enabled = bool(os.getenv("E2B_API_KEY") and os.getenv("PLAYGROUND_ACCESS_TOKEN"))
+    enabled = (
+        bool(os.getenv("E2B_API_KEY") and os.getenv("PLAYGROUND_ACCESS_TOKEN"))
+        and quota_configured()
+    )
     return {
         "enabled": enabled,
         "languages": (["python", "typescript"] + (["go"] if os.getenv("E2B_GO_TEMPLATE") else []))
@@ -43,10 +48,14 @@ class Output:
 
 
 async def execute_code(language: str, source: str, factory=None) -> dict:
-    if language not in sandbox_capabilities()["languages"]:
+    if (
+        not os.getenv("E2B_API_KEY")
+        or language not in {"python", "typescript", "go"}
+        or (language == "go" and not os.getenv("E2B_GO_TEMPLATE"))
+    ):
         raise HTTPException(503, "该语言的隔离运行尚未配置")
     if _slots.locked():
-        raise HTTPException(429, "沙箱忙碌，请稍后重试")
+        raise HTTPException(429, "沙箱忙碌，请稍后重试", headers={"Retry-After": "1"})
     from e2b import CommandExitException
     from e2b.exceptions import TimeoutException
     from e2b_code_interpreter import AsyncSandbox
@@ -60,6 +69,7 @@ async def execute_code(language: str, source: str, factory=None) -> dict:
     status = "failed"
     cleanup = "not-started"
     async with _slots:
+        await admit("sandbox")
         try:
             async with asyncio.timeout(25):
                 sandbox = await factory.create(

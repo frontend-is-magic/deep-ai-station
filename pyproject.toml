@@ -9,6 +9,7 @@ dependencies = [
     "httpx>=0.28,<0.29",
     "defusedxml>=0.7,<0.8",
     "e2b-code-interpreter>=2.4,<3",
+    "psycopg[binary]==3.3.3",
 ]
 
 [dependency-groups]

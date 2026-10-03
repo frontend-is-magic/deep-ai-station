@@ -16,6 +16,18 @@ from backend.providers import stream_generate
 client = TestClient(app)
 
 
+@pytest.fixture(autouse=True)
+def local_quota(monkeypatch):
+    from backend.quota import _store
+
+    monkeypatch.setenv("AI_QUOTA_MODE", "memory")
+    monkeypatch.delenv("VERCEL", raising=False)
+    monkeypatch.delenv("APP_ENV", raising=False)
+    _store.cache_clear()
+    yield
+    _store.cache_clear()
+
+
 def test_course_contract_and_python_examples():
     data = client.get("/api/curriculum").json()
     assert [t["id"] for t in data["tracks"]] == ["agent", "fullstack"]
@@ -91,7 +103,6 @@ def test_natural_chinese_search_and_no_evidence_are_explicit():
 def test_real_workflow_receives_only_retrieved_course_evidence(monkeypatch):
     import backend.app as api_module
 
-    api_module._live_requests.clear()
     monkeypatch.setenv("DEEPSEEK_API_KEY", "test-only")
     monkeypatch.setenv("PLAYGROUND_ACCESS_TOKEN", "test-access")
 
@@ -149,7 +160,6 @@ def test_course_context_is_validated_before_requesting_a_provider(
 def test_real_course_workflow_includes_trusted_objectives_and_acceptance_criteria(monkeypatch):
     import backend.app as api_module
 
-    api_module._live_requests.clear()
     monkeypatch.setenv("DEEPSEEK_API_KEY", "test-only")
     monkeypatch.setenv("PLAYGROUND_ACCESS_TOKEN", "test-access")
     course = LESSONS["fullstack-http"]
@@ -180,7 +190,6 @@ def test_real_course_workflow_includes_trusted_objectives_and_acceptance_criteri
 def test_provider_failure_after_partial_text_has_error_without_done(monkeypatch):
     import backend.app as api_module
 
-    api_module._live_requests.clear()
     monkeypatch.setenv("DEEPSEEK_API_KEY", "test-only")
     monkeypatch.setenv("PLAYGROUND_ACCESS_TOKEN", "test-access")
 
@@ -232,16 +241,14 @@ def test_agent_demo_runs_real_read_only_tools_without_claiming_model_decisions()
 
 
 def test_agent_model_limit_counts_each_request_instead_of_only_the_outer_run(monkeypatch):
-    import time
-
     import backend.agent_loop as agent_module
     import backend.app as api_module
+    from backend.quota import MemoryQuota, Policy
 
     monkeypatch.setenv("DEEPSEEK_API_KEY", "test-only")
     monkeypatch.setenv("PLAYGROUND_ACCESS_TOKEN", "test-access")
-    api_module._live_requests.clear()
-    queue = api_module._live_requests["live"]
-    queue.extend([time.monotonic()] * 8)
+    quota = MemoryQuota("test", {"model": Policy(2, 20)})
+    monkeypatch.setattr(api_module, "admit", quota.admit)
     calls = []
 
     async def stream(*args, **kwargs):
@@ -261,17 +268,16 @@ def test_agent_model_limit_counts_each_request_instead_of_only_the_outer_run(mon
         }
 
     monkeypatch.setattr(agent_module, "stream_generate", stream)
-    try:
-        response = client.post(
-            "/api/playground/run",
-            json={"prompt": "MCP", "workflow": "agent", "provider": "deepseek"},
-            headers={"X-Playground-Token": "test-access"},
-        )
-        assert len(calls) == 2 and len(queue) == 10
-        assert "event: error" in response.text and '"code": 429' in response.text
-        assert "event: done" not in response.text
-    finally:
-        api_module._live_requests.clear()
+    response = client.post(
+        "/api/playground/run",
+        json={"prompt": "MCP", "workflow": "agent", "provider": "deepseek"},
+        headers={"X-Playground-Token": "test-access"},
+    )
+    assert len(calls) == 2
+    assert quota._counters["model"].day_count == 2
+    assert "event: error" in response.text and '"code": 429' in response.text
+    assert '"retry_after":' in response.text
+    assert "event: done" not in response.text
 
 
 @pytest.mark.parametrize(

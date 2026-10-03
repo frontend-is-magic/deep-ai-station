@@ -88,3 +88,32 @@ jobs:
       - run: uv run --no-project --python 3.12 python scripts/verify_sqlite_labs.py --language ${{ matrix.language }}
       - run: uv run --no-project --python 3.12 python scripts/verify_session_labs.py --language ${{ matrix.language }}
       - run: uv run --no-project --python 3.12 python scripts/verify_upload_labs.py --language ${{ matrix.language }}
+  shared-quota:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: quota-test-only
+          POSTGRES_DB: deep_ai_quota_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d deep_ai_quota_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Public, disposable CI database; never a managed deployment credential.
+      TEST_QUOTA_DATABASE_URL: postgresql://postgres:quota-test-only@localhost:5432/deep_ai_quota_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.12.22'
+          python-version: '3.12'
+          enable-cache: true
+      - run: uv sync --locked
+      - run: uv run python -c "import os; assert os.environ.get('TEST_QUOTA_DATABASE_URL')"
+      - run: uv run pytest tests/test_quota_postgres.py -q -rs

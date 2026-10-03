@@ -1,6 +1,6 @@
 import asyncio
 import json
-from unittest.mock import Mock
+from unittest.mock import AsyncMock, Mock
 
 import httpx
 import pytest
@@ -55,7 +55,7 @@ async def test_native_agent_searches_reads_then_answers_with_bounded_requests_an
         bodies.append(json.loads(request.content))
         return httpx.Response(200, content=responses[len(bodies) - 1])
 
-    charge = Mock()
+    charge = AsyncMock()
     async with httpx.AsyncClient(transport=httpx.MockTransport(response)) as client:
         events = [
             event

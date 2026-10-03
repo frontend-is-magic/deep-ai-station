@@ -7,6 +7,7 @@ from typing import Literal
 import httpx
 from fastapi import HTTPException
 
+from backend.quota import quota_configured
 from backend.sandbox import sandbox_capabilities
 from backend.tool_protocol import ToolAccumulator
 
@@ -23,7 +24,7 @@ PROVIDERS = {
 
 
 def capabilities() -> dict:
-    protected = bool(os.getenv("PLAYGROUND_ACCESS_TOKEN"))
+    protected = bool(os.getenv("PLAYGROUND_ACCESS_TOKEN")) and quota_configured()
     return {
         "providers": [{"id": "demo", "name": "教学演示", "enabled": True, "model": None}]
         + [

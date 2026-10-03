@@ -16,12 +16,14 @@ flowchart LR
   A --> C
   P --> M[DeepSeek / OpenAI 兼容协议]
   API --> S[静态检查 / 不执行用户代码]
+  API --> Q[PostgreSQL / 共享请求配额]
+  A --> Q
   API --> E[E2B / 隔离执行]
 ```
 
 ## 功能与数据
 
-两条路线各 24 节课，每条路线 8 个阶段。课程不强制解锁，完成标记要求通过测验与用户验收确认。个人笔记、收藏与最近 20 次运行保存在 `deep-ai-station:v1`，导入时校验版本和结构。
+两条路线各 24 节课，每条路线 8 个阶段。课程不强制解锁，完成标记要求通过测验与用户验收确认。实际学习位置、个人笔记、收藏与最近 20 次运行保存在 `deep-ai-station:v1`，导入时校验版本和结构。可选 `resume` 按路线保存最后课时与规范 ISO 时间，并显式记录最后路线；相同时间或设备时钟倒退不改变访问顺序。未知或路线不匹配的课时只影响恢复入口，不丢弃其他学习记录。旧备份无位置时推荐未完成课；实际访问不自动完成课程或语言实践。
 
 课程内容位于 `backend/curriculum.py`，专属测验与参考代码分别位于 `backend/quizzes.py`、`backend/examples.py`、`backend/fullstack_examples.py`。48 节课共 96 份专属示例：Agent 24 份 Python，全栈 24 份 Python、24 份 TypeScript、24 份 Go。修改课程需检查 ID 唯一性、阶段引用、官方链接与三语言语法。
 
@@ -53,7 +55,9 @@ Agent 毕业阶段提供独立的 [研究助手骨架](../starters/agent/README.
 
 正例分别计算 Precision@k（命中数 / k，返回不足 k 条也保持该分母）、Recall@k（命中数 / 标注相关数）和首个相关排名的倒数，再取宏平均；负例仅统计返回空结果的比例。界面保留每题实际课时、分数、匹配词、漏检与误召回。报告带数据集版本、检索字段和排序顺序的 SHA-256、run_id、两套配置与零模型调用标记，可导出 JSON。报告仅留在当前组件会话，配置变更清除旧结果，切路线/模式取消旧请求，不写课程完成或模型运行历史。这是词法检索开发实验，不能证明向量召回、答案正确性或未见样本质量。
 
-教学演示执行输入校验、课程检索和资料整理，清楚标注未调用模型。真实调用必须通过访问码验证，服务端仅使用 `DEEPSEEK_API_KEY` 与 `DEEPSEEK_MODEL`（默认 `deepseek-flash`），固定请求 `https://api.deepseek.com/chat/completions`。底层沿用 OpenAI 兼容 `messages`、`tool_calls` 和 Chat Completions SSE，将回答增量转发到界面，不等待整段回答生成。
+教学演示执行输入校验、课程检索和资料整理，清楚标注未调用模型。真实调用必须通过访问码验证并获得共享请求准入，服务端仅使用 `DEEPSEEK_API_KEY` 与 `DEEPSEEK_MODEL`（默认 `deepseek-flash`），固定请求 `https://api.deepseek.com/chat/completions`。底层沿用 OpenAI 兼容 `messages`、`tool_calls` 和 Chat Completions SSE，将回答增量转发到界面，不等待整段回答生成。
+
+平台的 [共享请求配额](shared-quota.md) 使用 PostgreSQL 短事务，对同一服务器 scope / resource 的固定分钟与 UTC 日窗口原子检查和加一。模型每轮准入，沙箱在本地运行槽内创建前准入；两类资源互不消耗。数据库故障、表未初始化或策略不一致返回固定 503，不自动重试或回退；已准入的失败与取消保留计数。运行时不执行 DDL，也不在持有数据库事务时请求供应商。能力接口只检查配置，不证明数据库连通。
 
 应用向浏览器发出的 SSE 协议包含 `start`、`trace`、`delta`、`error`、`done`。每个运行有 UUID，取消会关闭上游 HTTP 连接；供应商是否已经计费不能由取消推断。只有完整且未达到输出上限的完成事件写入历史；中途失败保留部分文本，明确提示未完成。usage 只使用 DeepSeek 返回的已知计数字段，未返回时显示未知。
 

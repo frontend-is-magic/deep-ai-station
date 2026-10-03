@@ -4,7 +4,6 @@ import hmac
 import json
 import os
 import time
-from collections import defaultdict, deque
 from contextlib import aclosing
 from typing import Literal
 from uuid import uuid4
@@ -20,6 +19,7 @@ from backend.exercises import exercise_bundle
 from backend.feed import get_feed
 from backend.middleware import RequestLimits
 from backend.providers import PROVIDERS, Provider, capabilities, stream_generate
+from backend.quota import admit
 from backend.retrieval import retrieve
 from backend.retrieval_evaluation import RetrievalEvaluationRequest, evaluate_retrieval
 from backend.sandbox import execute_code
@@ -105,24 +105,10 @@ class RunInput(BaseModel):
     temperature: float = Field(default=0.3, ge=0, le=1)
 
 
-_live_requests: dict[str, deque] = defaultdict(deque)
-
-
-def authorize_live(token: str | None, *, consume: bool = True):
+def authorize_live(token: str | None):
     expected = os.getenv("PLAYGROUND_ACCESS_TOKEN")
     if not expected or not token or not hmac.compare_digest(expected.encode(), token.encode()):
         raise HTTPException(401, "真实模型调用需要有效的实验访问码")
-    if not consume:
-        return
-    # One shared access code has a bounded in-process quota. Production multi-instance
-    # budgets additionally require provider-side quotas or a shared rate-limit store.
-    queue = _live_requests["live"]
-    now = time.monotonic()
-    while queue and now - queue[0] > 60:
-        queue.popleft()
-    if len(queue) >= 10:
-        raise HTTPException(429, "运行过于频繁，请一分钟后重试")
-    queue.append(now)
 
 
 def sse(event: str, data: dict) -> str:
@@ -143,7 +129,9 @@ async def run(
     if body.provider != "demo":
         if not os.getenv(PROVIDERS[body.provider]["key"]):
             raise HTTPException(503, "该模型尚未配置")
-        authorize_live(x_playground_token, consume=body.workflow != "agent")
+        authorize_live(x_playground_token)
+        if body.workflow != "agent":
+            await admit("model")
     run_id = str(uuid4())
 
     async def events():
@@ -169,7 +157,7 @@ async def run(
                         body.track,
                         body.lesson_id,
                         run_id,
-                        charge=lambda: authorize_live(x_playground_token),
+                        charge=lambda: admit("model"),
                     )
                 ) as stream:
                     async for event in stream:
@@ -201,7 +189,17 @@ async def run(
                 )
             except HTTPException as exc:
                 yield sse(
-                    "error", {"message": exc.detail, "code": exc.status_code, "run_id": run_id}
+                    "error",
+                    {
+                        "message": exc.detail,
+                        "code": exc.status_code,
+                        "run_id": run_id,
+                        **(
+                            {"retry_after": int(exc.headers["Retry-After"])}
+                            if exc.headers and "Retry-After" in exc.headers
+                            else {}
+                        ),
+                    },
                 )
             return
         selected = retrieve(body.prompt, body.track)
@@ -334,7 +332,17 @@ async def run(
                     },
                 )
                 yield sse(
-                    "error", {"message": exc.detail, "code": exc.status_code, "run_id": run_id}
+                    "error",
+                    {
+                        "message": exc.detail,
+                        "code": exc.status_code,
+                        "run_id": run_id,
+                        **(
+                            {"retry_after": int(exc.headers["Retry-After"])}
+                            if exc.headers and "Retry-After" in exc.headers
+                            else {}
+                        ),
+                    },
                 )
                 return
         if await request.is_disconnected():
@@ -365,9 +373,6 @@ class CodeInput(BaseModel):
     code: str = Field(min_length=1, max_length=20000)
 
 
-_sandbox_requests: deque = deque()
-
-
 @app.post("/api/playground/execute")
 async def execute(
     body: CodeInput, request: Request, x_playground_token: str | None = Header(default=None)
@@ -377,12 +382,6 @@ async def execute(
     if not os.getenv("E2B_API_KEY"):
         raise HTTPException(503, "隔离沙箱尚未配置")
     authorize_live(x_playground_token)
-    now = time.monotonic()
-    while _sandbox_requests and now - _sandbox_requests[0] >= 60:
-        _sandbox_requests.popleft()
-    if len(_sandbox_requests) >= 2:
-        raise HTTPException(429, "隔离运行每分钟最多 2 次，请稍后重试")
-    _sandbox_requests.append(now)
     task = asyncio.create_task(execute_code(body.language, body.code))
     try:
         while not task.done():

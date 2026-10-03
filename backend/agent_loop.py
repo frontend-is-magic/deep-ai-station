@@ -2,7 +2,7 @@
 
 import asyncio
 import json
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from contextlib import aclosing
 
 import httpx
@@ -137,7 +137,7 @@ async def stream_agent(
     run_id: str,
     *,
     client: httpx.AsyncClient | None = None,
-    charge: Callable[[], None] | None = None,
+    charge: Callable[[], Awaitable[None]] | None = None,
 ):
     if provider == "demo":
         async with aclosing(demo_loop(prompt, track, lesson_id, run_id)) as demo:
@@ -167,7 +167,7 @@ async def stream_agent(
         async with asyncio.timeout(TOTAL_TIMEOUT):
             for step in range(1, MAX_ROUNDS + 1):
                 if charge:
-                    charge()
+                    await charge()
                 active_request = (step, f"{run_id}:model:{step}")
                 yield trace(
                     f"模型请求 {step} / {MAX_ROUNDS}",

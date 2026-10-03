@@ -4,7 +4,7 @@
 
 ## 配置与能力
 
-服务端托管 `E2B_API_KEY` 和 `PLAYGROUND_ACCESS_TOKEN` 后，Python 与 TypeScript 隔离运行才启用。Go 还要求 `E2B_GO_TEMPLATE` 指向预装 Go 编译器的受信模板。界面根据 `/api/capabilities` 展示实际配置状态；访问码只保留在页面内存。
+服务端托管 `E2B_API_KEY`、`PLAYGROUND_ACCESS_TOKEN` 并配置 [共享请求配额](shared-quota.md) 后，Python 与 TypeScript 隔离运行才启用。Go 还要求 `E2B_GO_TEMPLATE` 指向预装 Go 编译器的受信模板。界面根据 `/api/capabilities` 展示实际配置状态；访问码只保留在页面内存。
 
 默认 `code-interpreter-v1` 提供 Python/TypeScript 运行环境。框架示例依赖、数据库驱动和测试工具需要预先放进模板。出站网络关闭后，实验不能临时下载依赖。Go 片段需要 `package main` 和 `main()` 才能按当前单文件命令运行；单元测试片段应在独立练习项目使用 `go test`。
 
@@ -23,9 +23,9 @@ uv run python scripts/build_go_template.py --build
 
 - 输入上限 20,000 字符，HTTP 请求体实际字节上限 50,000，未知字段拒绝。
 - 每次创建全新实例，`secure=True`、`allow_internet_access=False`、`envs={}`；应用供应商密钥不会注入沙箱。
-- 单次运行 12 秒，整体准备与运行 25 秒，实例最大存活 45 秒。
+- 单次运行 12 秒，获得请求准入后的准备与运行 25 秒，实例最大存活 45 秒；数据库准入另有 5 秒应用截止时间。
 - stdout / stderr 返回内容合计最多 20,000 字符；达到上限停止读取并清理实例。
-- 单实例服务最多两个并发槽、每分钟两次隔离运行；横向扩展仍需要共享配额和服务商预算。
+- 单实例服务最多两个并发槽；同一服务器 scope 的共享沙箱配额为固定分钟 2 次、UTC 日 20 次创建准入，与模型配额独立。未配置语言、无效输入、未授权和本地忙碌不消耗额度；准入后创建失败或取消不退款。并发槽仍为单实例保护，生产还需服务商预算及按需配置全局并发限制。
 - Go 源码写入固定文件，执行固定命令，用户内容不会拼接进 shell。
 - 成功、失败、超时、输出超限、取消都进入清理流程；清理请求失败会如实返回 `expiry-fallback`，等待实例存活上限到期。
 

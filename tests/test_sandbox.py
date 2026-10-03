@@ -6,7 +6,8 @@ import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
-from backend.app import _live_requests, _sandbox_requests, app
+from backend.app import app
+from backend.quota import _store
 from backend.sandbox import OUTPUT_LIMIT, execute_code, sandbox_capabilities
 
 
@@ -15,8 +16,12 @@ def configured(monkeypatch):
     monkeypatch.setenv("E2B_API_KEY", "test-service-key")
     monkeypatch.setenv("PLAYGROUND_ACCESS_TOKEN", "test-access-code")
     monkeypatch.delenv("E2B_GO_TEMPLATE", raising=False)
-    _live_requests.clear()
-    _sandbox_requests.clear()
+    monkeypatch.setenv("AI_QUOTA_MODE", "memory")
+    monkeypatch.delenv("VERCEL", raising=False)
+    monkeypatch.delenv("APP_ENV", raising=False)
+    _store.cache_clear()
+    yield
+    _store.cache_clear()
 
 
 def factory_for(run_code):
@@ -132,10 +137,10 @@ def test_configuration_and_access_code_are_required(configured, monkeypatch):
 
 
 def test_execution_endpoint_rate_limit_is_separate_and_bounded(configured, monkeypatch):
-    import backend.app as api_module
+    import e2b_code_interpreter
 
-    executor = AsyncMock(return_value={"mode": "isolated-sandbox", "passed": True})
-    monkeypatch.setattr(api_module, "execute_code", executor)
+    factory, _ = factory_for(AsyncMock(return_value=SimpleNamespace(error=None, results=[])))
+    monkeypatch.setattr(e2b_code_interpreter, "AsyncSandbox", factory)
     client = TestClient(app)
     for index in range(3):
         response = client.post(
@@ -144,4 +149,5 @@ def test_execution_endpoint_rate_limit_is_separate_and_bounded(configured, monke
             headers={"X-Playground-Token": "test-access-code"},
         )
         assert response.status_code == (200 if index < 2 else 429)
-    assert executor.await_count == 2
+    assert factory.create.await_count == 2
+    assert int(response.headers["Retry-After"]) >= 1
