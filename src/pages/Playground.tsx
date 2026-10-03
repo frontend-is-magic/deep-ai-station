@@ -159,6 +159,10 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
           }
           if (event.event === 'done') {
             completed = true;
+            if (event.data.truncated === true) {
+              setError('输出达到模型上限，内容可能未完成，未写入运行历史。请缩小任务后重试。');
+              return;
+            }
             const duration = Number(event.data.duration_ms);
             setRunInfo({ id, duration, usage: event.data.usage });
             setProgress((p) => ({
@@ -335,7 +339,7 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
             <span>
               {provider === 'demo'
                 ? '教学演示：确定性课程检索，不调用模型、不产生模型费用。'
-                : '真实模型：服务端调用供应商，生成完成后逐段展示。需要实验访问码，调用会产生费用。'}
+                : '真实模型：逐步显示供应商流式输出。需要实验访问码，调用会产生费用；停止会关闭上游连接。'}
             </span>
           </div>
           <div className="lab-grid">
@@ -459,7 +463,13 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
               <div className="panel-heading">
                 <span>02 / OUTPUT</span>
                 <strong>
-                  {running ? '实验进行中' : runInfo ? '实验已完成' : '等待你的第一次运行'}
+                  {running
+                    ? '实验进行中'
+                    : runInfo
+                      ? '实验已完成'
+                      : error
+                        ? '运行未完成'
+                        : '等待你的第一次运行'}
                 </strong>
                 {running && <Loader2 size={16} className="animate-spin" />}
               </div>
@@ -515,7 +525,13 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
               {runInfo && (
                 <div className="run-metadata">
                   <span>完成 · {(runInfo.duration / 1000).toFixed(2)}s</span>
-                  <span>{runInfo.usage ? '供应商已返回 usage' : '无模型 token 用量'}</span>
+                  <span>
+                    {runInfo.usage
+                      ? '供应商已返回 usage'
+                      : provider === 'demo'
+                        ? '未调用模型'
+                        : '供应商未返回用量'}
+                  </span>
                   <code>run / {runInfo.id.slice(0, 8)}</code>
                 </div>
               )}

@@ -66,6 +66,58 @@ def test_demo_workflow_history_and_cancellation(page):
     expect(page.get_by_role("button", name="运行实验", exact=True)).to_be_enabled()
 
 
+@pytest.mark.parametrize("ending", ["done", "error", "truncated"])
+def test_real_stream_partial_failures_and_truncation_do_not_enter_history(page, ending):
+    page.route(
+        "**/api/capabilities",
+        lambda route: route.fulfill(
+            json={
+                "providers": [
+                    {"id": "openai", "name": "OpenAI", "enabled": True, "model": "test-model"}
+                ],
+                "sandbox": {"languages": []},
+            }
+        ),
+    )
+
+    def run(route):
+        assert route.request.headers["x-playground-token"] == "test-access"
+        events = [
+            ("start", {"run_id": "mock-stream-run"}),
+            ("delta", {"text": "流式测试文本"}),
+            ("error", {"message": "模型响应不可用，请稍后重试"})
+            if ending == "error"
+            else ("done", {"duration_ms": 10, "usage": None, "truncated": ending == "truncated"}),
+        ]
+        route.fulfill(
+            content_type="text/event-stream",
+            body="".join(
+                f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+                for event, data in events
+            ),
+        )
+
+    page.route("**/api/playground/run", run)
+    goto(page, "/playground")
+    page.get_by_label("模型服务").select_option("openai")
+    page.get_by_text("高级配置", exact=True).click()
+    page.get_by_label("实验访问码").fill("test-access")
+    page.get_by_role("button", name="运行实验", exact=True).click()
+    expect(page.locator(".markdown-output")).to_contain_text("流式测试文本")
+    expect(page.get_by_role("button", name="运行实验", exact=True)).to_be_enabled()
+    stored = json.loads(
+        page.evaluate("localStorage.getItem('deep-ai-station:v1')") or '{"runs":[]}'
+    )
+    assert len(stored["runs"]) == (1 if ending == "done" else 0)
+    assert "test-access" not in json.dumps(stored)
+    if ending == "done":
+        expect(page.get_by_text("实验已完成", exact=True)).to_be_visible()
+        expect(page.get_by_text("供应商未返回用量", exact=True)).to_be_visible()
+    else:
+        expect(page.get_by_role("alert")).to_be_visible()
+        expect(page.get_by_text("运行未完成", exact=True)).to_be_visible()
+
+
 def test_language_code_checks_and_failures(page):
     goto(page, "/playground?track=fullstack&mode=code")
     editor = page.get_by_label("代码编辑器")

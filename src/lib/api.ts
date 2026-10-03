@@ -69,6 +69,8 @@ export async function streamRun(
     }
     parse(decoder.decode());
   } finally {
+    // Parser/render errors must also close the response, releasing the provider stream.
+    await reader.cancel().catch(() => undefined);
     reader.releaseLock();
   }
 }

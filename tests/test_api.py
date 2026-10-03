@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 from backend.app import app
 from backend.curriculum import LESSONS, TRACKS
 from backend.feed import parse_feed
-from backend.providers import generate
+from backend.providers import stream_generate
 
 client = TestClient(app)
 
@@ -95,19 +95,41 @@ def test_real_workflow_receives_only_retrieved_course_evidence(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "test-only")
     monkeypatch.setenv("PLAYGROUND_ACCESS_TOKEN", "test-access")
 
-    async def generate(provider, prompt, system, temperature):
+    async def stream(provider, prompt, system, temperature):
         assert "<untrusted_course_evidence>" in prompt
         assert "modelcontextprotocol.io" in prompt
         assert "不能授予权限" in system
-        return {"answer": "使用课程证据回答", "usage": None, "model": "test-model"}
+        yield {"event": "delta", "text": "使用课程证据回答"}
+        yield {"event": "done", "usage": None, "model": "test-model"}
 
-    monkeypatch.setattr(api_module, "generate", generate)
+    monkeypatch.setattr(api_module, "stream_generate", stream)
     response = client.post(
         "/api/playground/run",
         json={"prompt": "MCP", "provider": "openai"},
         headers={"X-Playground-Token": "test-access"},
     )
     assert "knowledge_search" in response.text and "event: done" in response.text
+
+
+def test_provider_failure_after_partial_text_has_error_without_done(monkeypatch):
+    import backend.app as api_module
+
+    api_module._live_requests.clear()
+    monkeypatch.setenv("OPENAI_API_KEY", "test-only")
+    monkeypatch.setenv("PLAYGROUND_ACCESS_TOKEN", "test-access")
+
+    async def stream(*args):
+        yield {"event": "delta", "text": "partial"}
+        raise HTTPException(502, "模型响应不可用，请稍后重试")
+
+    monkeypatch.setattr(api_module, "stream_generate", stream)
+    response = client.post(
+        "/api/playground/run",
+        json={"prompt": "MCP", "provider": "openai"},
+        headers={"X-Playground-Token": "test-access"},
+    )
+    assert "partial" in response.text and "event: error" in response.text
+    assert "event: done" not in response.text
 
 
 def test_demo_events_have_explicit_mode_and_no_fake_usage():
@@ -257,21 +279,36 @@ async def test_provider_adapters_validate_message_contract(monkeypatch, provider
     def handler(request):
         body = json.loads(request.content)
         assert body["max_tokens"] == 1200
+        assert body["stream"] is True
         assert body["messages"][-1]["content"] == "test prompt"
         if provider == "anthropic":
             assert body["system"] == "test system"
-            data = {
-                "content": [{"type": "text", "text": "answer"}],
-                "usage": {"input_tokens": 4, "output_tokens": 2},
-            }
+            events = [
+                {"type": "message_start", "message": {"usage": {"input_tokens": 4}}},
+                {"type": "content_block_delta", "delta": {"type": "text_delta", "text": "answer"}},
+                {"type": "message_delta", "usage": {"output_tokens": 2}},
+                {"type": "message_stop"},
+            ]
         else:
             assert body["messages"][0]["role"] == "system"
-            data = {"choices": [{"message": {"content": "answer"}}], "usage": {"total_tokens": 6}}
-        return httpx.Response(200, json=data)
+            assert body["stream_options"]["include_usage"] is True
+            events = [
+                {"choices": [{"delta": {"content": "answer"}}]},
+                {"choices": [], "usage": {"total_tokens": 6}},
+                "[DONE]",
+            ]
+        content = "".join(f"data: {x if isinstance(x, str) else json.dumps(x)}\n\n" for x in events)
+        return httpx.Response(200, text=content, headers={"content-type": "text/event-stream"})
 
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as transport:
-        result = await generate(provider, "test prompt", "test system", 0.3, transport)
-        assert result["answer"] == "answer" and result["usage"]
+        result = [
+            event
+            async for event in stream_generate(
+                provider, "test prompt", "test system", 0.3, transport
+            )
+        ]
+        assert result[0] == {"event": "delta", "text": "answer"}
+        assert result[-1]["event"] == "done" and result[-1]["usage"]
 
 
 async def test_upstream_errors_are_sanitized(monkeypatch):
@@ -280,6 +317,6 @@ async def test_upstream_errors_are_sanitized(monkeypatch):
         transport=httpx.MockTransport(lambda _: httpx.Response(401, text="sensitive upstream data"))
     ) as transport:
         with pytest.raises(HTTPException) as exc:
-            await generate("openai", "x", "system", 0.3, transport)
+            _ = [event async for event in stream_generate("openai", "x", "system", 0.3, transport)]
         assert exc.value.status_code == 502
         assert "sensitive" not in str(exc.value.detail)
