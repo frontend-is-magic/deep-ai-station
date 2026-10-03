@@ -29,6 +29,7 @@ jobs:
       - run: uv run ruff check backend api tests scripts
       - run: uv run ruff format --check backend api tests scripts
       - run: uv run pytest -m 'not e2e'
+      - run: uv run python scripts/check_secrets.py
       - run: uv run python -m scripts.export_examples /tmp/examples.json
       - run: node scripts/check_examples.mjs /tmp/examples.json
       - run: go run scripts/check_examples.go /tmp/examples.json

@@ -14,7 +14,7 @@ flowchart LR
   API --> A[有界 Agent 循环 / 可选]
   A --> P
   A --> C
-  P --> M[OpenAI / Anthropic / DeepSeek]
+  P --> M[DeepSeek / OpenAI 兼容协议]
   API --> S[静态检查 / 不执行用户代码]
   API --> E[E2B / 隔离执行]
 ```
@@ -29,9 +29,11 @@ React 界面统一使用 TypeScript；Go/Python 对应服务契约与工程机�
 
 CI 对 48 份 Python 参考做 AST 校验，对 24 份 TS 参考做严格类型检查，对 24 份 Go 参考做只编译验证。Hono 4.13.12 固定在前端开发依赖，Gin v1.12.0 及其间接依赖固定在 `scripts/go-reference/go.mod` / `go.sum`；Go 使用 `test -c -mod=readonly`，不执行参考程序、测试或学习者输入。类型与编译通过不能代替运行与业务验收。
 
-全栈毕业阶段额外提供三个可运行的 [完整项目骨架](../starters/README.md)。它们共用 React / Tailwind / Jotai / Radix 前端和 14 组接口案例，分别连接 FastAPI、Hono 或 Gin；固定公开资料集与只读检索不接受上传或任意外部 URL。默认演示无模型调用，真实模式只使用服务端 OpenAI adapter；账号、数据库、上传与生产发布留给毕业实践。只把固定文件白名单打入可复现 ZIP，并由 CI 比对源码与下载包、运行后端契约与 headless React → API 链路。平台 API 不启动这些项目或执行学习者修改。
+全栈毕业阶段额外提供三个可运行的 [完整项目骨架](../starters/README.md)。它们共用 React / Tailwind / Jotai / Radix 前端和 15 组接口案例，分别连接 FastAPI、Hono 或 Gin；固定公开资料集与只读检索不接受上传或任意外部 URL。默认演示无模型调用，真实模式只使用服务端 DeepSeek adapter；账号、数据库、上传与生产发布留给毕业实践。只把固定文件白名单打入可复现 ZIP，并由 CI 比对源码与下载包、运行后端契约与 headless React → API 链路。平台 API 不启动这些项目或执行学习者修改。
 
 Agent 毕业阶段提供独立的 [研究助手骨架](../starters/agent/README.md)，与课程导师的流式循环分开交付。两个只读工具只搜索和批量读取固定本地语料；服务端记录实际已读 ID，最终引用必须匹配已读正文摘录。三篇维护者课程摘录附官方延伸阅读链接，两篇合成冲突练习无外链，运行时不访问这些网页。已知冲突由语料元数据标注并要求引用两侧；它不是通用语义冲突检测，引用存在性通过也不能证明答案完全正确。最多三次模型请求、两次工具请求、20 秒总时限，逐次请求计入实例限额；用量缺失明确保留未知。教学演示和 mock 协议验证不代表真实模型或生产验收。
+
+研究助手通过 DeepSeek 的 OpenAI 兼容 `messages` / `tool_calls` 完成工具循环，最终报告使用 `response_format: {"type": "json_object"}`，随后由本地 Pydantic 校验字段、实际已读 ID 与正文摘录。标准端点不发送 strict beta 或 `parallel_tool_calls` 字段；服务端自行拒绝同轮多个工具调用。
 
 实时收藏保存来源、标题与摘要快照，订阅源失效后仍可回看；新收藏上限 200 条。旧版只含 ID 的记录仍兼容，重新收藏可补齐快照。资讯标识由稳定 URL 的摘要生成，源排序变化不会重复收藏。
 
@@ -39,13 +41,13 @@ Agent 毕业阶段提供独立的 [研究助手骨架](../starters/agent/README.
 
 ## Playground
 
-教学演示执行输入校验、课程检索和资料整理，清楚标注未调用模型。真实调用使用服务端 provider 配置，必须通过访问码验证；OpenAI / DeepSeek 的 Chat Completions SSE 与 Anthropic Messages SSE 原生增量转发到界面，不等待整段回答生成。
+教学演示执行输入校验、课程检索和资料整理，清楚标注未调用模型。真实调用必须通过访问码验证，服务端仅使用 `DEEPSEEK_API_KEY` 与 `DEEPSEEK_MODEL`（默认 `deepseek-flash`），固定请求 `https://api.deepseek.com/chat/completions`。底层沿用 OpenAI 兼容 `messages`、`tool_calls` 和 Chat Completions SSE，将回答增量转发到界面，不等待整段回答生成。
 
-SSE 协议包含 `start`、`trace`、`delta`、`error`、`done`。每个运行有 UUID，取消会关闭上游 HTTP 连接；供应商是否已经计费不能由取消推断。只有完整且未达到输出上限的完成事件写入历史；中途失败保留部分文本，明确提示未完成。usage 只使用供应商返回的已知计数字段，Anthropic 累积用量按最新值合并，未返回时显示未知。
+应用向浏览器发出的 SSE 协议包含 `start`、`trace`、`delta`、`error`、`done`。每个运行有 UUID，取消会关闭上游 HTTP 连接；供应商是否已经计费不能由取消推断。只有完整且未达到输出上限的完成事件写入历史；中途失败保留部分文本，明确提示未完成。usage 只使用 DeepSeek 返回的已知计数字段，未返回时显示未知。
 
 每轮模型输出上限 1200 tokens，完整实验 45 秒、单帧 64 KiB、每轮流总量 1 MB、实验可显示文本合计 20,000 字符；异常正文与 thinking deltas 不进入回答。终止帧缺失、非法 JSON、输出超限均返回固定错误，清理连接。以上由 MockTransport、暂停远端流和 headless UI 验证，尚未调用真实模型。
 
-协议参考：[OpenAI Streaming](https://developers.openai.com/api/docs/guides/streaming-responses)、[Claude Streaming](https://platform.claude.com/docs/en/build-with-claude/streaming)、[DeepSeek Chat Completions](https://api-docs.deepseek.com/api/create-chat-completion/)。
+协议参考：[OpenAI function calling](https://developers.openai.com/api/docs/guides/function-calling)、[DeepSeek Chat Completions](https://api-docs.deepseek.com/api/create-chat-completion/)。
 
 代码实验提供 AST / 文本静态检查，以及配置后的独立 E2B 运行。API 主机禁止 `exec` 或 `subprocess` 执行用户输入。运行网络关闭，限制时间、并发、输出与实例寿命，成功、失败、超时、取消都清理；清理未确认会明确报告。Go 使用预装编译器的受信模板。详情见 [隔离运行](sandbox.md)。当前仅用 mock 验证适配器与界面，真实服务仍待托管配置。
 

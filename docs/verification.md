@@ -2,6 +2,21 @@
 
 本文件记录实际执行证据，未完成事项保留真实状态。
 
+## 2026-10-03 / DeepSeek 兼容协议与敏感文件保护
+
+- 平台与四套毕业骨架的新真实调用统一使用 DeepSeek；保留 OpenAI 兼容的 `messages`、`tool_calls`、`choices` 和平台 SSE 格式，固定 DeepSeek endpoint、服务端 `DEEPSEEK_API_KEY`、默认 `deepseek-flash`，显式关闭 thinking。研究助手采用 JSON mode，并由本地 Pydantic 独立检查结构与已读引用；不发送 beta strict 或未文档化的并行字段。
+- 新调用只接受 demo / deepseek。旧 OpenAI / Anthropic 历史仍保留真实来源，恢复后只重跑到已启用的 DeepSeek 或教学演示；官方 OpenAI 课程资料和 RSS 保留。
+- 平台 94 项非浏览器 pytest（包含新增 3 项敏感文件检查）、20 项 Vitest、格式、类型、生产构建及 96 份课程 AST / TS 严格类型 / Go 编译检查通过。29 条 headless 流程中，初次有 1 条因历史提示复用样式导致定位歧义；改用课程链接可访问名称后该条复验通过，其余 28 条首次通过。
+- 四套 React → 实际 API 演示链路全部通过；测试环境不含供应商密钥，8010 / 5174 自有服务已释放。骨架后端 Python 25 项、TypeScript 19 项、Go 9 组（15 个共享契约案例）、Agent 34 项及共用前端 13 项响应契约测试通过。Go 新增响应头之后读取正文的取消 / 超时测试，分别返回 499 / 504 并关闭连接。
+- 根目录与四个下载包的 .gitignore 覆盖敏感环境配置、私钥、认证缓存、日志与本地数据库；空值 .env.example 保持可提交。全局与项目 AGENTS 同步简短规则。`scripts/check_secrets.py` 纳入 CI，检查已跟踪/待提交文件和 ZIP 内部路径与常见凭据特征，只输出文件名和规则，不输出匹配值。当前扫描与 295 个历史 Git 文件对象扫描均未命中常见凭据特征；这不保证识别所有可能的秘密格式。
+- 四个 ZIP 已重新生成并逐字节校验。真实 DeepSeek / E2B 尚未调用；托管配置与费用上限继续集中在既有独立人工配置对话，未使用重置卡或购买额度。本次本地变更待独立 CI 与 Production 发布回执。
+
+## 2026-10-03 / Production 与上一轮 CI 回执
+
+- Agent 毕业骨架提交 `41154ce417fa59cd761a2397f22439ca900ac3e1` 的 [完整 CI](https://github.com/frontend-is-magic/deep-ai-station/actions/runs/37125812326) 已成功，main / develop 已普通快进。
+- 用户在独立人工配置对话确认 Vercel 目标空间与 Production 发布授权，`41154ce` 的 GitHub Production deployment `6828137998` 返回 success。主线使用系统 TLS 后台验证 [线上服务](https://deep-ai-station.vercel.app) 健康接口 ok / 48 课，以及四个下载包与该提交逐字节一致。
+- 独立人工配置对话已在首个生产版本 `2214c68` 使用 Codex 内置 Browser 完成 48 课、两路线、实际 TypeScript ZIP、免费 Agent SSE、56 条信息流与 6 / 6 来源验收，控制台错误为 0；任务标签关闭并释放控制。该证据对应旧提交，不冒充本次 DeepSeek 改动的内置 Browser 验收。
+
 ## 2026-10-03 / Agent 毕业研究助手
 
 - 新增独立 React + FastAPI 研究助手，包含固定资料搜索、批量读取、OpenAI 原生工具调用、已读记录与引用摘录校验；课程页三个 Agent 毕业课提供完整下载入口。资料为三篇维护者课程摘录与两篇无外链的合成冲突练习，运行时不获取官方网页。

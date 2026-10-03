@@ -2,7 +2,7 @@
 
 Playground 的“工作流”选择器提供两种方式。默认“课程检索 · 单次回答”先检索课程，再请求一次模型；“有界 Agent 循环”允许模型选择只读课程工具，并根据实际工具结果继续回答。
 
-教学演示沿固定检索 → 阅读 → 整理顺序展示课程资料，不调用模型，也不宣称模型做出了决策。真实模式需要服务端供应商配置与访问码；当前实现用模拟供应商流验证，真实 API 仍待配置验收。
+教学演示沿固定检索 → 阅读 → 整理顺序展示课程资料，不调用模型，也不宣称模型做出了决策。真实模式需要服务端 `DEEPSEEK_API_KEY` 与访问码，`DEEPSEEK_MODEL` 默认 `deepseek-flash`；当前实现用模拟供应商流验证，真实 API 仍待配置验收。
 
 ## 运行过程
 
@@ -35,16 +35,18 @@ usage 只累计供应商返回的已知计数字段。有一轮没有返回用�
 
 ## 供应商协议
 
-- OpenAI / DeepSeek：累积 `delta.tool_calls` 的参数片段，将 `assistant.tool_calls` 与对应 `tool` 消息送入下一轮。OpenAI 显式关闭并行调用；DeepSeek 响应也由服务端限制为一个调用。
-- Anthropic：读取 `tool_use` 内容块和 `input_json_delta`，等待块结束后解析，再把 `tool_result` 紧跟在对应 assistant 消息之后。参数错误通过 `is_error` 返回。
+- 实际请求固定发送到 `https://api.deepseek.com/chat/completions`，使用 OpenAI 兼容 `messages`、`tool_calls` 和 Chat Completions SSE；服务端关闭 thinking，并通过 `max_tokens` 设置输出上限。
+- 服务端累积 `delta.tool_calls` 的参数片段，将 `assistant.tool_calls` 与对应 `tool` 消息送入下一轮。标准端点不发送 strict beta 或 `parallel_tool_calls` 字段；每轮至多一个工具调用由服务端校验，不依赖模型遵守提示。
 - 不完整 JSON、缺少身份、身份改变、过深 JSON、参数超限或未闭合的工具块返回固定错误。截断的参数不会成为工具请求。
 
-官方参考：[OpenAI function calling](https://developers.openai.com/api/docs/guides/function-calling)、[Claude streaming](https://platform.claude.com/docs/en/build-with-claude/streaming)、[Claude tool results](https://platform.claude.com/docs/en/agents-and-tools/tool-use/handle-tool-calls)、[DeepSeek Chat Completions](https://api-docs.deepseek.com/api/create-chat-completion/)。
+官方参考：[OpenAI function calling](https://developers.openai.com/api/docs/guides/function-calling)、[DeepSeek Chat Completions](https://api-docs.deepseek.com/api/create-chat-completion/)。
 
 ## 实现与验证
 
-`backend/agent_loop.py` 管理步数、截止时间、只读工具与观察历史；`backend/tool_protocol.py` 管理参数片段和 Claude 消息转换；`backend/providers.py` 管理原生 SSE。API 不接收任意工具或历史字段。
+`backend/agent_loop.py` 管理步数、截止时间、只读工具与观察历史；`backend/tool_protocol.py` 管理兼容协议的参数片段；`backend/providers.py` 管理 DeepSeek SSE。API 不接收任意工具或历史字段。
 
 界面按轨迹 ID 更新同一次模型请求的状态，完成历史保留最多 12 条轨迹、工作流、轮次、工具次数和已知用量。旧版运行记录仍可导入；新字段有独立长度、范围和白名单校验。显式写入课程笔记不会改变课程完成状态。
 
-测试使用 MockTransport 验证三家供应商的完整循环、工具边界、限流、重复结果复用、取消/超时清理与参数截断；headless Playwright 验证演示、真实模式 UI 契约、轨迹更新、历史恢复和移动布局。实际执行记录见 [验证记录](verification.md)。
+测试使用 MockTransport 验证 DeepSeek 的完整循环、工具边界、限流、重复结果复用、取消/超时清理与参数截断；headless Playwright 验证演示、真实模式 UI 契约、轨迹更新、历史恢复和移动布局。历史验证记录保留当时供应商范围，实际执行记录见 [验证记录](verification.md)。
+
+独立的 [Agent 研究助手骨架](../starters/agent/README.md) 使用相同 DeepSeek 配置与 OpenAI 兼容工具消息。最终报告请求 JSON mode（`response_format: {"type": "json_object"}`），再由本地 Pydantic 校验结构和实际已读引用。其报告与轨迹在完成后一次返回；课程导师的增量 SSE 和研究助手的结构化报告分别验证。
