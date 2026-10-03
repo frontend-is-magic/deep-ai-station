@@ -1,7 +1,9 @@
 import asyncio
 import json
 import os
+import sys
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import Literal
 
 import httpx
@@ -10,6 +12,7 @@ from fastapi import HTTPException
 from backend.quota import quota_configured
 from backend.sandbox import sandbox_capabilities
 from backend.tool_protocol import ToolAccumulator
+from backend.usage import USAGE_FIELDS, usage_counts
 
 Provider = Literal["demo", "deepseek"]
 STREAM_TIMEOUT = 45
@@ -73,19 +76,32 @@ async def _sse_payloads(response: httpx.Response) -> AsyncIterator[str]:
     # An incomplete final frame is not accepted as a completed model response.
 
 
-def _usage_counts(value: object) -> dict:
-    if not isinstance(value, dict):
-        return {}
-    allowed = {
-        "prompt_tokens",
-        "completion_tokens",
-        "total_tokens",
-    }
-    return {
-        key: count
-        for key, count in value.items()
-        if key in allowed and type(count) is int and 0 <= count <= 100_000_000
-    }
+@asynccontextmanager
+async def _response_stream(client: httpx.AsyncClient, url: str, headers: dict, body: dict):
+    interrupted = None
+    try:
+        async with client.stream("POST", url, headers=headers, json=body) as response:
+            try:
+                yield response
+            except (asyncio.CancelledError, GeneratorExit) as exc:
+                interrupted = exc
+                raise
+    except BaseException:
+        # A failing response.aclose() must not turn cancellation into an HTTP
+        # error, which an outer async generator could accidentally yield from.
+        if interrupted is not None:
+            raise interrupted from None
+        raise
+
+
+async def close_client(client: httpx.AsyncClient):
+    interrupted = sys.exception()
+    try:
+        await client.aclose()
+    except Exception:
+        if interrupted is not None:
+            raise interrupted from None
+        raise HTTPException(502, "模型响应不可用，请稍后重试") from None
 
 
 async def stream_generate(
@@ -126,7 +142,7 @@ async def stream_generate(
     try:
         async with (
             asyncio.timeout(STREAM_TIMEOUT),
-            client.stream("POST", config["url"], headers=headers, json=body) as response,
+            _response_stream(client, config["url"], headers, body) as response,
         ):
             response.raise_for_status()
             usage = {}
@@ -142,7 +158,12 @@ async def stream_generate(
                 if not isinstance(data, dict) or "error" in data:
                     raise ValueError("invalid_stream")
                 text = None
-                usage.update(_usage_counts(data.get("usage")))
+                counts = usage_counts(data.get("usage"))
+                if counts:
+                    usage.update(counts)
+                    # Publish before parsing later fields or waiting for [DONE]. Failure
+                    # or cancellation may prevent a terminal response from ever arriving.
+                    yield {"event": "usage", "usage": dict(usage), "usage_complete": False}
                 choices = data.get("choices", [])
                 if choices:
                     delta = choices[0].get("delta", {})
@@ -184,6 +205,7 @@ async def stream_generate(
             yield {
                 "event": "done",
                 "usage": usage or None,
+                "usage_complete": USAGE_FIELDS <= usage.keys(),
                 "model": model,
                 "truncated": truncated,
                 **({"tool_calls": calls} if tools else {}),
@@ -206,4 +228,4 @@ async def stream_generate(
         raise HTTPException(502, "模型响应不可用，请稍后重试") from exc
     finally:
         if own_client:
-            await client.aclose()
+            await close_client(client)

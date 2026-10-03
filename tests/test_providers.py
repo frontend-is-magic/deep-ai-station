@@ -130,7 +130,7 @@ async def test_deepseek_compatible_request_keeps_budget_and_excludes_reasoning_f
                 "deepseek", "test prompt", "test system", 0.3, client
             )
         ]
-    assert [event.get("text") for event in result[:-1]] == ["answer"]
+    assert [event["text"] for event in result if event["event"] == "delta"] == ["answer"]
     assert result[-1]["usage"] == {"prompt_tokens": 4, "completion_tokens": 2, "total_tokens": 6}
     assert result[-1]["model"] == "deepseek-flash" and result[-1]["truncated"] is True
     assert remote.closed
@@ -235,11 +235,11 @@ async def test_tool_only_stream_accumulates_json_fragments_and_uses_native_defin
                 provider, "question", "system", 0.3, client, tools=TOOLS
             )
         ]
-    assert len(events) == 1 and events[0]["event"] == "done"
-    assert events[0]["tool_calls"] == [
+    assert [event["event"] for event in events] == ["usage", "done"]
+    assert events[-1]["tool_calls"] == [
         {"id": "call_1", "name": "knowledge_search", "arguments": {"query": "工具授权"}}
     ]
-    assert events[0]["usage"] == {"total_tokens": 10} and remote.closed
+    assert events[-1]["usage"] == {"total_tokens": 10} and remote.closed
 
 
 @pytest.mark.parametrize(

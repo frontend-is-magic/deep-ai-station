@@ -10,8 +10,9 @@ from fastapi import HTTPException
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 from backend.curriculum import LESSONS
-from backend.providers import stream_generate
+from backend.providers import close_client, stream_generate
 from backend.retrieval import retrieve
+from backend.usage import UsageTracker
 
 MAX_ROUNDS = 3
 TOTAL_TIMEOUT = 45
@@ -138,6 +139,7 @@ async def stream_agent(
     *,
     client: httpx.AsyncClient | None = None,
     charge: Callable[[], Awaitable[None]] | None = None,
+    usage_tracker: UsageTracker | None = None,
 ):
     if provider == "demo":
         async with aclosing(demo_loop(prompt, track, lesson_id, run_id)) as demo:
@@ -154,8 +156,7 @@ async def stream_agent(
     if selected:
         prompt += f"\n\n当前课程：{selected['id']} / {selected['title']}。需要目标和验收细节时调用 lesson_read。"
     messages = [{"role": "user", "content": prompt}]
-    usage = {}
-    usage_complete = True
+    usage_tracker = usage_tracker if usage_tracker is not None else UsageTracker()
     cache = {}
     ids = set()
     tool_count = 0
@@ -177,6 +178,7 @@ async def stream_agent(
                 )
                 text = ""
                 result = None
+                request_usage = usage_tracker.begin()
                 async with aclosing(
                     stream_generate(
                         provider,
@@ -196,10 +198,18 @@ async def stream_agent(
                                 raise HTTPException(502, "Agent 输出超过上限，请缩小任务")
                             text += event["text"]
                             yield event
+                        elif event["event"] == "usage":
+                            usage_tracker.observe(request_usage, event.get("usage"))
+                            yield {"event": "usage", **usage_tracker.snapshot()}
                         elif event["event"] == "done":
                             result = event
+                            usage_tracker.observe(request_usage, event.get("usage"))
+                            # Retain compatibility with providers that report usage only
+                            # in done; this is still a running snapshot, never success.
+                            yield {"event": "usage", **usage_tracker.snapshot()}
                 if result is None:
                     raise HTTPException(502, "Agent 模型响应未完成")
+                usage_tracker.finish(request_usage, result)
                 yield trace(
                     f"模型请求 {step} / {MAX_ROUNDS}",
                     "供应商响应已完成",
@@ -207,20 +217,13 @@ async def stream_agent(
                     f"{run_id}:model:{step}",
                 )
                 active_request = None
-                counts = result.get("usage")
-                if counts:
-                    for key, count in counts.items():
-                        usage[key] = usage.get(key, 0) + count
-                else:
-                    usage_complete = False
                 calls = result.get("tool_calls", [])
                 if result.get("truncated") or not calls:
                     if not result.get("truncated") and not text:
                         raise HTTPException(502, "Agent 未返回最终回答")
                     yield {
                         **result,
-                        "usage": usage or None,
-                        "usage_complete": usage_complete,
+                        **usage_tracker.snapshot(terminal=True),
                         "steps": step,
                         "tool_count": tool_count,
                     }
@@ -301,4 +304,8 @@ async def stream_agent(
         raise
     finally:
         if own_client:
-            await client.aclose()
+            try:
+                await close_client(client)
+            except HTTPException:
+                usage_tracker.cleanup_failed()
+                raise
