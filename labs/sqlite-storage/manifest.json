@@ -1,0 +1,6 @@
+{
+  "id": "sqlite-storage",
+  "version": "sqlite-storage-v1",
+  "lessons": ["fullstack-database", "fullstack-migrations"],
+  "languages": ["python", "typescript", "go"]
+}

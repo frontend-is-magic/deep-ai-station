@@ -1,0 +1,1117 @@
+{
+  "version": "sqlite-storage-v1",
+  "cases": [
+    {
+      "id": "persistence-idempotency-owner-cursors",
+      "steps": [
+        {
+          "request": {
+            "op": "list_progress",
+            "owner_id": "alice",
+            "cursor": 0,
+            "limit": 20
+          },
+          "expected": {
+            "error": "unsupported_schema"
+          },
+          "exit_code": 1
+        },
+        {
+          "request": {
+            "op": "migrate"
+          },
+          "expected": {
+            "schema_version": 2
+          },
+          "exit_code": 0
+        },
+        {
+          "request": {
+            "op": "migrate"
+          },
+          "expected": {
+            "schema_version": 2
+          },
+          "exit_code": 0
+        },
+        {
+          "request": {
+            "op": "list_progress",
+            "owner_id": "alice",
+            "cursor": 0,
+            "limit": 20
+          },
+          "expected": {
+            "items": [],
+            "next_cursor": null
+          },
+          "exit_code": 0
+        },
+        {
+          "request": {
+            "op": "set_progress",
+            "owner_id": "alice",
+            "lesson_id": "tools",
+            "completed": false,
+            "at": "2026-10-03T12:00:00.000Z"
+          },
+          "expected": {
+            "item": {
+              "id": 1,
+              "owner_id": "alice",
+              "lesson_id": "tools",
+              "completed": false,
+              "created_at": "2026-10-03T12:00:00.000Z",
+              "updated_at": "2026-10-03T12:00:00.000Z"
+            },
+            "changed": true
+          },
+          "exit_code": 0
+        },
+        {
+          "request": {
+            "op": "set_progress",
+            "owner_id": "alice",
+            "lesson_id": "tools",
+            "completed": false,
+            "at": "2026-10-03T12:01:00.000Z"
+          },
+          "expected": {
+            "item": {
+              "id": 1,
+              "owner_id": "alice",
+              "lesson_id": "tools",
+              "completed": false,
+              "created_at": "2026-10-03T12:00:00.000Z",
+              "updated_at": "2026-10-03T12:00:00.000Z"
+            },
+            "changed": false
+          },
+          "exit_code": 0
+        },
+        {
+          "request": {
+            "op": "set_progress",
+            "owner_id": "alice",
+            "lesson_id": "tools",
+            "completed": true,
+            "at": "2026-10-03T12:01:00.000Z"
+          },
+          "expected": {
+            "item": {
+              "id": 1,
+              "owner_id": "alice",
+              "lesson_id": "tools",
+              "completed": true,
+              "created_at": "2026-10-03T12:00:00.000Z",
+              "updated_at": "2026-10-03T12:01:00.000Z"
+            },
+            "changed": true
+          },
+          "exit_code": 0
+        },
+        {
+          "request": {
+            "op": "set_progress",
+            "owner_id": "bob",
+            "lesson_id": "tools",
+            "completed": true,
+            "at": "2026-10-03T12:02:00.000Z"
+          },
+          "expected": {
+            "item": {
+              "id": 2,
+              "owner_id": "bob",
+              "lesson_id": "tools",
+              "completed": true,
+              "created_at": "2026-10-03T12:02:00.000Z",
+              "updated_at": "2026-10-03T12:02:00.000Z"
+            },
+            "changed": true
+          },
+          "exit_code": 0
+        },
+        {
+          "request": {
+            "op": "set_progress",
+            "owner_id": "alice",
+            "lesson_id": "http",
+            "completed": false,
+            "at": "2026-10-03T12:02:00.000Z"
+          },
+          "expected": {
+            "item": {
+              "id": 3,
+              "owner_id": "alice",
+              "lesson_id": "http",
+              "completed": false,
+              "created_at": "2026-10-03T12:02:00.000Z",
+              "updated_at": "2026-10-03T12:02:00.000Z"
+            },
+            "changed": true
+          },
+          "exit_code": 0
+        },
+        {
+          "request": {
+            "op": "list_progress",
+            "owner_id": "alice",
+            "cursor": 0,
+            "limit": 1
+          },
+          "expected": {
+            "items": [
+              {
+                "id": 1,
+                "owner_id": "alice",
+                "lesson_id": "tools",
+                "completed": true,
+                "created_at": "2026-10-03T12:00:00.000Z",
+                "updated_at": "2026-10-03T12:01:00.000Z"
+              }
+            ],
+            "next_cursor": 1
+          },
+          "exit_code": 0
+        },
+        {
+          "request": {
+            "op": "list_progress",
+            "owner_id": "alice",
+            "cursor": 1,
+            "limit": 1
+          },
+          "expected": {
+            "items": [
+              {
+                "id": 3,
+                "owner_id": "alice",
+                "lesson_id": "http",
+                "completed": false,
+                "created_at": "2026-10-03T12:02:00.000Z",
+                "updated_at": "2026-10-03T12:02:00.000Z"
+              }
+            ],
+            "next_cursor": null
+          },
+          "exit_code": 0
+        },
+        {
+          "request": {
+            "op": "list_progress",
+            "owner_id": "bob",
+            "cursor": 0,
+            "limit": 1
+          },
+          "expected": {
+            "items": [
+              {
+                "id": 2,
+                "owner_id": "bob",
+                "lesson_id": "tools",
+                "completed": true,
+                "created_at": "2026-10-03T12:02:00.000Z",
+                "updated_at": "2026-10-03T12:02:00.000Z"
+              }
+            ],
+            "next_cursor": null
+          },
+          "exit_code": 0
+        },
+        {
+          "request": {
+            "op": "list_progress",
+            "owner_id": "charlie",
+            "cursor": 0,
+            "limit": 20
+          },
+          "expected": {
+            "items": [],
+            "next_cursor": null
+          },
+          "exit_code": 0
+        },
+        {
+          "request": {
+            "op": "list_progress",
+            "owner_id": "alice",
+            "cursor": 9007199254740991,
+            "limit": 20
+          },
+          "expected": {
+            "items": [],
+            "next_cursor": null
+          },
+          "exit_code": 0
+        },
+        {
+          "request": {
+            "op": "list_audit",
+            "owner_id": "alice",
+            "cursor": 0,
+            "limit": 1
+          },
+          "expected": {
+            "items": [
+              {
+                "id": 1,
+                "progress_id": 1,
+                "completed": false,
+                "at": "2026-10-03T12:00:00.000Z"
+              }
+            ],
+            "next_cursor": 1
+          },
+          "exit_code": 0
+        },
+        {
+          "request": {
+            "op": "list_audit",
+            "owner_id": "alice",
+            "cursor": 1,
+            "limit": 20
+          },
+          "expected": {
+            "items": [
+              {
+                "id": 2,
+                "progress_id": 1,
+                "completed": true,
+                "at": "2026-10-03T12:01:00.000Z"
+              },
+              {
+                "id": 4,
+                "progress_id": 3,
+                "completed": false,
+                "at": "2026-10-03T12:02:00.000Z"
+              }
+            ],
+            "next_cursor": null
+          },
+          "exit_code": 0
+        },
+        {
+          "request": {
+            "op": "list_audit",
+            "owner_id": "bob",
+            "cursor": 0,
+            "limit": 20
+          },
+          "expected": {
+            "items": [
+              {
+                "id": 3,
+                "progress_id": 2,
+                "completed": true,
+                "at": "2026-10-03T12:02:00.000Z"
+              }
+            ],
+            "next_cursor": null
+          },
+          "exit_code": 0
+        },
+        {
+          "request": {
+            "op": "list_progress",
+            "owner_id": "alice",
+            "cursor": 0,
+            "limit": 1.0
+          },
+          "expected": {
+            "items": [
+              {
+                "id": 1,
+                "owner_id": "alice",
+                "lesson_id": "tools",
+                "completed": true,
+                "created_at": "2026-10-03T12:00:00.000Z",
+                "updated_at": "2026-10-03T12:01:00.000Z"
+              }
+            ],
+            "next_cursor": 1
+          },
+          "exit_code": 0
+        }
+      ]
+    },
+    {
+      "id": "invalid-input-is-atomic",
+      "steps": [
+        {
+          "request": {
+            "op": "migrate"
+          },
+          "expected": {
+            "schema_version": 2
+          },
+          "exit_code": 0
+        },
+        {
+          "request": {
+            "op": "list_progress",
+            "owner_id": "alice\n",
+            "cursor": 0,
+            "limit": 20
+          },
+          "expected": {
+            "error": "invalid_input"
+          },
+          "exit_code": 1
+        },
+        {
+          "raw_hex": "efbbbf7b226f70223a226d696772617465227d",
+          "expected": {
+            "error": "invalid_input"
+          },
+          "exit_code": 1
+        },
+        {
+          "raw": "{\"op\":\"migrate\"}\n\r\t ",
+          "expected": {
+            "schema_version": 2
+          },
+          "exit_code": 0
+        },
+        {
+          "raw": "{\"op\":\"migrate\"}                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                ",
+          "expected": {
+            "schema_version": 2
+          },
+          "exit_code": 0
+        },
+        {
+          "request": {
+            "op": "set_progress",
+            "owner_id": "alice' OR 1=1--",
+            "lesson_id": "tools",
+            "completed": false,
+            "at": "2026-10-03T12:00:00.000Z"
+          },
+          "expected": {
+            "error": "invalid_input"
+          },
+          "exit_code": 1
+        },
+        {
+          "request": {
+            "op": "set_progress",
+            "owner_id": "alice",
+            "lesson_id": "",
+            "completed": false,
+            "at": "2026-10-03T12:00:00.000Z"
+          },
+          "expected": {
+            "error": "invalid_input"
+          },
+          "exit_code": 1
+        },
+        {
+          "request": {
+            "op": "set_progress",
+            "owner_id": "Alice",
+            "lesson_id": "tools",
+            "completed": false,
+            "at": "2026-10-03T12:00:00.000Z"
+          },
+          "expected": {
+            "error": "invalid_input"
+          },
+          "exit_code": 1
+        },
+        {
+          "request": {
+            "op": "set_progress",
+            "owner_id": "alice",
+            "lesson_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "completed": false,
+            "at": "2026-10-03T12:00:00.000Z"
+          },
+          "expected": {
+            "error": "invalid_input"
+          },
+          "exit_code": 1
+        },
+        {
+          "request": {
+            "op": "set_progress",
+            "owner_id": "alice",
+            "lesson_id": "tools",
+            "completed": 1,
+            "at": "2026-10-03T12:00:00.000Z"
+          },
+          "expected": {
+            "error": "invalid_input"
+          },
+          "exit_code": 1
+        },
+        {
+          "request": {
+            "op": "set_progress",
+            "owner_id": "alice",
+            "lesson_id": "tools",
+            "completed": "false",
+            "at": "2026-10-03T12:00:00.000Z"
+          },
+          "expected": {
+            "error": "invalid_input"
+          },
+          "exit_code": 1
+        },
+        {
+          "request": {
+            "op": "set_progress",
+            "owner_id": "alice",
+            "lesson_id": "tools",
+            "completed": null,
+            "at": "2026-10-03T12:00:00.000Z"
+          },
+          "expected": {
+            "error": "invalid_input"
+          },
+          "exit_code": 1
+        },
+        {
+          "request": {
+            "op": "set_progress",
+            "owner_id": "alice",
+            "lesson_id": "tools",
+            "completed": false,
+            "at": "2026-02-30T12:00:00.000Z"
+          },
+          "expected": {
+            "error": "invalid_input"
+          },
+          "exit_code": 1
+        },
+        {
+          "request": {
+            "op": "set_progress",
+            "owner_id": "alice",
+            "lesson_id": "tools",
+            "completed": false,
+            "at": "2026-10-03T24:00:00.000Z"
+          },
+          "expected": {
+            "error": "invalid_input"
+          },
+          "exit_code": 1
+        },
+        {
+          "request": {
+            "op": "set_progress",
+            "owner_id": "alice",
+            "lesson_id": "tools",
+            "completed": false,
+            "at": "2026-10-03T12:00:00Z"
+          },
+          "expected": {
+            "error": "invalid_input"
+          },
+          "exit_code": 1
+        },
+        {
+          "request": {
+            "op": "set_progress",
+            "owner_id": "alice",
+            "lesson_id": "tools",
+            "completed": false,
+            "at": "2026-10-03T12:00:00.000+00:00"
+          },
+          "expected": {
+            "error": "invalid_input"
+          },
+          "exit_code": 1
+        },
+        {
+          "request": {
+            "op": "set_progress",
+            "owner_id": "alice",
+            "lesson_id": "tools",
+            "completed": false,
+            "at": "0999-10-03T12:00:00.000Z"
+          },
+          "expected": {
+            "error": "invalid_input"
+          },
+          "exit_code": 1
+        },
+        {
+          "request": {
+            "op": "list_progress",
+            "owner_id": "alice",
+            "cursor": 0,
+            "limit": 0
+          },
+          "expected": {
+            "error": "invalid_input"
+          },
+          "exit_code": 1
+        },
+        {
+          "request": {
+            "op": "list_progress",
+            "owner_id": "alice",
+            "cursor": 0,
+            "limit": 51
+          },
+          "expected": {
+            "error": "invalid_input"
+          },
+          "exit_code": 1
+        },
+        {
+          "request": {
+            "op": "list_progress",
+            "owner_id": "alice",
+            "cursor": 0,
+            "limit": true
+          },
+          "expected": {
+            "error": "invalid_input"
+          },
+          "exit_code": 1
+        },
+        {
+          "request": {
+            "op": "list_progress",
+            "owner_id": "alice",
+            "cursor": 0,
+            "limit": 1.5
+          },
+          "expected": {
+            "error": "invalid_input"
+          },
+          "exit_code": 1
+        },
+        {
+          "request": {
+            "op": "list_progress",
+            "owner_id": "alice",
+            "cursor": -1,
+            "limit": 20
+          },
+          "expected": {
+            "error": "invalid_input"
+          },
+          "exit_code": 1
+        },
+        {
+          "request": {
+            "op": "list_progress",
+            "owner_id": "alice",
+            "cursor": 9007199254740992,
+            "limit": 20
+          },
+          "expected": {
+            "error": "invalid_input"
+          },
+          "exit_code": 1
+        },
+        {
+          "request": {
+            "op": "list_progress",
+            "owner_id": "alice",
+            "cursor": false,
+            "limit": 20
+          },
+          "expected": {
+            "error": "invalid_input"
+          },
+          "exit_code": 1
+        },
+        {
+          "request": {
+            "op": "list_progress",
+            "owner_id": "alice",
+            "cursor": "1",
+            "limit": 20
+          },
+          "expected": {
+            "error": "invalid_input"
+          },
+          "exit_code": 1
+        },
+        {
+          "request": {
+            "op": "drop"
+          },
+          "expected": {
+            "error": "invalid_input"
+          },
+          "exit_code": 1
+        },
+        {
+          "request": {
+            "op": "migrate",
+            "target": 1
+          },
+          "expected": {
+            "error": "invalid_input"
+          },
+          "exit_code": 1
+        },
+        {
+          "request": {
+            "op": "list_progress",
+            "owner_id": "alice",
+            "limit": 1
+          },
+          "expected": {
+            "error": "invalid_input"
+          },
+          "exit_code": 1
+        },
+        {
+          "request": [],
+          "expected": {
+            "error": "invalid_input"
+          },
+          "exit_code": 1
+        },
+        {
+          "request": null,
+          "expected": {
+            "error": "invalid_input"
+          },
+          "exit_code": 1
+        },
+        {
+          "request": {
+            "op": "set_progress",
+            "owner_id": "alice",
+            "lesson_id": "tools",
+            "completed": false,
+            "at": "2026-10-03T12:00:00.000Z",
+            "debug": true
+          },
+          "expected": {
+            "error": "invalid_input"
+          },
+          "exit_code": 1
+        },
+        {
+          "raw": "",
+          "expected": {
+            "error": "invalid_input"
+          },
+          "exit_code": 1
+        },
+        {
+          "raw": "{",
+          "expected": {
+            "error": "invalid_input"
+          },
+          "exit_code": 1
+        },
+        {
+          "raw": "{}{}",
+          "expected": {
+            "error": "invalid_input"
+          },
+          "exit_code": 1
+        },
+        {
+          "raw": "{\"op\":\"migrate\"} true",
+          "expected": {
+            "error": "invalid_input"
+          },
+          "exit_code": 1
+        },
+        {
+          "raw": "{\"op\":\"migrate\",\"x\":NaN}",
+          "expected": {
+            "error": "invalid_input"
+          },
+          "exit_code": 1
+        },
+        {
+          "raw": "{\"op\":\"migrate\",\"x\":Infinity}",
+          "expected": {
+            "error": "invalid_input"
+          },
+          "exit_code": 1
+        },
+        {
+          "raw_hex": "fffe",
+          "expected": {
+            "error": "invalid_input"
+          },
+          "exit_code": 1
+        },
+        {
+          "raw": "                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 ",
+          "expected": {
+            "error": "invalid_input"
+          },
+          "exit_code": 1
+        },
+        {
+          "request": {
+            "op": "list_progress",
+            "owner_id": "alice",
+            "cursor": 0,
+            "limit": 20
+          },
+          "expected": {
+            "items": [],
+            "next_cursor": null
+          },
+          "exit_code": 0
+        },
+        {
+          "request": {
+            "op": "list_audit",
+            "owner_id": "alice",
+            "cursor": 0,
+            "limit": 20
+          },
+          "expected": {
+            "items": [],
+            "next_cursor": null
+          },
+          "exit_code": 0
+        }
+      ]
+    },
+    {
+      "id": "upgrade-v1-preserves-data",
+      "steps": [
+        {
+          "sql": "CREATE TABLE progress (\n  id INTEGER PRIMARY KEY,\n  owner_id TEXT NOT NULL,\n  lesson_id TEXT NOT NULL,\n  completed INTEGER NOT NULL CHECK (completed IN (0, 1)),\n  created_at TEXT NOT NULL,\n  UNIQUE (owner_id, lesson_id)\n);\nCREATE TABLE audit (\n  id INTEGER PRIMARY KEY,\n  progress_id INTEGER NOT NULL REFERENCES progress(id),\n  completed INTEGER NOT NULL CHECK (completed IN (0, 1)),\n  at TEXT NOT NULL\n);\nCREATE INDEX audit_progress_id ON audit(progress_id, id);\n\nINSERT INTO progress(id,owner_id,lesson_id,completed,created_at) VALUES(8,'alice','legacy',1,'2026-10-03T12:00:00.000Z');\nINSERT INTO audit(id,progress_id,completed,at) VALUES(4,8,1,'2026-10-03T12:00:00.000Z');\nPRAGMA user_version=1;"
+        },
+        {
+          "request": {
+            "op": "list_progress",
+            "owner_id": "alice",
+            "cursor": 0,
+            "limit": 20
+          },
+          "expected": {
+            "error": "unsupported_schema"
+          },
+          "exit_code": 1
+        },
+        {
+          "request": {
+            "op": "migrate"
+          },
+          "expected": {
+            "schema_version": 2
+          },
+          "exit_code": 0
+        },
+        {
+          "request": {
+            "op": "migrate"
+          },
+          "expected": {
+            "schema_version": 2
+          },
+          "exit_code": 0
+        },
+        {
+          "request": {
+            "op": "list_progress",
+            "owner_id": "alice",
+            "cursor": 0,
+            "limit": 20
+          },
+          "expected": {
+            "items": [
+              {
+                "id": 8,
+                "owner_id": "alice",
+                "lesson_id": "legacy",
+                "completed": true,
+                "created_at": "2026-10-03T12:00:00.000Z",
+                "updated_at": "2026-10-03T12:00:00.000Z"
+              }
+            ],
+            "next_cursor": null
+          },
+          "exit_code": 0
+        },
+        {
+          "request": {
+            "op": "list_audit",
+            "owner_id": "alice",
+            "cursor": 0,
+            "limit": 20
+          },
+          "expected": {
+            "items": [
+              {
+                "id": 4,
+                "progress_id": 8,
+                "completed": true,
+                "at": "2026-10-03T12:00:00.000Z"
+              }
+            ],
+            "next_cursor": null
+          },
+          "exit_code": 0
+        },
+        {
+          "request": {
+            "op": "set_progress",
+            "owner_id": "alice",
+            "lesson_id": "new",
+            "completed": false,
+            "at": "2026-10-03T12:01:00.000Z"
+          },
+          "expected": {
+            "item": {
+              "id": 9,
+              "owner_id": "alice",
+              "lesson_id": "new",
+              "completed": false,
+              "created_at": "2026-10-03T12:01:00.000Z",
+              "updated_at": "2026-10-03T12:01:00.000Z"
+            },
+            "changed": true
+          },
+          "exit_code": 0
+        }
+      ]
+    },
+    {
+      "id": "future-schema-refused",
+      "steps": [
+        {
+          "sql": "CREATE TABLE progress (\n  id INTEGER PRIMARY KEY,\n  owner_id TEXT NOT NULL,\n  lesson_id TEXT NOT NULL,\n  completed INTEGER NOT NULL CHECK (completed IN (0, 1)),\n  created_at TEXT NOT NULL,\n  UNIQUE (owner_id, lesson_id)\n);\nCREATE TABLE audit (\n  id INTEGER PRIMARY KEY,\n  progress_id INTEGER NOT NULL REFERENCES progress(id),\n  completed INTEGER NOT NULL CHECK (completed IN (0, 1)),\n  at TEXT NOT NULL\n);\nCREATE INDEX audit_progress_id ON audit(progress_id, id);\n\nINSERT INTO progress(id,owner_id,lesson_id,completed,created_at) VALUES(8,'alice','legacy',1,'2026-10-03T12:00:00.000Z');\nINSERT INTO audit(id,progress_id,completed,at) VALUES(4,8,1,'2026-10-03T12:00:00.000Z');\nPRAGMA user_version=99;"
+        },
+        {
+          "request": {
+            "op": "migrate"
+          },
+          "expected": {
+            "error": "unsupported_schema"
+          },
+          "exit_code": 1
+        },
+        {
+          "request": {
+            "op": "set_progress",
+            "owner_id": "alice",
+            "lesson_id": "tools",
+            "completed": false,
+            "at": "2026-10-03T12:00:00.000Z"
+          },
+          "expected": {
+            "error": "unsupported_schema"
+          },
+          "exit_code": 1
+        },
+        {
+          "request": {
+            "op": "list_progress",
+            "owner_id": "alice",
+            "cursor": 0,
+            "limit": 20
+          },
+          "expected": {
+            "error": "unsupported_schema"
+          },
+          "exit_code": 1
+        },
+        {
+          "assert_sql": "PRAGMA user_version",
+          "rows": [[99]]
+        },
+        {
+          "assert_sql": "SELECT id,owner_id,lesson_id,completed,created_at FROM progress",
+          "rows": [[8, "alice", "legacy", 1, "2026-10-03T12:00:00.000Z"]]
+        }
+      ]
+    },
+    {
+      "id": "audit-failure-rolls-back-entire-write",
+      "steps": [
+        {
+          "request": {
+            "op": "migrate"
+          },
+          "expected": {
+            "schema_version": 2
+          },
+          "exit_code": 0
+        },
+        {
+          "request": {
+            "op": "set_progress",
+            "owner_id": "alice",
+            "lesson_id": "tools",
+            "completed": false,
+            "at": "2026-10-03T12:00:00.000Z"
+          },
+          "expected": {
+            "item": {
+              "id": 1,
+              "owner_id": "alice",
+              "lesson_id": "tools",
+              "completed": false,
+              "created_at": "2026-10-03T12:00:00.000Z",
+              "updated_at": "2026-10-03T12:00:00.000Z"
+            },
+            "changed": true
+          },
+          "exit_code": 0
+        },
+        {
+          "sql": "CREATE TRIGGER fail_audit BEFORE INSERT ON audit BEGIN SELECT RAISE(ABORT,'test-only injected failure'); END;"
+        },
+        {
+          "request": {
+            "op": "set_progress",
+            "owner_id": "alice",
+            "lesson_id": "tools",
+            "completed": true,
+            "at": "2026-10-03T12:01:00.000Z"
+          },
+          "expected": {
+            "error": "storage_failure"
+          },
+          "exit_code": 1
+        },
+        {
+          "request": {
+            "op": "set_progress",
+            "owner_id": "alice",
+            "lesson_id": "http",
+            "completed": false,
+            "at": "2026-10-03T12:01:00.000Z"
+          },
+          "expected": {
+            "error": "storage_failure"
+          },
+          "exit_code": 1
+        },
+        {
+          "request": {
+            "op": "list_progress",
+            "owner_id": "alice",
+            "cursor": 0,
+            "limit": 20
+          },
+          "expected": {
+            "items": [
+              {
+                "id": 1,
+                "owner_id": "alice",
+                "lesson_id": "tools",
+                "completed": false,
+                "created_at": "2026-10-03T12:00:00.000Z",
+                "updated_at": "2026-10-03T12:00:00.000Z"
+              }
+            ],
+            "next_cursor": null
+          },
+          "exit_code": 0
+        },
+        {
+          "request": {
+            "op": "list_audit",
+            "owner_id": "alice",
+            "cursor": 0,
+            "limit": 20
+          },
+          "expected": {
+            "items": [
+              {
+                "id": 1,
+                "progress_id": 1,
+                "completed": false,
+                "at": "2026-10-03T12:00:00.000Z"
+              }
+            ],
+            "next_cursor": null
+          },
+          "exit_code": 0
+        },
+        {
+          "sql": "DROP TRIGGER fail_audit;"
+        },
+        {
+          "request": {
+            "op": "set_progress",
+            "owner_id": "alice",
+            "lesson_id": "tools",
+            "completed": true,
+            "at": "2026-10-03T12:01:00.000Z"
+          },
+          "expected": {
+            "item": {
+              "id": 1,
+              "owner_id": "alice",
+              "lesson_id": "tools",
+              "completed": true,
+              "created_at": "2026-10-03T12:00:00.000Z",
+              "updated_at": "2026-10-03T12:01:00.000Z"
+            },
+            "changed": true
+          },
+          "exit_code": 0
+        }
+      ]
+    },
+    {
+      "id": "migration-failure-rolls-back-schema-and-version",
+      "steps": [
+        {
+          "sql": "CREATE TABLE progress (\n  id INTEGER PRIMARY KEY,\n  owner_id TEXT NOT NULL,\n  lesson_id TEXT NOT NULL,\n  completed INTEGER NOT NULL CHECK (completed IN (0, 1)),\n  created_at TEXT NOT NULL,\n  UNIQUE (owner_id, lesson_id)\n);\nCREATE TABLE audit (\n  id INTEGER PRIMARY KEY,\n  progress_id INTEGER NOT NULL REFERENCES progress(id),\n  completed INTEGER NOT NULL CHECK (completed IN (0, 1)),\n  at TEXT NOT NULL\n);\nCREATE INDEX audit_progress_id ON audit(progress_id, id);\n\nINSERT INTO progress(id,owner_id,lesson_id,completed,created_at) VALUES(8,'alice','legacy',1,'2026-10-03T12:00:00.000Z');\nINSERT INTO audit(id,progress_id,completed,at) VALUES(4,8,1,'2026-10-03T12:00:00.000Z');\nPRAGMA user_version=1;\nCREATE TRIGGER fail_backfill BEFORE UPDATE ON progress BEGIN SELECT RAISE(ABORT,'test-only failed backfill'); END;"
+        },
+        {
+          "request": {
+            "op": "migrate"
+          },
+          "expected": {
+            "error": "storage_failure"
+          },
+          "exit_code": 1
+        },
+        {
+          "assert_sql": "PRAGMA user_version",
+          "rows": [[1]]
+        },
+        {
+          "assert_sql": "SELECT name FROM pragma_table_info('progress') WHERE name='updated_at'",
+          "rows": []
+        },
+        {
+          "sql": "DROP TRIGGER fail_backfill;"
+        },
+        {
+          "request": {
+            "op": "migrate"
+          },
+          "expected": {
+            "schema_version": 2
+          },
+          "exit_code": 0
+        },
+        {
+          "request": {
+            "op": "list_progress",
+            "owner_id": "alice",
+            "cursor": 0,
+            "limit": 20
+          },
+          "expected": {
+            "items": [
+              {
+                "id": 8,
+                "owner_id": "alice",
+                "lesson_id": "legacy",
+                "completed": true,
+                "created_at": "2026-10-03T12:00:00.000Z",
+                "updated_at": "2026-10-03T12:00:00.000Z"
+              }
+            ],
+            "next_cursor": null
+          },
+          "exit_code": 0
+        }
+      ]
+    }
+  ]
+}
