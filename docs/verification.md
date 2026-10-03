@@ -10,7 +10,7 @@
 - Codex 内置 Browser：已验证首页、第一课测验、验收勾选、完成标记、笔记以及刷新恢复。
 - 真实模型调用尚未配置；供应商适配器使用 MockTransport 验证，不代表真实 API 已调用。
 - headless Playwright：17 条用户流程全部通过，覆盖完成/笔记刷新恢复、课内三语言切换并保留验收选择、练习包按语言下载、工作流/取消/历史、真实模式 UI 完成/失败/截断历史边界与回看供应商信息、三语言检查、收藏/搜索、实时资料收藏在订阅失效后恢复、实际来源数量与缓存失效提示、375px 移动布局、导入拒绝与导出、隔离 UI 的访问码与纯文本输出、编辑保留、语言偏好和存储额度异常。
-- GitHub develop CI 已通过：[课程编译与课内对照验证记录](https://github.com/frontend-is-magic/deep-ai-station/actions/runs/37117441525)。main 已快进到 `4595773` 验收版本；之后的信息流扩充已通过本地验证，远端 CI 随新提交运行。
+- GitHub 完整 CI 已通过：[信息流与全部课程验证记录](https://github.com/frontend-is-magic/deep-ai-station/actions/runs/37117972060)。main 承接通过验收的版本，develop 继续迭代；该记录包含 56 项后端、14 项前端、17 条 headless 流程和课程语法/类型/编译检查。
 - Vercel 未发布：CLI 缺少认证，连接器部署工具不可用。已结束登录等待，并拆到独立人工配置对话；不声称线上成功。
 - [Notion 私人项目目录](https://app.notion.com/p/3eee149ae540815ca676f1dbaed0128a?pvs=204) 已创建；开发手册、学习 Wiki 和验收记录全部回读验证，包含目录规则、自绘图标与封面。
 
