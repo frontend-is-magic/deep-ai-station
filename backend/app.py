@@ -23,6 +23,7 @@ from backend.quota import admit
 from backend.retrieval import retrieve
 from backend.retrieval_evaluation import RetrievalEvaluationRequest, evaluate_retrieval
 from backend.sandbox import execute_code
+from backend.tool_contract import router as tool_contract_router
 from backend.usage import UsageTracker
 
 app = FastAPI(
@@ -37,6 +38,7 @@ app.add_middleware(
 
 
 app.add_middleware(RequestLimits)
+app.include_router(tool_contract_router)
 
 
 @app.get("/api/health")
