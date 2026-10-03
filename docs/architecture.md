@@ -29,9 +29,13 @@ React 界面统一使用 TypeScript；Go/Python 对应服务契约与工程机�
 
 ## Playground
 
-教学演示执行输入校验、课程检索和资料整理，清楚标注未调用模型。真实调用使用服务端 provider 配置，必须通过访问码验证；模型响应完成后逐段发送给界面，目前不宣称供应商原生 token streaming。
+教学演示执行输入校验、课程检索和资料整理，清楚标注未调用模型。真实调用使用服务端 provider 配置，必须通过访问码验证；OpenAI / DeepSeek 的 Chat Completions SSE 与 Anthropic Messages SSE 原生增量转发到界面，不等待整段回答生成。
 
-SSE 协议包含 `start`、`trace`、`delta`、`error`、`done`。每个运行有 UUID，客户端支持取消，只有完成事件写入历史。usage 只使用供应商真实返回值，不把估算当实际用量。
+SSE 协议包含 `start`、`trace`、`delta`、`error`、`done`。每个运行有 UUID，取消会关闭上游 HTTP 连接；供应商是否已经计费不能由取消推断。只有完整且未达到输出上限的完成事件写入历史；中途失败保留部分文本，明确提示未完成。usage 只使用供应商返回的已知计数字段，Anthropic 累积用量按最新值合并，未返回时显示未知。
+
+模型输出上限 1200 tokens，完整请求 45 秒、单帧 64 KiB、流总量 1 MB、可显示文本 20,000 字符；异常正文与 thinking deltas 不进入回答。终止帧缺失、非法 JSON、输出超限均返回固定错误，清理连接。以上由 MockTransport、暂停远端流和 headless UI 验证，尚未调用真实模型。
+
+协议参考：[OpenAI Streaming](https://developers.openai.com/api/docs/guides/streaming-responses)、[Claude Streaming](https://platform.claude.com/docs/en/build-with-claude/streaming)、[DeepSeek Chat Completions](https://api-docs.deepseek.com/api/create-chat-completion/)。
 
 代码实验提供 AST / 文本静态检查，以及配置后的独立 E2B 运行。API 主机禁止 `exec` 或 `subprocess` 执行用户输入。运行网络关闭，限制时间、并发、输出与实例寿命，成功、失败、超时、取消都清理；清理未确认会明确报告。Go 使用预装编译器的受信模板。详情见 [隔离运行](sandbox.md)。当前仅用 mock 验证适配器与界面，真实服务仍待托管配置。
 

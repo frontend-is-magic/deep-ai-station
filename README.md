@@ -6,7 +6,7 @@ AI Agent 与 AI 全栈工程的学习空间，连接路线、官方信息源和�
 - 96 份逐课参考代码及可下载练习包，包含实践目标、验收条件和证据记录模板。
 - 全栈路线支持 TypeScript / Hono、Go / Gin、Python / FastAPI 参考实现。
 - 官方 RSS / Atom 信息流、明确来源状态、筛选与收藏。
-- Agent 工作流教学演示、OpenAI / Anthropic / DeepSeek 服务端适配器、SSE 事件、停止与运行历史。
+- Agent 工作流教学演示、OpenAI / Anthropic / DeepSeek 原生流式适配器、SSE 事件、停止与运行历史。
 - 代码实验支持静态检查，以及配置后的 E2B 隔离运行。Python/TS 使用独立 Code Interpreter，Go 使用预装编译器的受信模板；未配置时明确禁用运行。
 - Jotai 浏览器进度、笔记和收藏，支持导出/导入；当前不包含账号与跨设备同步。
 
@@ -44,7 +44,7 @@ uv run ruff check backend api tests scripts
 uv run ruff format --check backend api tests scripts
 uv run pytest -m 'not e2e'
 uv run playwright install chromium
-uv run pytest -m e2e
+uv run python scripts/run_e2e.py
 uv run python -m scripts.export_examples /tmp/examples.json
 node scripts/check_examples.mjs /tmp/examples.json
 go run scripts/check_examples.go /tmp/examples.json
