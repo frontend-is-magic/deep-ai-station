@@ -73,7 +73,9 @@ PATTERNS = {
     "aws-access-id": re.compile(rb"\b(?:AKIA|ASIA)[A-Z0-9]{16}\b"),
 }
 ENV_SECRET = re.compile(
-    r"^\s*(?:export\s+)?([A-Z0-9_]*(?:API_KEY|TOKEN|PASSWORD|SECRET|PRIVATE_KEY))\s*=\s*(.*?)\s*$"
+    r"^\s*(?:export\s+)?("
+    r"[A-Z0-9_]*(?:API_KEY|TOKEN|PASSWORD|SECRET|PRIVATE_KEY)"
+    r"|(?:[A-Z0-9_]*_)?DATABASE_URL)\s*=\s*(.*?)\s*$"
 )
 
 

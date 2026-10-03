@@ -129,6 +129,7 @@ def test_blank_template_is_allowed_in_index_and_worktree(repository, capsys):
     root, git = repository
     (root / ".env.example").write_text(
         'DEEPSEEK_API_KEY=\nPLAYGROUND_ACCESS_TOKEN=""\nDEEPSEEK_MODEL=deepseek-flash\n'
+        'DATABASE_URL=\nAI_QUOTA_DATABASE_URL=""\nAI_QUOTA_SCOPE=learning\n'
     )
     git("add", ".env.example")
     scanner.main()
@@ -213,3 +214,70 @@ def test_staged_zip_rejects_sqlite_sidecars_after_worktree_archive_is_cleaned(re
         assert f"sensitive-path: index:lesson.zip!{name}" in output.out
     assert "sensitive-path: worktree:" not in output.out
     assert contents.decode() not in output.out + output.err
+
+
+@pytest.mark.parametrize(
+    "assignment",
+    [
+        "DATABASE_URL=postgresql://example.invalid/learning",
+        'export AI_QUOTA_DATABASE_URL="postgresql://example.invalid/learning"',
+        "APP_PRIMARY_DATABASE_URL='postgresql://example.invalid/learning'",
+        "_DATABASE_URL=sqlite:///example.db",
+    ],
+)
+def test_database_url_templates_reject_every_nonempty_value(assignment):
+    assert audit("backend/.env.example", assignment.encode()) == ["nonempty-secret-template"]
+
+
+def test_database_url_empty_forms_and_public_settings_are_allowed_in_template_zip():
+    template = (
+        b"DATABASE_URL=\n"
+        b'AI_QUOTA_DATABASE_URL=""\n'
+        b"export APP_DATABASE_URL=''\n"
+        b"DEEPSEEK_MODEL=deepseek-flash\n"
+        b"AI_QUOTA_SCOPE=learning\n"
+        b"DATABASE_URL_LABEL=Local database\n"
+        b"NOTDATABASE_URL=public-label\n"
+    )
+    assert audit(".env.example", template) == []
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        archive.writestr("backend/.env.example", template)
+    assert scan("starter.zip", buffer.getvalue()) == []
+
+
+@pytest.mark.parametrize("artifact", ["template", "zip"])
+@pytest.mark.parametrize("change", ["overwrite", "delete"])
+def test_staged_database_url_template_is_rejected_without_printing_connection_string(
+    repository, capsys, artifact, change
+):
+    root, git = repository
+    # Invented test-only values; checking the whole string and its components guards diagnostics.
+    fake_url = "postgresql://fixture-user:fixture-value@database.invalid/private-learning"
+    name = ".env.example" if artifact == "template" else "starter.zip"
+    member = name if artifact == "template" else "starter.zip!backend/.env.example"
+    path = root / name
+
+    def write_template(value):
+        data = f"AI_QUOTA_DATABASE_URL={value}\nAI_QUOTA_SCOPE=learning\n"
+        if artifact == "template":
+            path.write_text(data)
+        else:
+            with zipfile.ZipFile(path, "w") as archive:
+                archive.writestr("backend/.env.example", data)
+
+    write_template(fake_url)
+    git("add", "--", name)
+    if change == "overwrite":
+        write_template("")
+        assert scan(name, path.read_bytes()) == []
+    else:
+        path.unlink()
+    with pytest.raises(SystemExit) as failure:
+        scanner.main()
+    output = capsys.readouterr()
+    assert f"nonempty-secret-template: index:{member}" in output.out
+    assert "nonempty-secret-template: worktree:" not in output.out
+    diagnostic = output.out + output.err + str(failure.value)
+    for private_part in [fake_url, "fixture-user", "fixture-value", "database.invalid"]:
+        assert private_part not in diagnostic
