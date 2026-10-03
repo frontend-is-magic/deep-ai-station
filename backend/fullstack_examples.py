@@ -1139,7 +1139,7 @@ FULLSTACK_EXAMPLES = {
         		return
         	}
         	w.Header().Set("Content-Type", "application/json")
-        \tjson.NewEncoder(w).Encode(map[string]any{"status": "ok", "model_configured": os.Getenv("DEEPSEEK_API_KEY") != ""})
+            json.NewEncoder(w).Encode(map[string]any{"status": "ok", "model_configured": os.Getenv("DEEPSEEK_API_KEY") != ""})
         }
 
         // api/health.go 按 Go 函数入口组织；部署后验证 API 与前端。
