@@ -29,7 +29,9 @@ def test_course_completion_and_notes_survive_refresh(page):
     complete = page.get_by_role("button", name="标记本课完成", exact=True)
     expect(complete).to_be_disabled()
     page.get_by_role("radio").nth(1).check()
-    for checkbox in page.get_by_role("checkbox").all():
+    for checkbox in (
+        page.get_by_role("region", name="本课验收", exact=True).get_by_role("checkbox").all()
+    ):
         checkbox.check()
     page.get_by_label("课程笔记").fill("循环必须有停止条件")
     complete.click()
@@ -130,7 +132,7 @@ def test_agent_capstone_download_contains_its_own_evidence_and_locked_project(pa
 def test_inline_lesson_language_comparison_keeps_notes_and_checkpoint(page):
     goto(page, "/lesson/fullstack-http")
     page.get_by_label("课程笔记").fill("相同 API 契约，不同框架")
-    page.get_by_role("checkbox").first.check()
+    page.get_by_role("region", name="本课验收", exact=True).get_by_role("checkbox").first.check()
     page.get_by_role("radio").first.check()
     for name, source in [
         ("Python", "from fastapi"),
@@ -140,7 +142,9 @@ def test_inline_lesson_language_comparison_keeps_notes_and_checkpoint(page):
         page.get_by_role("button", name=name, exact=True).click()
         expect(page.locator(".code-block")).to_contain_text(source)
         expect(page.get_by_label("课程笔记")).to_have_value("相同 API 契约，不同框架")
-        expect(page.get_by_role("checkbox").first).to_be_checked()
+        expect(
+            page.get_by_role("region", name="本课验收", exact=True).get_by_role("checkbox").first
+        ).to_be_checked()
         expect(page.get_by_role("radio").first).to_be_checked()
     page.reload()
     expect(page.get_by_role("button", name="Go", exact=True)).to_have_attribute(

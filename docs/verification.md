@@ -2,13 +2,20 @@
 
 本文件记录实际执行证据，未完成事项保留真实状态。
 
+## 2026-10-03 / 语言实践与共同课程进度分离
+
+- 48课新增独立实践记录：全栈分别记录 TypeScript / Go / Python，Agent 固定 Python。学习者需单独确认成功/失败样例才可记录，切课时或语言清除未提交确认；保存首次时间并可撤销。课程完成、笔记、测验、证据与运行历史均保留原语义，下载或保存证据不自动生成实践记录。
+- 可选 `practice` 数组随 version 1 JSON 备份保存；旧备份无字段则实践为空，不推断历史语言。最多256条，严格检查课程/语言组合、规范ISO时间、额外字段、重复、稀疏数组与容量；无效导入整份拒绝，现有数据不变。路线页只统计当前课程集合，按语言显示实践数量，不增加原课程完成百分比。设置明确导入整体替换及清空范围。
+- 平台69项Vitest、TypeScript、Prettier与生产构建通过，其中新增39项数据/备份边界测试。首次全量headless为42通过、1失败：新测试在375px没有先打开导航；修正测试后发现设置关闭时导航遮罩仍留在课时页，现进入设置时即关闭移动导航。最终5条新增流程全部通过，覆盖旧v1不迁移、语言/课时隔离、刷新/撤销、路线0/24与1/24、Agent仅Python、真实JSON下载→新浏览器context导入、重复记录拒绝、共同完成/ZIP/证据不自动记录以及375px。
+- headless截屏复核未记录、Go已记录及路线计数的375px面板，显示与按钮完整。自有测试context与5175监听已关闭，原749c9a0待验收预览8000/5173保持不变。未调用模型或沙箱；原生Browser与Production状态仍以独立验收回执为准。
+
 ## 2026-10-03 / 三语言可运行 API 课程实验
 
 - “路由与依赖注入”和“输入校验”两课新增 Python / FastAPI、TypeScript / Hono、Go / Gin 独立实验下载，保留原有参考片段 ZIP。实验包含固定资料、路由 → 服务 → 可注入 Repository、共同输入/响应契约、冻结依赖、启动入口、测试、包内格式配置和证据模板。
 - 共享 37 个 HTTP 案例覆盖正常/空结果/不存在、媒体类型、严格字段/类型、JSON/UTF-8/Unicode、实际字节与字符限制。审查发现各语言默认 Unicode 空白、孤立代理码点及大小写处理不同，现统一明确契约，ASCII 英文大小写匹配而其他码点保持原样；Content-Type 参数不影响媒体类型匹配，JSON 始终严格 UTF-8。
 - `scripts/verify_course_labs.py` 在仓库外解包三个最终 ZIP，分别冻结安装，Python 71 项测试、TypeScript 49 项测试、Go 12 个顶层测试组通过；逐个实际启动 HTTP 服务，各通过 37 个共同案例，自有进程和临时端口全部释放，模型调用为 0。初轮验证暴露环境代理误接管回环请求，以及连续服务复用端口的 TIME_WAIT 冲突；脚本改为回环专用无代理请求及系统分配临时端口，最终三语言连续运行通过。
 - 平台 `pnpm check` 通过 30 项 Vitest、Prettier、类型和生产构建；Ruff 与 ZIP 重建一致性通过。新增 3 条 headless 流程通过，实际下载两课各三种语言的 6 个实验 ZIP 和 6 个原练习包，核对源码字节、锁文件、独立配置、共同契约与 manifest；语言切换保留笔记和选择，刷新保留语言，375px 无横向溢出，页面错误为 0。自有 Vite 5175 已关闭，既有 749c9a0 的 8000 / 5173 待验收预览未改动。
-- GitHub CI 增加三语言独立实验任务，Vercel Python Function 排除实验源文件/依赖，仅静态发布 ZIP。提交前检查 177 个 index blob、178 个工作区文件及 ZIP 成员，未命中敏感文件规则。原生 Browser 验收与发布尚待具体回执，以上本地/headless 证据不代表已上线。
+- GitHub CI 增加三语言独立实验任务，Vercel Python Function 排除实验源文件/依赖，仅静态发布 ZIP。提交前检查 177 个 index blob、178 个工作区文件及 ZIP 成员，未命中敏感文件规则。课程实验提交 `51b1fa02c9365dd30b5051c2d0b39b85380ad4e8` 的 [完整 CI](https://github.com/frontend-is-magic/deep-ai-station/actions/runs/37131675130) 与 Vercel Preview deployment `6829168995` 已成功；未登录健康检查为302部署保护，未绕过。原生 Browser 与 Production 仍待验收。
 
 ## 2026-10-03 / 免费检索评测工作台
 
@@ -19,7 +26,7 @@
 
 ## 2026-10-03 / 独立毕业项目与下载包配置
 
-- 云端支线“Deep AI Research Assistant｜云端毕业项目”已经启动，独立公开仓库为 [deep-ai-research-assistant](https://github.com/frontend-is-magic/deep-ai-research-assistant)。由 Agent 毕业骨架初始化，按 main / develop 开发版本化资料、私有研究记录持久化、报告导出与评测；首轮增量已进入 [草稿 PR #1](https://github.com/frontend-is-magic/deep-ai-research-assistant/pull/1)，包含版本化资料、身份隔离研究记录、SQLite 恢复与报告导出。develop `0191fac818cbc26e549f1879a1f74ccac40a6f92` 的 [CI](https://github.com/frontend-is-magic/deep-ai-research-assistant/actions/runs/37130899113) 成功；主线独立审查随后复现旧身份延迟列表响应在重新登录后回填的隐私竞态，已交回云端修复，暂不合并或发布。
+- 云端支线“Deep AI Research Assistant｜云端毕业项目”已经启动，独立公开仓库为 [deep-ai-research-assistant](https://github.com/frontend-is-magic/deep-ai-research-assistant)。由 Agent 毕业骨架初始化，按 main / develop 开发版本化资料、私有研究记录持久化、报告导出与评测；首轮增量已进入 [草稿 PR #1](https://github.com/frontend-is-magic/deep-ai-research-assistant/pull/1)，包含版本化资料、身份隔离研究记录、SQLite 恢复与报告导出。develop `0191fac818cbc26e549f1879a1f74ccac40a6f92` 的 [CI](https://github.com/frontend-is-magic/deep-ai-research-assistant/actions/runs/37130899113) 成功；主线独立审查随后复现旧身份迟到响应回填与首次种子中断后1/5篇不补齐两处缺陷。修复 `bb7913bebdf0156e39fa563f3239d1853ea8a7e2` 的 [PR CI](https://github.com/frontend-is-magic/deep-ai-research-assistant/actions/runs/37132384660) 成功；独立headless先重现旧版，再验证延迟fetch/JSON与取消失效的4种组合，旧响应实际交付仍不串入新身份。SQLite从1/5补齐5/5，维护者v2及历史逐字保留，重启3次稳定，新存储测试3项通过。当前继续开发Vercel持久化运行形态；main未合并，原生Browser、生产与真实模型尚未验收。
 - 独立仓库初始化验证后端与敏感检查共 43 项，Node 24 前端构建和响应契约 13 项通过；提交 `533291b025a53a703384976b2f3605641399a52d` 的 [develop CI](https://github.com/frontend-is-magic/deep-ai-research-assistant/actions/runs/37129318858) 与 [main CI](https://github.com/frontend-is-magic/deep-ai-research-assistant/actions/runs/37129315632) 均成功。没有调用真实模型、沙箱或使用重置卡。
 - 独立 CI 暴露原毕业 ZIP 缺少 Prettier 配置。四份 ZIP 现均包含根 `.prettierrc.json`，原有成员字节保持不变。新增 `scripts/check_starter_archives.py` 在平台目录之外解包，核对实际解析到包内配置并检查四份前端及 TS 后端，已通过 5 组格式检查；临时移除包内配置的回归实验正确拒绝。
 - 下载包重建一致性、修改脚本 Ruff、CI YAML 格式与 diff 检查通过。对应平台远端 CI 与发布状态需以该修复提交的回执为准；这次配置打包修复不包含新的交互功能验收。

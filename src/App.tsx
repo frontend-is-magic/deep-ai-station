@@ -179,6 +179,7 @@ export default function App() {
             className="nav-item"
             onClick={() => {
               setNotice('');
+              setMenu(false);
               setSettings(true);
             }}
           >
@@ -306,7 +307,7 @@ export default function App() {
         open={settings}
         onOpenChange={setSettings}
         title="你的学习空间"
-        description="进度、笔记、收藏与最近 20 次运行记录保存在当前浏览器，可导出备份。"
+        description="课程进度、语言实践、笔记、收藏与最近 20 次运行记录保存在当前浏览器，可导出备份。"
       >
         <div className="settings-content">
           <div className="info-box">
@@ -316,6 +317,9 @@ export default function App() {
             已完成 {progress.completed.filter((id) => lessons.some((l) => l.id === id)).length} 节课
             · 已收藏 {progress.bookmarks.length} 条资料
           </p>
+          <p id="import-description" className="text-sm text-muted-foreground">
+            导入会替换当前全部学习记录，建议先导出备份。旧备份没有语言实践记录，导入后该部分为空；课程完成不会自动证明各语言都已实践。
+          </p>
           <div className="flex flex-wrap gap-3">
             <Button onClick={exportProgress}>导出学习记录</Button>
             <label className="import-label">
@@ -323,6 +327,7 @@ export default function App() {
               <input
                 type="file"
                 accept=".json,application/json"
+                aria-describedby="import-description"
                 onChange={(e) => {
                   void importProgress(e.target.files?.[0]);
                   e.target.value = '';
@@ -333,7 +338,7 @@ export default function App() {
           <details>
             <summary>清空当前设备记录</summary>
             <p className="text-sm text-muted-foreground my-3">
-              清空会删除当前浏览器中的进度、笔记、收藏和运行历史。建议先导出备份。
+              清空会删除当前浏览器中的课程进度、语言实践、证据、笔记、收藏和运行历史。建议先导出备份。
             </p>
             <Button
               variant="outline"

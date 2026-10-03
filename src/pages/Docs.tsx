@@ -21,6 +21,10 @@ export default function Docs() {
             学习路径是：阅读原理 → 实践步骤 → 检查理解 → 验收确认 →
             保存笔记与进度。课程不会强制锁定顺序。
           </p>
+          <p>
+            课程完成与语言实践分别记录。全栈按 TypeScript、Go、Python 独立确认，Agent 使用
+            Python；语言实践由你自行确认成功与失败样例，旧记录不会自动视为三种语言都已实践。
+          </p>
         </section>
         <section>
           <ShieldCheck size={24} />

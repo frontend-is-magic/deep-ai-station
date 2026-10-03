@@ -29,6 +29,13 @@ export default function Roadmap({ tracks }: { tracks: Track[] }) {
       </div>
     );
   const done = track.lessons.filter((x) => progress.completed.includes(x.id)).length;
+  const knownLessons = new Set(track.lessons.map((lesson) => lesson.id));
+  const practiceCounts = track.languages.map((language) => ({
+    language,
+    count: (progress.practice ?? []).filter(
+      (record) => record.language === language && knownLessons.has(record.lesson_id),
+    ).length,
+  }));
   const next = track.lessons.find((x) => !progress.completed.includes(x.id)) || track.lessons[0];
   return (
     <div className="page">
@@ -79,6 +86,25 @@ export default function Roadmap({ tracks }: { tracks: Track[] }) {
           </div>
         </div>
       )}
+      <section
+        aria-label="路线实践记录"
+        className="mb-8 rounded-xl border border-slate-200 bg-white p-5"
+      >
+        <h2 className="text-base font-semibold">各语言实践进度</h2>
+        <p className="mt-1 text-sm text-slate-600">
+          在课时页分别确认实际实践。这里按语言统计自行记录的结果，与上方课程完成数独立。
+        </p>
+        <ul className="mt-4 grid list-none gap-3 sm:grid-cols-3">
+          {practiceCounts.map(({ language, count }) => (
+            <li key={language} className="rounded-lg bg-slate-50 px-4 py-3">
+              <strong className="text-sm">{languageNames[language]}</strong>
+              <p className="mt-1 text-sm text-slate-600">
+                {count}/{track.lessons.length} 节已记录实践
+              </p>
+            </li>
+          ))}
+        </ul>
+      </section>
       <div className="roadmap-stages">
         {track.stages.map((stage) => {
           const isCollapsed = collapsed.includes(stage.id);

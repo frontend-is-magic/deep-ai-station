@@ -18,6 +18,7 @@ import type { Track } from '@/lib/types';
 import { languageNames } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import EvidenceCard from '@/components/EvidenceCard';
+import LanguagePractice from '@/components/LanguagePractice';
 
 export default function LessonPage({ tracks }: { tracks: Track[] }) {
   const { lessonId } = useParams();
@@ -302,7 +303,7 @@ export default function LessonPage({ tracks }: { tracks: Track[] }) {
           </div>
         </article>
         <aside className="lesson-aside">
-          <div className="lesson-checklist">
+          <section aria-label="本课验收" className="lesson-checklist">
             <p className="eyebrow">YOUR CHECKPOINT</p>
             <h3>本课验收</h3>
             <p>完成实践后逐项确认，再保存学习进度。</p>
@@ -335,7 +336,13 @@ export default function LessonPage({ tracks }: { tracks: Track[] }) {
               {completed ? '取消完成标记' : '标记本课完成'}
             </Button>
             {!completed && !ready && <small>通过测验并确认全部验收项后可完成。</small>}
-          </div>
+          </section>
+          <LanguagePractice
+            key={`${lesson.id}:${language}`}
+            lessonId={lesson.id}
+            language={language}
+            languages={track.id === 'agent' ? ['python'] : track.languages}
+          />
           <div className="notes-box">
             <h3>我的思考</h3>
             <p>记录你的理解、问题和实验结果。</p>

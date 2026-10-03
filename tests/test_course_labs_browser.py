@@ -112,7 +112,7 @@ def test_course_lab_downloads_follow_language_and_preserve_reference_bundle(page
     expect(lab(page)).to_contain_text("成功/失败测试")
     note = f"{lesson_id}：比较同一输入在三个 HTTP 服务中的实际响应"
     page.get_by_label("课程笔记", exact=True).fill(note)
-    page.get_by_role("checkbox").first.check()
+    page.get_by_role("region", name="本课验收", exact=True).get_by_role("checkbox").first.check()
     page.get_by_role("radio").first.check()
     page.set_viewport_size({"width": 375, "height": 812})
     for label, language, required, reference in LANGUAGES:
@@ -129,7 +129,9 @@ def test_course_lab_downloads_follow_language_and_preserve_reference_bundle(page
         assert_standalone_archive(download.value.path(), language, required, lesson_id)
         assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
         expect(page.get_by_label("课程笔记", exact=True)).to_have_value(note)
-        expect(page.get_by_role("checkbox").first).to_be_checked()
+        expect(
+            page.get_by_role("region", name="本课验收", exact=True).get_by_role("checkbox").first
+        ).to_be_checked()
         expect(page.get_by_role("radio").first).to_be_checked()
         old_bundle = page.get_by_role("link", name="下载本课练习资料", exact=True)
         expect(old_bundle).to_have_attribute(
