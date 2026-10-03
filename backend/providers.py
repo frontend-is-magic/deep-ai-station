@@ -4,6 +4,8 @@ from typing import Literal
 import httpx
 from fastapi import HTTPException
 
+from backend.sandbox import sandbox_capabilities
+
 Provider = Literal["demo", "openai", "anthropic", "deepseek"]
 PROVIDERS = {
     "openai": {
@@ -43,6 +45,7 @@ def capabilities() -> dict:
             for name, config in PROVIDERS.items()
         ],
         "code_execution": "static-check",
+        "sandbox": sandbox_capabilities(),
         "live_requires_access_token": True,
     }
 

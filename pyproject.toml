@@ -3,7 +3,13 @@ name = "deep-ai-station"
 version = "0.1.0"
 description = "AI engineering learning API"
 requires-python = ">=3.12,<3.13"
-dependencies = ["fastapi>=0.135,<0.136", "uvicorn>=0.41,<0.42", "httpx>=0.28,<0.29", "defusedxml>=0.7,<0.8"]
+dependencies = [
+    "fastapi>=0.135,<0.136",
+    "uvicorn>=0.41,<0.42",
+    "httpx>=0.28,<0.29",
+    "defusedxml>=0.7,<0.8",
+    "e2b-code-interpreter>=2.4,<3",
+]
 
 [dependency-groups]
 dev = [

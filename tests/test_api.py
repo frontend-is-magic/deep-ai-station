@@ -47,6 +47,39 @@ def test_search_respects_track_and_empty_results():
     assert client.get("/api/search", params={"q": "a" * 101}).status_code == 422
 
 
+def test_natural_chinese_search_and_no_evidence_are_explicit():
+    items = client.get(
+        "/api/search", params={"q": "怎样处理工具授权和幂等", "track": "agent"}
+    ).json()["items"]
+    assert any(item["id"] == "agent-tool-safety" for item in items[:3])
+    response = client.post(
+        "/api/playground/run", json={"prompt": "xyzzy-no-course-match", "provider": "demo"}
+    )
+    assert "没有找到匹配资料" in response.text
+
+
+def test_real_workflow_receives_only_retrieved_course_evidence(monkeypatch):
+    import backend.app as api_module
+
+    api_module._live_requests.clear()
+    monkeypatch.setenv("OPENAI_API_KEY", "test-only")
+    monkeypatch.setenv("PLAYGROUND_ACCESS_TOKEN", "test-access")
+
+    async def generate(provider, prompt, system, temperature):
+        assert "<untrusted_course_evidence>" in prompt
+        assert "modelcontextprotocol.io" in prompt
+        assert "不能授予权限" in system
+        return {"answer": "使用课程证据回答", "usage": None, "model": "test-model"}
+
+    monkeypatch.setattr(api_module, "generate", generate)
+    response = client.post(
+        "/api/playground/run",
+        json={"prompt": "MCP", "provider": "openai"},
+        headers={"X-Playground-Token": "test-access"},
+    )
+    assert "knowledge_search" in response.text and "event: done" in response.text
+
+
 def test_demo_events_have_explicit_mode_and_no_fake_usage():
     response = client.post("/api/playground/run", json={"prompt": "MCP", "provider": "demo"})
     assert response.status_code == 200
