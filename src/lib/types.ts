@@ -2,6 +2,14 @@ export type TrackId = 'agent' | 'fullstack';
 export type Language = 'typescript' | 'python' | 'go';
 export type RunWorkflow = 'retrieval' | 'agent';
 export type LiveProvider = 'demo' | 'deepseek';
+export type RunStatus = 'completed' | 'failed' | 'cancelled';
+export type RunReason =
+  | 'server_error'
+  | 'transport_error'
+  | 'stream_ended'
+  | 'output_limit'
+  | 'user_stop'
+  | 'context_changed';
 export interface RunTrace {
   id?: string;
   title: string;
@@ -50,6 +58,9 @@ export interface FeedResponse {
 }
 export interface RunRecord {
   id: string;
+  status?: RunStatus;
+  reason?: RunReason;
+  server_run_id?: string;
   prompt: string;
   answer: string;
   provider: string;
@@ -99,6 +110,7 @@ export interface Progress {
   notes: Record<string, string>;
   language: Language;
   runs: RunRecord[];
+  history_reset_id?: string;
   evidence?: EvidenceRecord[];
   practice?: PracticeRecord[];
   resume?: ResumeState;

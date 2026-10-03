@@ -4,6 +4,9 @@ import { validEvidenceRecords } from './evidence';
 import { validPracticeRecords } from './practice';
 import { validQuizReviewRecords } from './quiz-review';
 import { validResume } from './resume';
+import { validHistoryResetId, validRunRecord } from './run-history';
+
+export { readRunUsage, validRunRecord } from './run-history';
 
 export const emptyProgress: Progress = {
   version: 1,
@@ -75,6 +78,7 @@ export function validateProgress(value: unknown): value is Progress {
         'notes',
         'language',
         'runs',
+        'history_reset_id',
         'evidence',
         'practice',
         'resume',
@@ -82,6 +86,7 @@ export function validateProgress(value: unknown): value is Progress {
       ].includes(key),
     ) &&
     p.version === 1 &&
+    (p.history_reset_id === undefined || validHistoryResetId(p.history_reset_id)) &&
     (p.evidence === undefined || validEvidenceRecords(p.evidence)) &&
     (p.practice === undefined || validPracticeRecords(p.practice)) &&
     (p.resume === undefined || validResume(p.resume)) &&
@@ -101,89 +106,10 @@ export function validateProgress(value: unknown): value is Progress {
     Object.values(p.notes).every((x) => typeof x === 'string' && x.length <= 10000) &&
     Array.isArray(p.runs) &&
     p.runs.length <= 20 &&
-    p.runs.every(
-      (x) =>
-        x &&
-        Object.keys(x).every((key) =>
-          [
-            'id',
-            'prompt',
-            'answer',
-            'provider',
-            'track',
-            'lesson_id',
-            'workflow',
-            'trace',
-            'usage',
-            'usage_complete',
-            'steps',
-            'tool_count',
-            'date',
-            'duration_ms',
-          ].includes(key),
-        ) &&
-        typeof x.id === 'string' &&
-        typeof x.prompt === 'string' &&
-        x.prompt.length <= 4000 &&
-        typeof x.answer === 'string' &&
-        x.answer.length <= 50000 &&
-        ['agent', 'fullstack'].includes(x.track) &&
-        (x.lesson_id === undefined ||
-          (typeof x.lesson_id === 'string' &&
-            x.lesson_id.length <= 100 &&
-            x.lesson_id.startsWith(`${x.track}-`) &&
-            /^[a-z0-9-]+$/.test(x.lesson_id))) &&
-        (x.workflow === undefined || ['retrieval', 'agent'].includes(x.workflow)) &&
-        (x.usage === undefined || x.usage === null || validRunUsage(x.usage)) &&
-        (x.usage_complete === undefined || typeof x.usage_complete === 'boolean') &&
-        (x.steps === undefined || (Number.isInteger(x.steps) && x.steps >= 1 && x.steps <= 3)) &&
-        (x.tool_count === undefined ||
-          (Number.isInteger(x.tool_count) && x.tool_count >= 0 && x.tool_count <= 2)) &&
-        (x.trace === undefined ||
-          (Array.isArray(x.trace) &&
-            x.trace.length <= 12 &&
-            x.trace.every(
-              (step) =>
-                step &&
-                Object.keys(step).every((key) =>
-                  ['id', 'title', 'detail', 'status'].includes(key),
-                ) &&
-                boundedText(step.title, 100) &&
-                boundedText(step.detail, 500) &&
-                ['running', 'success', 'error'].includes(step.status) &&
-                (step.id === undefined || boundedText(step.id, 100)),
-            ))) &&
-        typeof x.provider === 'string' &&
-        typeof x.date === 'string' &&
-        Number.isFinite(Date.parse(x.date)) &&
-        Number.isFinite(x.duration_ms),
-    )
+    p.runs.every(validRunRecord)
   );
 }
-const usageFields = new Set([
-  'prompt_tokens',
-  'completion_tokens',
-  'total_tokens',
-  'input_tokens',
-  'output_tokens',
-  'cache_creation_input_tokens',
-  'cache_read_input_tokens',
-]);
-function validRunUsage(value: unknown): value is Record<string, number> {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    !Array.isArray(value) &&
-    Object.keys(value).length > 0 &&
-    Object.entries(value).every(
-      ([key, count]) =>
-        usageFields.has(key) && Number.isInteger(count) && count >= 0 && count <= 300_000_000,
-    )
-  );
-}
-export function readRunUsage(value: unknown): Record<string, number> | null {
-  return validRunUsage(value) ? value : null;
-}
+
 const PROGRESS_STORAGE_KEY = 'deep-ai-station:v1';
 const storage = createJSONStorage<Progress>(() => localStorage);
 let storageIssue: string | null = null;
