@@ -11,4 +11,4 @@
 - `pnpm check`；`uv run ruff check backend api tests scripts`；`uv run ruff format --check backend api tests scripts`；`uv run pytest -m 'not e2e'`。浏览器测试用 `uv run python scripts/run_e2e.py` 管理自有服务器；本机 uv 路径见 README。
 - 用户代码不得在应用主机执行；Playground 的静态检查和教学演示必须明确标识，真实执行只用隔离沙箱。
 - 人工事项集中到单独的“人工处理”对话；其他工作持续推进。禁止使用重置卡。
-- 架构、运行和验收详情见 [docs/architecture.md](docs/architecture.md)、[README.md](README.md)。
+- 架构与验收见 [docs/architecture.md](docs/architecture.md)、[README.md](README.md)；毕业骨架见 [starters/README.md](starters/README.md)。

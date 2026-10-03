@@ -6,6 +6,7 @@ AI Agent 与 AI 全栈工程的学习空间，连接路线、官方信息源和�
 - 96 份逐课参考代码及可下载练习包，包含实践目标、验收条件和证据记录模板。
 - 本课导师绑定课程目标与验收项，完整实验可追加到本课笔记；历史记录保留课程归属，教学回答不自动完成验收。
 - 全栈路线支持 TypeScript / Hono、Go / Gin、Python / FastAPI 参考实现。
+- 全栈毕业课可下载三套完整项目骨架，共用 React 前端与接口契约，包含对应后端、依赖锁文件、固定资料、测试和验收模板；默认演示不调用模型。
 - 官方 RSS / Atom 信息流、明确来源状态、筛选与收藏。
 - 课程检索与有界 Agent 循环两种工作流，支持 OpenAI / Anthropic / DeepSeek 原生流式工具调用、可观察轨迹、停止与历史恢复；演示模式明确标为预设流程。
 - 代码实验支持静态检查，以及配置后的 E2B 隔离运行。Python/TS 使用独立 Code Interpreter，Go 使用预装编译器的受信模板；未配置时明确禁用运行。
@@ -60,6 +61,8 @@ uv run python -m scripts.compile_go_examples
 浏览器验收使用 Codex 内置 Browser。自动化测试只使用 headless Chromium。
 
 课程验证覆盖 48 份 Python AST、24 份 TypeScript 严格类型检查（含锁定的 Hono 依赖）、24 份 Go 编译（含锁定的 Gin module）。Go 检查使用 `go test -c -mod=readonly`，只编译维护者提供的参考，不运行程序或测试；这仍不代替业务行为验收。
+
+完整毕业骨架的启动与校验见 [starters/README.md](starters/README.md)。它们使用共用的固定契约案例，并单独验证 React 到三个后端的演示请求；维护者脚本不接受学习者代码。真实 OpenAI adapter 仅经过 mock 验证，账号、上传、数据库和生产发布仍是后续实践任务。
 
 ## 交付约定
 

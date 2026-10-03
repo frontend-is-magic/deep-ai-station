@@ -2,6 +2,17 @@
 
 本文件记录实际执行证据，未完成事项保留真实状态。
 
+## 2026-10-03 / 多语言完整毕业骨架
+
+- 全栈毕业阶段已提供 React + FastAPI / Hono / Gin 三套完整项目 ZIP，含源码、锁文件、固定公开资料、共同契约、测试、AGENTS、.gitignore 和证据模板。`scripts/build_starters.py --check` 验证共享 fixture 与三个下载包逐字节一致；构建只打包固定文件白名单。
+- 实际依赖：Node 24 / pnpm 10.32.1、React 19.3.0、Jotai 2.20.3、Tailwind 4.3.3、TypeScript 5.9.3、Vite 7.3.6；Python 3.12 / FastAPI 0.135.4 / httpx 0.28.1；Hono 4.13.12 / @hono/node-server 2.1.3；Go 1.27.1 / Gin 1.12.0。各项目提交对应锁文件。
+- 共用前端 `pnpm --dir starters/frontend check` 通过格式、类型和生产构建。Python 骨架 24 项 pytest、TypeScript 骨架 18 项 Node 测试、Go 骨架 8 组测试（含 14 个共同契约子案例）通过；包含无证据、非法输入、访问码、真实请求 mock、限流、截断/过大响应、取消与连接清理，以及 Go panic 的固定错误和请求头脱敏。
+- `scripts/run_starter_e2e.py` 实际启动固定维护者代码，headless 验证同一 React 前端分别连接 FastAPI、Hono、Gin。三条链路验证演示引用、无证据不调用模型、真实模式未配置时拒绝、375px 无溢出、刷新清空会话历史。脚本以不含模型密钥的环境运行，结束后已确认自有 8010 / 5174 端口释放；既有 8000 / 5173 预览继续保留。
+- 平台 `pnpm check` 通过 18 项 Vitest、类型与生产构建；93 项非浏览器 pytest、Ruff 格式和静态检查通过。24 条 headless 用户流程全部通过，新增按所选语言下载实际 ZIP 并检查后端入口、锁文件与无开发产物。
+- GitHub CI 已加入三个骨架的冻结安装、各自校验、ZIP 一致性与 React → API 验证。平台 Vitest 限定 `tests/`；骨架 Node 测试由独立任务运行，避免误将 Node 测试或编译产物作为 Vitest 测试。
+- Vercel Python Function 排除骨架源码与开发依赖，下载 ZIP 随静态前端产物发布。真实 OpenAI 调用仅以 mock 验证；账号、上传、数据库、跨实例预算与生产部署仍是毕业实践任务。当前未产生模型或沙箱费用，未使用重置卡。
+- 本轮使用 headless 验证，没有恢复已释放的桌面控制。Vercel 发布、真实供应商和真实 E2B 验收仍等待已有独立人工配置对话；下方内置 Browser 核心验收证据保持原状态。
+
 ## 2026-10-03 / 有界课程 Agent
 
 - `pnpm check` 通过：18 项 Vitest、TypeScript 与生产构建；Playground 继续独立懒加载。

@@ -29,6 +29,8 @@ React 界面统一使用 TypeScript；Go/Python 对应服务契约与工程机�
 
 CI 对 48 份 Python 参考做 AST 校验，对 24 份 TS 参考做严格类型检查，对 24 份 Go 参考做只编译验证。Hono 4.13.12 固定在前端开发依赖，Gin v1.12.0 及其间接依赖固定在 `scripts/go-reference/go.mod` / `go.sum`；Go 使用 `test -c -mod=readonly`，不执行参考程序、测试或学习者输入。类型与编译通过不能代替运行与业务验收。
 
+全栈毕业阶段额外提供三个可运行的 [完整项目骨架](../starters/README.md)。它们共用 React / Tailwind / Jotai / Radix 前端和 14 组接口案例，分别连接 FastAPI、Hono 或 Gin；固定公开资料集与只读检索不接受上传或任意外部 URL。默认演示无模型调用，真实模式只使用服务端 OpenAI adapter；账号、数据库、上传与生产发布留给毕业实践。只把固定文件白名单打入可复现 ZIP，并由 CI 比对源码与下载包、运行后端契约与 headless React → API 链路。平台 API 不启动这些项目或执行学习者修改。
+
 实时收藏保存来源、标题与摘要快照，订阅源失效后仍可回看；新收藏上限 200 条。旧版只含 ID 的记录仍兼容，重新收藏可补齐快照。资讯标识由稳定 URL 的摘要生成，源排序变化不会重复收藏。
 
 信息流精选资料不伪造发布日期。订阅源固定为 OpenAI、LangChain、Hugging Face Blog、TypeScript、Go 与 Python；Hugging Face Blog 包含机构与社区作者的原文。请求不跟随任意重定向，内容上限 1 MB，XML 用 defusedxml 解析，文章 URL 必须属于对应来源域名。成功缓存 5 分钟，失败等待 1 分钟再尝试；源失效时保留已有内容，并明确标识保留缓存，界面从响应读取实际来源数量。
