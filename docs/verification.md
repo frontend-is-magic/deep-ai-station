@@ -1,5 +1,15 @@
 # 验证记录
 
+## 2026-10-04 / 持久检查点与重启恢复实验
+
+- `agent-state-machine` 增加独立 Python / SQLite 实验和证据卡；十二节实验课共 18 个 ZIP、30 种课时/语言组合，连同毕业课共 42 种，沿用 48 条共享容量与 v1 备份。主平台只提供固定下载，不执行学习者修改后的代码。
+- 三个纯计算节点检索 / 起草 / 引用校验复用毕业骨架五份公开资料和有证据 / 无证据 / 合成冲突场景；每节点用短 `BEGIN IMMEDIATE` 同时提交输出、哈希链和运行 revision。CLI 显式 CAS，竞争即拒绝；已完成运行以当前 revision 回读原结果，恢复仍重新校验保存内容，performed 仅记录本次已确认提交。
+- Python 3.12 冻结安装、76 项原生 pytest 与 Ruff 检查 / 格式通过。独立 ZIP 解包后再次通过 76 项，并以 29 个黑盒场景、95 个真实 CLI 子进程核对：三个节点提交前后退出、新进程 inspect 与独立 SQL、持锁及非空 journal 后真实 SIGKILL、同 revision 两进程一胜一冲突、500ms 锁超时、终态不重写。全部自有子进程均 wait/reap 并逐 PID 确认不存在。
+- 独立审查先复现 JSON `1e999` 溢出及 SQLite 非法 UTF-8 TEXT 错误分类，分别在 JSON 编码校验和严格 text_factory 边界修复为 checkpoint_invalid；未知版本、损坏链、重算哈希但语义错误、未读引用与非法 TEXT 均拒绝且不改坏记录。COMMIT 确认异常保留 result_unconfirmed；真实 stdout 管道关闭无堆栈，新进程可查已提交状态。SQLite 自身 hot-journal 恢复不等于应用修复，哈希不提供数据库所有者认证。
+- 6 项验证器自测通过：成功标志或管道 EOF 不能代替进程退出，超限 / 歧义 JSON 与错误 PID 拒绝，不合作 helper 必须实际 SIGKILL 并回收。固定故障自行退出 70 / 71 / 72 与真实 SIGKILL 分别记录，没有把预设退出码当作提交证据。
+- 平台 `pnpm check` 通过 452 项 Vitest、Prettier、TypeScript 与生产构建；498 项非浏览器 pytest 通过，本地 41 项 PostgreSQL 专项明确跳过，75 个 Python 文件 Ruff 通过。三个 Agent 课的实际 ZIP / 原资料包下载、源码字节与证据保留流程通过；另 1 项桌面和 375px 视觉检查通过并查看截图，无横向溢出。自有 API8006 / Vite5175 与 headless 浏览器释放，冻结 primary749c9a0 和原8000 / 5173未动。
+- 最终 ZIP 32270 字节，与源码白名单和 dist 逐字节一致；全部18包重建核对通过。`.data/`、SQLite及sidecars进入忽略和发布扫描，两项真实Git与强制ZIP测试拒绝夹带运行报告；455个暂存/工作文件及ZIP敏感扫描通过。0真实模型、沙箱或外部副作用调用，未使用重置卡。原生Browser、托管配置、真实服务与Production仍在原人工对话；远端CI/Preview和Notion同步按精确提交回执另行记录。
+
 ## 2026-10-04 / MCP 只读协议独立实验
 
 - `agent-mcp` 增加固定 Python 下载和独立证据卡；十一节实验课共 17 个 ZIP、29 种课时/语言组合，含毕业课共 41 种，仍共用 48 条证据容量。原参考代码包、课程完成与语言实践状态保持独立。
@@ -9,6 +19,8 @@
 - 断连故障在实际 request/lifespan 清理之后终止专用进程；独立验收保持客户端 stdin 开放，实际观察 EOF 和退出，未收到终止帧时如实记录 false。该场景不代表完整 transport 优雅关闭；正常和超时使用 SDK 清理。独立验收器的 8 项自测验证错误/截断/超大输出、错误 ID/PID、无响应及取消未清理时不会虚报通过。
 - 平台 `pnpm check`：451 项 Vitest、Prettier、TypeScript 与生产构建通过；490 项非浏览器 pytest 通过，本地 41 项专用 PostgreSQL 测试跳过，交由真实数据库 CI 作业。73 个 Python 文件 Ruff 检查与格式通过。两个 Agent 课下载/旧资料包/证据保留，加一项桌面与 375px 视觉检查，共 3 条相关 headless 通过；自有 API 8006 / Vite 5175 已释放。
 - 本地 MCP 连接配置加入 `.gitignore` 和源码/ZIP 扫描；真实 Git 忽略与强制放入 ZIP 的回归验证会拒绝这些文件，不输出内容。平台不执行学习者代码；本轮 0 真实模型/沙箱调用。原生 Browser、托管配置、真实供应商与 Production 仍独立待验收；远端发布回执在 Notion 交付记录补齐。
+
+- 远端 `63b2eb1` 的 [完整 CI](https://github.com/frontend-is-magic/deep-ai-station/actions/runs/37157410379) 七项成功，质量作业实际确认 451 项 Vitest、490 项后端与 135 条完整 headless；独立 MCP 作业确认 49 项原生、37 次原始协议请求及四个 SDK 案例，真实 PostgreSQL 17.11 的 41 项通过。Preview `6833703892` 成功，正常 TLS 匿名健康请求 302；Notion 开发、交付和 Wiki 均写入回读验证，436 个文件及 ZIP 敏感扫描通过。新检查点实验另行迭代，不计入本版本交付。
 
 ## 2026-10-04 / Agent 工具审批与持久幂等实验
 
