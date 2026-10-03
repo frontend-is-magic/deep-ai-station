@@ -15,6 +15,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from backend.curriculum import LESSONS, TRACKS
 from backend.feed import get_feed
+from backend.middleware import RequestLimits
 from backend.providers import PROVIDERS, Provider, capabilities, generate
 
 app = FastAPI(
@@ -28,17 +29,7 @@ app.add_middleware(
 )
 
 
-@app.middleware("http")
-async def request_limits(request: Request, call_next):
-    length = request.headers.get("content-length")
-    if length and (not length.isdigit() or int(length) > 50_000):
-        from fastapi.responses import JSONResponse
-
-        return JSONResponse({"detail": "请求内容过大"}, status_code=413)
-    response = await call_next(request)
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["X-Request-ID"] = str(uuid4())
-    return response
+app.add_middleware(RequestLimits)
 
 
 @app.get("/api/health")

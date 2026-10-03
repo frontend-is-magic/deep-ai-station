@@ -2,6 +2,7 @@ import asyncio
 import time
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
+from hashlib import sha256
 from urllib.parse import urlparse
 
 import httpx
@@ -145,7 +146,7 @@ def parse_feed(xml: bytes, source: dict) -> list[dict]:
     entries = root.findall(".//item") or root.findall("a:entry", atom)
     result = []
     allowed_host = urlparse(source["home"]).hostname
-    for index, item in enumerate(entries[:8]):
+    for item in entries[:8]:
         title = item.findtext("title") or item.findtext("a:title", namespaces=atom)
         link = item.findtext("link")
         if not link:
@@ -173,7 +174,7 @@ def parse_feed(xml: bytes, source: dict) -> list[dict]:
                     pass
         result.append(
             {
-                "id": f"{source['id']}-{index}-{link}",
+                "id": f"{source['id']}-{sha256(link.encode()).hexdigest()[:24]}",
                 "title": title[:250],
                 "summary": "来自官方信息源，打开原文查看完整内容。",
                 "source": source["name"],

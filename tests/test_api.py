@@ -105,6 +105,17 @@ def test_request_size_limit():
     assert response.status_code == 413
 
 
+def test_chunked_body_cannot_bypass_byte_limit():
+    def chunks():
+        yield b"x" * 25_000
+        yield b"x" * 25_001
+
+    response = client.post("/api/playground/check", content=chunks())
+    assert response.status_code == 413
+    assert response.headers["x-content-type-options"] == "nosniff"
+    assert response.headers["x-request-id"]
+
+
 @pytest.mark.parametrize(
     ("language", "code", "passed"),
     [
@@ -133,6 +144,15 @@ def test_feed_parser_rejects_unsafe_links_and_handles_dates():
     xml = b"<rss><channel><item><title>Unsafe</title><link>javascript:alert(1)</link></item><item><title>Wrong host</title><link>https://evil.test/x</link></item><item><title>Good</title><link>https://go.dev/blog/x</link><pubDate>Fri, 02 Oct 2026 10:00:00 GMT</pubDate></item></channel></rss>"
     items = parse_feed(xml, source)
     assert len(items) == 1 and items[0]["published"].startswith("2026-10-02")
+
+
+def test_feed_article_identity_does_not_change_with_order():
+    source = {"id": "go", "name": "Go", "home": "https://go.dev/", "track": "fullstack"}
+    first = "<item><title>First</title><link>https://go.dev/blog/first</link></item>"
+    second = "<item><title>Second</title><link>https://go.dev/blog/second</link></item>"
+    before = parse_feed(f"<rss><channel>{first}{second}</channel></rss>".encode(), source)
+    after = parse_feed(f"<rss><channel>{second}{first}</channel></rss>".encode(), source)
+    assert {x["url"]: x["id"] for x in before} == {x["url"]: x["id"] for x in after}
 
 
 @pytest.mark.parametrize("provider", ["openai", "anthropic", "deepseek"])
