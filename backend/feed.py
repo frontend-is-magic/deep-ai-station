@@ -154,9 +154,20 @@ def parse_feed(xml: bytes, source: dict) -> list[dict]:
             link = next(
                 (x.get("href") for x in links if x.get("rel", "alternate") == "alternate"), None
             )
-        if not title or not link or urlparse(link).scheme != "https":
+        if not title or not link:
             continue
-        if urlparse(link).hostname != allowed_host:
+        try:
+            parsed = urlparse(link)
+            permitted = (
+                parsed.scheme == "https"
+                and parsed.hostname == allowed_host
+                and not parsed.username
+                and not parsed.password
+                and parsed.port in {None, 443}
+            )
+        except ValueError:
+            permitted = False
+        if not permitted:
             continue
         raw_date = (
             item.findtext("pubDate")

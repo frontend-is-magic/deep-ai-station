@@ -165,6 +165,17 @@ def test_public_real_calls_require_service_configuration_and_authorization(monke
     assert "test-access" not in json.dumps(data)
 
 
+def test_invalid_non_ascii_access_header_is_rejected_without_server_error(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "test-only")
+    monkeypatch.setenv("PLAYGROUND_ACCESS_TOKEN", "test-access")
+    response = client.post(
+        "/api/playground/run",
+        json={"prompt": "test", "provider": "openai"},
+        headers={"X-Playground-Token": b"\xff"},
+    )
+    assert response.status_code == 401
+
+
 def test_request_size_limit():
     response = client.post("/api/playground/check", content="x" * 50_001)
     assert response.status_code == 413
@@ -218,6 +229,20 @@ def test_feed_article_identity_does_not_change_with_order():
     before = parse_feed(f"<rss><channel>{first}{second}</channel></rss>".encode(), source)
     after = parse_feed(f"<rss><channel>{second}{first}</channel></rss>".encode(), source)
     assert {x["url"]: x["id"] for x in before} == {x["url"]: x["id"] for x in after}
+
+
+def test_feed_skips_authenticated_malformed_and_nonstandard_port_links():
+    source = {"id": "go", "name": "Go", "home": "https://go.dev/", "track": "fullstack"}
+    links = [
+        "https://user@go.dev/x",
+        "https://go.dev:abc/x",
+        "https://go.dev:22/x",
+        "https://[go.dev/x",
+        "https://go.dev/good",
+    ]
+    entries = "".join(f"<item><title>Article</title><link>{link}</link></item>" for link in links)
+    result = parse_feed(f"<rss><channel>{entries}</channel></rss>".encode(), source)
+    assert [item["url"] for item in result] == ["https://go.dev/good"]
 
 
 @pytest.mark.parametrize("provider", ["openai", "anthropic", "deepseek"])

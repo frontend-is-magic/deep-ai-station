@@ -100,7 +100,7 @@ _live_requests: dict[str, deque] = defaultdict(deque)
 
 def authorize_live(token: str | None):
     expected = os.getenv("PLAYGROUND_ACCESS_TOKEN")
-    if not expected or not token or not hmac.compare_digest(expected, token):
+    if not expected or not token or not hmac.compare_digest(expected.encode(), token.encode()):
         raise HTTPException(401, "真实模型调用需要有效的实验访问码")
     # One shared access code has a bounded in-process quota. Production multi-instance
     # budgets additionally require provider-side quotas or a shared rate-limit store.
