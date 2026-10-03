@@ -2,6 +2,8 @@
 
 from typing import Any
 
+from backend.quizzes import quiz_for
+
 AGENT_MODULES = [
     (
         "foundations",
@@ -626,16 +628,7 @@ def build_track(track_id: str, modules: list) -> dict[str, Any]:
                 "steps": steps,
                 "criteria": criteria,
                 "resources": [{"title": "官方文档", "url": source}],
-                "quiz": {
-                    "question": "完成这节课时，哪种交付最能证明掌握了目标？",
-                    "options": [
-                        "只阅读标题并标记完成",
-                        "实现实践步骤，验证成功与失败样例，并保留证据",
-                        "复制示例且不检查结果",
-                    ],
-                    "answer": 1,
-                    "explanation": "验收需要行为证据；运行结果、失败样例与明确边界比只阅读或复制更可靠。",
-                },
+                "quiz": quiz_for(slug, len(lessons)),
                 "snippets": {"python": AGENT_CODE} if track_id == "agent" else SNIPPETS,
             }
             lessons.append(lesson)

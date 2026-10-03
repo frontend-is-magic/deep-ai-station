@@ -18,6 +18,7 @@ def test_course_contract_and_python_examples():
     data = client.get("/api/curriculum").json()
     assert [t["id"] for t in data["tracks"]] == ["agent", "fullstack"]
     assert len(LESSONS) == 48
+    assert len({lesson["quiz"]["question"] for lesson in LESSONS.values()}) == 48
     assert len({lesson["id"] for track in TRACKS for lesson in track["lessons"]}) == 48
     for track in TRACKS:
         for stage in track["stages"]:
