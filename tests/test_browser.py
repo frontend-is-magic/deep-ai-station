@@ -136,6 +136,11 @@ def test_course_mentor_does_not_overwrite_a_full_note(page):
 
 @pytest.mark.parametrize("ending", ["done", "error", "truncated"])
 def test_real_stream_partial_failures_and_truncation_do_not_enter_history(page, ending):
+    image_requests = []
+    page.route(
+        "https://tracker.invalid/**",
+        lambda route: (image_requests.append(route.request.url), route.abort()),
+    )
     page.route(
         "**/api/capabilities",
         lambda route: route.fulfill(
@@ -152,7 +157,16 @@ def test_real_stream_partial_failures_and_truncation_do_not_enter_history(page, 
         assert route.request.headers["x-playground-token"] == "test-access"
         events = [
             ("start", {"run_id": "mock-stream-run"}),
-            ("delta", {"text": "流式测试文本"}),
+            (
+                "delta",
+                {
+                    "text": "流式测试文本\n\n1. 成功输入\n2. 失败输入\n\n- 验收条件\n\n"
+                    "![外部图片说明](https://tracker.invalid/image.png)\n\n"
+                    "[危险链接](javascript:alert(1))\n\n"
+                    "[凭据链接](https://private-value@example.com/page)\n\n"
+                    "[官方资料](https://docs.python.org/3/)\n\n<script>alert(1)</script>"
+                },
+            ),
             ("error", {"message": "模型响应不可用，请稍后重试"})
             if ending == "error"
             else ("done", {"duration_ms": 10, "usage": None, "truncated": ending == "truncated"}),
@@ -172,6 +186,26 @@ def test_real_stream_partial_failures_and_truncation_do_not_enter_history(page, 
     page.get_by_label("实验访问码").fill("test-access")
     page.get_by_role("button", name="运行实验", exact=True).click()
     expect(page.locator(".markdown-output")).to_contain_text("流式测试文本")
+    expect(page.locator(".markdown-output")).to_contain_text("外部图片说明")
+    assert page.locator(".markdown-output img, .markdown-output script").count() == 0
+    assert image_requests == []
+    assert page.get_by_role("link", name="危险链接", exact=True).count() == 0
+    assert page.get_by_role("link", name="凭据链接", exact=True).count() == 0
+    expect(page.get_by_role("link", name="官方资料", exact=True)).to_have_attribute(
+        "href", "https://docs.python.org/3/"
+    )
+    assert (
+        page.locator(".markdown-output ol").evaluate(
+            "element => getComputedStyle(element).listStyleType"
+        )
+        == "decimal"
+    )
+    assert (
+        page.locator(".markdown-output ul").evaluate(
+            "element => getComputedStyle(element).listStyleType"
+        )
+        == "disc"
+    )
     expect(page.get_by_role("button", name="运行实验", exact=True)).to_be_enabled()
     stored = json.loads(
         page.evaluate("localStorage.getItem('deep-ai-station:v1')") or '{"runs":[]}'

@@ -27,3 +27,5 @@ OpenAI / Anthropic / DeepSeek 原生 SSE 适配已用 MockTransport 与暂停远
 信息流服务函数实际联网同步得到 48 条内容，6 个来源中 5 个 live；LangChain 旧 RSS 301 到新站，后续目标继续重定向到博客 HTML，不当作有效 RSS。Hugging Face 官方公开 RSS 返回 200 并解析成功。此结果是本地公开来源验证，不能代替 Vercel 线上链路验收。
 
 公开课程资料链接检查覆盖 46 个去重 URL：43 个初次返回 200，一个 OpenAI 旧安全文档路径返回 404，两个旧 API Reference 入口返回 403。已根据当前官方文档更新这三个入口，回读均为 200；没有把旧入口的 403 解读为供应商 API 不可用。
+
+模型完成/失败/截断的三个现有 headless 流程同时验证 Markdown：有序列表为 decimal，无序列表为 disc，原始 script 不生成元素，图片不发外部请求，javascript 与带认证信息的链接降级为文字，合法官方 HTTPS 链接保留。

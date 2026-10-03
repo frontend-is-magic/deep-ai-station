@@ -56,6 +56,15 @@ function courseTask(lesson: Lesson) {
 function trackLesson(tracks: Track[], track: TrackId, id?: string) {
   return tracks.find((item) => item.id === track)?.lessons.find((lesson) => lesson.id === id);
 }
+function safeOutputLink(href?: string) {
+  if (!href || href.length > 2000) return false;
+  try {
+    const url = new URL(href);
+    return url.protocol === 'https:' && !url.username && !url.password;
+  } catch {
+    return false;
+  }
+}
 
 export default function Playground({ tracks }: { tracks: Track[] }) {
   const [params, setParams] = useSearchParams();
@@ -603,11 +612,15 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
                 <div className="markdown-output">
                   <ReactMarkdown
                     components={{
-                      a: ({ children, ...props }) => (
-                        <a {...props} target="_blank" rel="noreferrer">
-                          {children}
-                        </a>
-                      ),
+                      a: ({ children, href, title }) =>
+                        safeOutputLink(href) ? (
+                          <a href={href} title={title} target="_blank" rel="noreferrer">
+                            {children}
+                          </a>
+                        ) : (
+                          <span>{children}</span>
+                        ),
+                      img: ({ alt }) => <span>{alt}</span>,
                     }}
                   >
                     {output}
