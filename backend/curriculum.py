@@ -36,7 +36,7 @@ AGENT_MODULES = [
                     "记录输入与输出 token usage",
                     "为超时、429 与上下文超限分类",
                 ],
-                "https://platform.openai.com/docs/api-reference/responses",
+                "https://developers.openai.com/api/reference/python/resources/responses/methods/create",
             ),
             (
                 "structured-output",
@@ -213,7 +213,7 @@ AGENT_MODULES = [
                 "网页、文档和工具返回值都可能夹带指令。为来源标注信任级别，明确模型不能从检索内容获得新权限；输出过滤不能替代工具层权限。",
                 "建立恶意文档测试集，覆盖泄露密钥、扩大授权和伪造系统消息。敏感操作在模型外校验，拒绝不符合当前任务范围的参数。",
                 ["向知识库加入伪造指令样本", "验证模型不会扩大工具权限", "在执行层检查目标范围"],
-                "https://platform.openai.com/docs/guides/agent-builder/safety",
+                "https://developers.openai.com/api/docs/guides/agent-builder-safety",
             ),
             (
                 "sandbox",
@@ -462,7 +462,7 @@ FULLSTACK_MODULES = [
                     "验证 OpenAI/Anthropic/DeepSeek 格式",
                     "模拟 401/429/超时错误",
                 ],
-                "https://platform.openai.com/docs/api-reference/chat",
+                "https://developers.openai.com/api/reference/python/resources/chat/subresources/completions/methods/create",
             ),
             (
                 "ai-stream",
