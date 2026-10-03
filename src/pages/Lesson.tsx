@@ -153,6 +153,35 @@ export default function LessonPage({ tracks }: { tracks: Track[] }) {
               下载本课练习资料
             </a>
           </Button>
+          {track.id === 'fullstack' &&
+            ['fullstack-routing', 'fullstack-validation'].includes(lesson.id) && (
+              <section
+                aria-label="可运行 API 契约实验"
+                className="my-7 space-y-3 rounded-xl border border-lime-200 bg-lime-50 p-5"
+              >
+                <h2>可运行 API 契约实验</h2>
+                <p>
+                  下载 {languageNames[language]} 独立 HTTP
+                  服务，包含完整依赖配置与锁文件、启动入口、共享 API
+                  契约和成功/失败测试。跟踪路由、服务与 Repository，再比较三种语言的相同请求与响应。
+                </p>
+                <Button
+                  variant="outline"
+                  className="h-auto max-w-full whitespace-normal py-2 text-left"
+                  asChild
+                >
+                  <a href={`/labs/api-contract-${language}.zip`} download>
+                    <Download size={16} className="shrink-0" aria-hidden="true" />
+                    <span>下载实验 · {languageNames[language]}</span>
+                  </a>
+                </Button>
+                <p className="text-sm text-slate-600">
+                  在独立练习环境按 README
+                  启动，使用固定资料，无需模型密钥或费用。运行测试后将实际结果记入 EVIDENCE.md
+                  与课程笔记；测试通过不会自动完成本课。
+                </p>
+              </section>
+            )}
           {((track.id === 'agent' && ['retrieval', 'evaluation'].includes(lesson.stage)) ||
             lesson.id === 'fullstack-ai-rag' ||
             lesson.id === 'fullstack-unit-tests') && (

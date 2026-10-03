@@ -2,6 +2,14 @@
 
 本文件记录实际执行证据，未完成事项保留真实状态。
 
+## 2026-10-03 / 三语言可运行 API 课程实验
+
+- “路由与依赖注入”和“输入校验”两课新增 Python / FastAPI、TypeScript / Hono、Go / Gin 独立实验下载，保留原有参考片段 ZIP。实验包含固定资料、路由 → 服务 → 可注入 Repository、共同输入/响应契约、冻结依赖、启动入口、测试、包内格式配置和证据模板。
+- 共享 37 个 HTTP 案例覆盖正常/空结果/不存在、媒体类型、严格字段/类型、JSON/UTF-8/Unicode、实际字节与字符限制。审查发现各语言默认 Unicode 空白、孤立代理码点及大小写处理不同，现统一明确契约，ASCII 英文大小写匹配而其他码点保持原样；Content-Type 参数不影响媒体类型匹配，JSON 始终严格 UTF-8。
+- `scripts/verify_course_labs.py` 在仓库外解包三个最终 ZIP，分别冻结安装，Python 71 项测试、TypeScript 49 项测试、Go 12 个顶层测试组通过；逐个实际启动 HTTP 服务，各通过 37 个共同案例，自有进程和临时端口全部释放，模型调用为 0。初轮验证暴露环境代理误接管回环请求，以及连续服务复用端口的 TIME_WAIT 冲突；脚本改为回环专用无代理请求及系统分配临时端口，最终三语言连续运行通过。
+- 平台 `pnpm check` 通过 30 项 Vitest、Prettier、类型和生产构建；Ruff 与 ZIP 重建一致性通过。新增 3 条 headless 流程通过，实际下载两课各三种语言的 6 个实验 ZIP 和 6 个原练习包，核对源码字节、锁文件、独立配置、共同契约与 manifest；语言切换保留笔记和选择，刷新保留语言，375px 无横向溢出，页面错误为 0。自有 Vite 5175 已关闭，既有 749c9a0 的 8000 / 5173 待验收预览未改动。
+- GitHub CI 增加三语言独立实验任务，Vercel Python Function 排除实验源文件/依赖，仅静态发布 ZIP。提交前检查 177 个 index blob、178 个工作区文件及 ZIP 成员，未命中敏感文件规则。原生 Browser 验收与发布尚待具体回执，以上本地/headless 证据不代表已上线。
+
 ## 2026-10-03 / 免费检索评测工作台
 
 - Playground 新增检索评测，Agent 检索/评测课与全栈 RAG / 单元测试课提供入口。每路线 10 个正例与 2 个无证据例，比较标题与加权词法策略、各自 top-k（1–5）；结果保留标注相关课时、实际排名/评分/匹配词、漏检与误召回，可下载包含配置、数据集版本、语料哈希与运行 ID 的完整 JSON。
@@ -11,7 +19,7 @@
 
 ## 2026-10-03 / 独立毕业项目与下载包配置
 
-- 云端支线“Deep AI Research Assistant｜云端毕业项目”已经启动，独立公开仓库为 [deep-ai-research-assistant](https://github.com/frontend-is-magic/deep-ai-research-assistant)。由 Agent 毕业骨架初始化，按 main / develop 开发版本化资料、私有研究记录持久化、报告导出与评测；产品增量仍在开发，不把骨架视为已完成产品。
+- 云端支线“Deep AI Research Assistant｜云端毕业项目”已经启动，独立公开仓库为 [deep-ai-research-assistant](https://github.com/frontend-is-magic/deep-ai-research-assistant)。由 Agent 毕业骨架初始化，按 main / develop 开发版本化资料、私有研究记录持久化、报告导出与评测；首轮增量已进入 [草稿 PR #1](https://github.com/frontend-is-magic/deep-ai-research-assistant/pull/1)，包含版本化资料、身份隔离研究记录、SQLite 恢复与报告导出。develop `0191fac818cbc26e549f1879a1f74ccac40a6f92` 的 [CI](https://github.com/frontend-is-magic/deep-ai-research-assistant/actions/runs/37130899113) 成功；主线独立审查随后复现旧身份延迟列表响应在重新登录后回填的隐私竞态，已交回云端修复，暂不合并或发布。
 - 独立仓库初始化验证后端与敏感检查共 43 项，Node 24 前端构建和响应契约 13 项通过；提交 `533291b025a53a703384976b2f3605641399a52d` 的 [develop CI](https://github.com/frontend-is-magic/deep-ai-research-assistant/actions/runs/37129318858) 与 [main CI](https://github.com/frontend-is-magic/deep-ai-research-assistant/actions/runs/37129315632) 均成功。没有调用真实模型、沙箱或使用重置卡。
 - 独立 CI 暴露原毕业 ZIP 缺少 Prettier 配置。四份 ZIP 现均包含根 `.prettierrc.json`，原有成员字节保持不变。新增 `scripts/check_starter_archives.py` 在平台目录之外解包，核对实际解析到包内配置并检查四份前端及 TS 后端，已通过 5 组格式检查；临时移除包内配置的回归实验正确拒绝。
 - 下载包重建一致性、修改脚本 Ruff、CI YAML 格式与 diff 检查通过。对应平台远端 CI 与发布状态需以该修复提交的回执为准；这次配置打包修复不包含新的交互功能验收。
