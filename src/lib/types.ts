@@ -36,7 +36,7 @@ export interface FeedItem {
 }
 export interface FeedResponse {
   items: FeedItem[];
-  sources: { id: string; name: string; status: string }[];
+  sources: { id: string; name: string; status: string; cached?: boolean }[];
   fetched_at: string;
   mode: string;
 }

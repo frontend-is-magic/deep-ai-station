@@ -249,6 +249,32 @@ def test_storage_quota_failure_keeps_memory_and_offers_export(page):
     assert download.value.suggested_filename == "deep-ai-station-progress.json"
 
 
+def test_feed_counts_actual_sources_and_identifies_stale_cache(page):
+    page.route(
+        "**/api/feed?*",
+        lambda route: route.fulfill(
+            json={
+                "items": [],
+                "sources": [
+                    {"id": "openai", "name": "OpenAI", "status": "live"},
+                    {
+                        "id": "langchain",
+                        "name": "LangChain",
+                        "status": "unavailable",
+                        "cached": True,
+                    },
+                    {"id": "huggingface", "name": "Hugging Face Blog", "status": "cached"},
+                ],
+                "mode": "live+curated",
+            }
+        ),
+    )
+    goto(page, "/feed")
+    expect(page.locator(".feed-count")).to_contain_text("2 / 3 个实时源可用")
+    page.get_by_role("button", name="同步官方订阅", exact=True).click()
+    expect(page.locator(".source-status")).to_contain_text("LangChain · 暂不可用 · 保留缓存")
+
+
 def test_bookmarks_and_search(page):
     goto(page, "/feed")
     page.get_by_role("button", name="收藏：MCP：把工具接入变成清晰的协议边界", exact=True).click()

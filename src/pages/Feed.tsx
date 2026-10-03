@@ -113,7 +113,7 @@ export default function Feed() {
             <span>
               {feed?.sources.filter((x) => x.status === 'live' || x.status === 'cached').length ||
                 0}{' '}
-              / 5 个实时源可用
+              / {feed?.sources.length || 0} 个实时源可用
             </span>
           </div>
           <div className="feed-grid">
@@ -180,7 +180,9 @@ export default function Feed() {
                   />
                   {source.name} ·{' '}
                   {source.status === 'unavailable'
-                    ? '暂不可用'
+                    ? source.cached
+                      ? '暂不可用 · 保留缓存'
+                      : '暂不可用'
                     : source.status === 'cached'
                       ? '缓存'
                       : source.status === 'live'

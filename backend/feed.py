@@ -24,6 +24,13 @@ SOURCES = [
         "home": "https://blog.langchain.com/",
     },
     {
+        "id": "huggingface",
+        "name": "Hugging Face Blog",
+        "track": "agent",
+        "url": "https://huggingface.co/blog/feed.xml",
+        "home": "https://huggingface.co/blog/",
+    },
+    {
         "id": "typescript",
         "name": "TypeScript",
         "track": "fullstack",
@@ -138,6 +145,7 @@ CURATED = [
 ]
 
 _cache: dict[str, tuple[float, list[dict]]] = {}
+_failed_at: dict[str, float] = {}
 
 
 def parse_feed(xml: bytes, source: dict) -> list[dict]:
@@ -201,8 +209,17 @@ def parse_feed(xml: bytes, source: dict) -> list[dict]:
 
 async def fetch_source(source: dict) -> tuple[list[dict], dict]:
     cached = _cache.get(source["id"])
-    if cached and time.monotonic() - cached[0] < 300:
+    now = time.monotonic()
+    if cached and now - cached[0] < 300:
         return cached[1], {"id": source["id"], "name": source["name"], "status": "cached"}
+    failed_at = _failed_at.get(source["id"])
+    if failed_at is not None and now - failed_at < 60:
+        return (cached[1] if cached else []), {
+            "id": source["id"],
+            "name": source["name"],
+            "status": "unavailable",
+            "cached": bool(cached),
+        }
     try:
         async with httpx.AsyncClient(timeout=8, follow_redirects=False) as client:
             async with client.stream(
@@ -216,12 +233,15 @@ async def fetch_source(source: dict) -> tuple[list[dict], dict]:
                         raise ValueError("feed_too_large")
         items = parse_feed(bytes(data), source)
         _cache[source["id"]] = (time.monotonic(), items)
+        _failed_at.pop(source["id"], None)
         return items, {"id": source["id"], "name": source["name"], "status": "live"}
     except Exception:
+        _failed_at[source["id"]] = time.monotonic()
         return (cached[1] if cached else []), {
             "id": source["id"],
             "name": source["name"],
             "status": "unavailable",
+            "cached": bool(cached),
         }
 
 
