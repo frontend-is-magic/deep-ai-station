@@ -16,7 +16,7 @@ flowchart LR
   A --> C
   P --> M[DeepSeek / OpenAI 兼容协议]
   API --> S[静态检查 / 不执行用户代码]
-  API --> Q[PostgreSQL / 共享请求配额]
+  API --> Q[PostgreSQL / 共享配额与用量账本]
   A --> Q
   API --> E[E2B / 隔离执行]
 ```
@@ -65,6 +65,8 @@ Agent 毕业阶段提供独立的 [研究助手骨架](../starters/agent/README.
 
 应用向浏览器发出的 SSE 协议包含 `start`、`trace`、`delta`、`usage`、`error`、`done`。每个运行有 UUID，取消会关闭上游 HTTP 连接；供应商是否已经计费不能由取消推断。只有完整且未达到输出上限的完成事件写入历史；中途失败保留部分文本和已收到的用量快照，明确提示未完成；取消保留浏览器已接收值并标记不完整。usage 只使用 DeepSeek 返回的已知计数字段，未返回时显示未知。快照按每轮最新值汇总，前端覆盖而不相加；只有所有已开始请求返回完整计数并正常结束，终态 `usage_complete` 才为真。协议与验证边界见 [流式用量](stream-usage.md)。
 
+[模型请求账本](model-usage.md)按 `(scope, run_id, request_index)` 保存逐轮记录，与请求配额原子准入；供应商快照按序列替换，终态不可变。客户端断开不等于供应商没有消耗，无法确认终态的 `admitted` 行保留未知；UTC 日维护 CLI 汇总已知值与缺失数，不保存 prompt、回答或凭据。供应商流和客户端都结束后才记录完成；写入失败停止下一轮，取消清理有界且不补发 SSE。
+
 每轮模型输出上限 1200 tokens，完整实验 45 秒、单帧 64 KiB、每轮流总量 1 MB、实验可显示文本合计 20,000 字符；异常正文与 thinking deltas 不进入回答。终止帧缺失、非法 JSON、输出超限均返回固定错误，清理连接。以上由 MockTransport、暂停远端流和 headless UI 验证，尚未调用真实模型。
 
 协议参考：[OpenAI function calling](https://developers.openai.com/api/docs/guides/function-calling)、[DeepSeek Chat Completions](https://api-docs.deepseek.com/api/create-chat-completion/)。
@@ -87,7 +89,7 @@ Agent 毕业阶段提供独立的 [研究助手骨架](../starters/agent/README.
 
 ## 安全与部署
 
-供应商密钥不进入前端，访问码仅保留页面内存，均不进入导出数据；上游错误返回固定类别，不回传第三方错误正文。Pydantic 拒绝额外参数并限制输入长度，ASGI 中间件按实际字节限制请求体，包含无 Content-Length 的分块传输。导入只允许已知字段与 HTTPS 资料链接，拒绝额外凭据字段和 URL 内的认证信息。当前模型限流为单实例 10 次/分钟，横向扩展需要共享配额。
+供应商密钥不进入前端，访问码仅保留页面内存，均不进入导出数据；上游错误返回固定类别，不回传第三方错误正文。Pydantic 拒绝额外参数并限制输入长度，ASGI 中间件按实际字节限制请求体，包含无 Content-Length 的分块传输。导入只允许已知字段与 HTTPS 资料链接，拒绝额外凭据字段和 URL 内的认证信息。真实模型准入通过 PostgreSQL 按稳定 scope 跨实例限制 10 次/分钟及 100 次/UTC 日，并原子创建逐轮账本；本地显式内存模式不提供跨实例保护。
 
 Vercel 使用静态构建与 Python Function。同域 `/api/*` 路由进入 FastAPI，其余路径走 SPA。GitHub Actions 检查依赖冻结、格式、类型、测试与构建。发布后必须检查 `/api/health` 与浏览器核心流程。
 

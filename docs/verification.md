@@ -1,5 +1,15 @@
 # 验证记录
 
+## 2026-10-04 / 持久模型请求账本
+
+- 单次回答与 Agent 每轮统一使用 PostgreSQL 原子准入：共享分钟/日配额与唯一模型请求行同事务提交，确认后才访问供应商。usage 快照按序列替换；重复不累加、NULL 与真实零区分，终态不可变。只保存模型、运行 ID、计数与有限状态，不保存 prompt、回答、代码、密钥或原始错误；新增只读 UTC 日汇总 CLI，未知项明确计数，不推算金额。
+- `setup_quota.py` 同事务按顺序应用固定 001/002 迁移，原有配额保留。真实 PostgreSQL 17.11 测试确认双进程竞争、同主键仅一次准入、两处故障回滚、未知准入提交、跨进程恢复、时区边界、NULL/0 日报、锁超时和取消、升级重跑、无 DDL 运行角色与数据库约束；共 20 项新增和 10 项原配额测试通过。真实 BIGINT SUM 返回 Decimal 的序列化边界已修复，并由实际 CLI 验证。
+- 另 11 项实际 HTTP API → PostgreSQL → 原始 DeepSeek SSE 解析器测试通过；仅供应商采用 MockTransport。独立连接确认账本与配额先提交才有上游调用，覆盖单次/Agent 1–3 轮、上游失败保留早前用量、真实数据库触发器拒绝快照/终态后无下一轮、HTTP 断连与异步上游关闭。真实终态 commit 成功后受控抛错模拟确认丢失：API 报固定 503 且保留已知值，数据库仍为 completed，既不重试调用也不改写失败；这不是实际网络断电测试。
+- 用量先记运行内存再持久化，写入失败仍有 error 快照；只有供应商流及自有 client 关闭、终态提交成功后才确认完成。新增 50 项生命周期测试含 ASGI 2.3 的实际 http.disconnect：先复现 repeated cancellation 会打断 await 关闭，再以同任务 shield 与短 deadline 修复；取消、GeneratorExit、关闭失败、账本等待中取消与模型名冻结均验证。收尾超时仍可留下 admitted 未确认，不遗留后台写入或发送清理 SSE。
+- 最终本地 514 项非浏览器 pytest 全部通过，其中 41 项使用真实 PostgreSQL，108 项浏览器测试不包含在此数内；新增纯存储/脚本 66 项。Node24 下 377 项 Vitest、Prettier、TypeScript 与生产构建通过，66 份 Python 文件 Ruff 检查/格式及冻结锁检查通过。官方 PostgreSQL 17.11 源码校验 SHA256 后只构建于临时目录，测试集群仅监听私有 0700 Unix socket，未连接托管数据库；结束查询两表测试行均 0，无临时库/角色/函数残留，pg_ctl 正常关闭且 socket 已释放。
+
+- 全部 108 条平台 headless 流程通过（209.76 秒），包含 3 条实际浏览器 → HTTP API → provider parser 的失败/停止链路；这些浏览器案例使用替身账本，真实 PostgreSQL 联合链路由上面的 11 项验证。自有 API8006/Vite5175、测试 context 与浏览器全部释放，原工作目录仍为 749c9a0，未操作原生 Browser。敏感扫描覆盖 376 个工作区文件与 ZIP 成员，提交前再核对同数量暂存 blob；本轮真实模型/沙箱调用为 0。托管迁移、真实 DeepSeek、Vercel Python 断连及 Production 继续集中原人工配置对话，未使用重置卡。远端 CI/Preview 另以该次开发提交的实际回执为准。
+
 ## 2026-10-04 / 免费工具契约实验
 
 - 结构化输出与工具契约两课接入免费实验，GET 返回现有 Agent 的真实工具 schema，POST 复用只读 knowledge_search / lesson_read。支持命中、合法空结果、同路线读课和教学拒绝；未知工具、额外字段、重复 JSON 键、错误类型与非法 Unicode 均有明确结果。参数最多 4096 UTF-8 字节；不调用模型、配额、沙箱或外网，operation_id 只用于单次操作追踪。
@@ -9,7 +19,7 @@
 - 新增 101 项后端测试与 101 项 Vitest。最终 Node24 下 pnpm check 通过 377 项 Vitest、Prettier、TypeScript 和生产构建；357 项非浏览器 pytest 通过，10 项真实 PostgreSQL 因本地无地址明确 skip，59 份 Python 文件 Ruff 检查与格式通过。模型/沙箱/HTTP/配额替身设为禁止调用，实验用例未触发任何此类依赖。
 - 最终全部 108 条平台 headless 流程通过（208.73 秒），另 1 条实际 API 视觉流程通过，含 17 条新平台流程；只有超时、503 和迟到分支控制传输，其余读取真实本地 API。已查看桌面与 375px 截图，无横向溢出。全页截图先失焦并回到页首，避免固定元素被滚动截图错置；单独视觉复验通过。测试 context、浏览器及自有 API8006/Vite5175 均释放，冻结 749c9a0 与原 8000/5173 未改。
 - 首次远端 CI 37148383783 的前端/后端、三语言实验、四骨架与真实 PostgreSQL 均通过；平台 headless 为 107 通过、1 失败。失败用例在 pushState 后没有等待 React 切课提交，旧报告本来为空，不能用“没有报告”证明新课已呈现；直接读取 abort 信号存在调度竞态。修正测试为等待实际新课 UI 和有界取消条件，保留迟到结果不能回填/保存的断言；产品代码未因该测试竞态更改。修正后17条工具流程通过（41.15秒），原失败案例9次断言均通过；前8次runner完整清理正常，第9次断言通过后进程组探测抛PermissionError。独立socket/lsof/ps核验自有8006/5175均关闭且无相关服务残留，不把该次清理探测称作完整通过。
-- 提交前 367 个暂存 blob、367 个工作区文件与 ZIP 成员敏感扫描通过。远端 CI 与 Preview 以本次提交回执为准；原生 Browser、真实 DeepSeek、Vercel Python 断连与 Production 保留在既有人工配置对话集中验收，本轮没有模型或沙箱调用，未使用重置卡。
+- 提交前 367 个暂存 blob、367 个工作区文件与 ZIP 成员敏感扫描通过。最终 `8e9fbbc` 的[完整 CI](https://github.com/frontend-is-magic/deep-ai-station/actions/runs/37149211008)成功，实际日志确认 377 项 Vitest、357 项非浏览器后端、108 条完整 headless、三语言 SSE 真实 HTTP/React 和四毕业骨架链路全部通过；PostgreSQL 17.11 的 10 项实测通过。Preview6832292121成功，匿名正常TLS健康302。原生 Browser、真实 DeepSeek、Vercel Python 断连与 Production 保留在既有人工配置对话集中验收，本轮没有模型或沙箱调用，未使用重置卡。
 
 ## 2026-10-04 / 三语言 SSE 流式与取消实验
 

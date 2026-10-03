@@ -43,7 +43,9 @@ pnpm dev
 
 本地通过受保护的 shell 环境传入配置；线上使用 Vercel 托管 Environment Variables。当前程序不会自动读取 `.env`。不要把密钥写进源码、VITE_ 变量、聊天或文档。敏感配置、私钥、认证缓存和日志已加入根目录与毕业包的 `.gitignore`；只有空值 `.env.example` 可提交。提交前脚本同时检查 Git 暂存区、工作区及 ZIP 的敏感路径和常见凭据特征，CI 再执行同一检查，该检查不替代对新凭据类型的审查。
 
-真实调用要求 `PLAYGROUND_ACCESS_TOKEN`、`DEEPSEEK_API_KEY` 与共享配额配置同时就绪。默认使用 PostgreSQL，配置 `AI_QUOTA_DATABASE_URL` 并显式初始化配额表；生产禁止回退到进程内计数。模型请求按固定分钟 / UTC 日累计 10 / 100 次，沙箱创建独立计数 2 / 20 次，同一数据库和 `AI_QUOTA_SCOPE` 跨实例共享。准入后的失败或取消不退款；这限制请求尝试数，不能替代供应商费用上限或全局并发限制。访问码只在页面内存中使用。配置、迁移与故障行为见 [共享请求配额](docs/shared-quota.md)。
+真实调用要求 `PLAYGROUND_ACCESS_TOKEN`、`DEEPSEEK_API_KEY` 与共享配额配置同时就绪。默认使用 PostgreSQL，配置 `AI_QUOTA_DATABASE_URL` 并显式初始化配额与模型请求账本表；生产禁止回退到进程内计数。模型请求按固定分钟 / UTC 日累计 10 / 100 次，沙箱创建独立计数 2 / 20 次，同一数据库和 `AI_QUOTA_SCOPE` 跨实例共享。准入后的失败或取消不退款；这限制请求尝试数，不能替代供应商费用上限或全局并发限制。访问码只在页面内存中使用。配置、迁移与故障行为见 [共享请求配额](docs/shared-quota.md)。
+
+每次真实模型请求的获准记录与配额在同一事务提交，后续按轮保存已知 token 快照及完成/失败/取消状态。仅记录运行 ID、模型和计数，不保存任务或回答；UTC 日汇总通过维护 CLI 读取，不估算费用。迁移和未知状态解释见 [模型请求账本](docs/model-usage.md)。
 
 Playground 默认使用课程检索和一次回答；可选择“有界 Agent 循环”，让模型选择 `knowledge_search` / `lesson_read` 只读课程工具。每次实验最多 3 次模型请求、2 次工具请求，每轮最多输出 1200 tokens，总时间 45 秒；每轮调用前分别申请共享请求额度。教学演示使用固定工具顺序，不调用模型。完整协议、边界与验证方式见 [Agent 工作流](docs/agent-workflow.md)。
 
