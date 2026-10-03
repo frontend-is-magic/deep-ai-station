@@ -90,6 +90,50 @@ def test_demo_workflow_history_and_cancellation(page):
     expect(page.get_by_role("button", name="运行实验", exact=True)).to_be_enabled()
 
 
+def test_course_mentor_notes_and_history_restore_the_correct_lesson(page):
+    goto(page, "/lesson/fullstack-http")
+    page.get_by_label("课程笔记").fill("已有的 API 契约笔记")
+    page.get_by_role("link", name="向导师提问本课", exact=True).click()
+    expect(page.get_by_label("任务描述")).to_contain_text("HTTP 与 API 契约")
+    original_prompt = page.get_by_label("任务描述").input_value()
+    page.get_by_role("button", name="运行实验", exact=True).click()
+    expect(page.get_by_text("实验已完成", exact=True)).to_be_visible()
+    page.get_by_label("任务描述").fill("下一次实验的任务，不应该写进之前的实验笔记")
+    page.get_by_role("button", name="写入本课笔记", exact=True).click()
+    expect(page.get_by_role("button", name="已写入本课笔记", exact=True)).to_be_disabled()
+    progress = json.loads(page.evaluate("localStorage.getItem('deep-ai-station:v1')"))
+    assert progress["runs"][0]["lesson_id"] == "fullstack-http"
+    assert progress["notes"]["fullstack-http"].startswith("已有的 API 契约笔记")
+    assert original_prompt in progress["notes"]["fullstack-http"]
+    assert "下一次实验的任务" not in progress["notes"]["fullstack-http"]
+    assert progress["completed"] == []
+    page.get_by_label("学习方向", exact=False).select_option("agent")
+    page.get_by_role("button", name="运行历史", exact=False).click()
+    page.locator(".run-history button").first.click()
+    expect(page.get_by_label("学习方向", exact=False)).to_have_value("fullstack")
+    expect(page.locator(".linked-lesson")).to_contain_text("HTTP 与 API 契约")
+    expect(page.get_by_role("button", name="已写入本课笔记", exact=True)).to_be_disabled()
+    page.set_viewport_size({"width": 375, "height": 812})
+    page.get_by_role("button", name="运行历史", exact=False).click()
+    assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
+    page.locator(".linked-lesson a").click()
+    page.reload()
+    expect(page.get_by_label("课程笔记")).to_contain_text("已有的 API 契约笔记")
+    assert page.get_by_label("课程笔记").input_value().count("### 实验记录") == 1
+
+
+def test_course_mentor_does_not_overwrite_a_full_note(page):
+    goto(page, "/lesson/agent-mcp")
+    page.get_by_label("课程笔记").fill("已有记录" * 2400)
+    page.get_by_role("link", name="向导师提问本课", exact=True).click()
+    page.get_by_role("button", name="运行实验", exact=True).click()
+    expect(page.get_by_text("实验已完成", exact=True)).to_be_visible()
+    expect(page.get_by_role("button", name="写入本课笔记", exact=True)).to_be_disabled()
+    expect(page.get_by_role("status")).to_contain_text("本课笔记容量不足")
+    progress = json.loads(page.evaluate("localStorage.getItem('deep-ai-station:v1')"))
+    assert progress["notes"]["agent-mcp"] == "已有记录" * 2400
+
+
 @pytest.mark.parametrize("ending", ["done", "error", "truncated"])
 def test_real_stream_partial_failures_and_truncation_do_not_enter_history(page, ending):
     page.route(

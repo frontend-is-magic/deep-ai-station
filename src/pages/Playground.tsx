@@ -13,13 +13,14 @@ import {
   Play,
   RotateCcw,
   Square,
+  StickyNote,
   Terminal,
   XCircle,
 } from 'lucide-react';
 import { api, streamRun } from '@/lib/api';
 import { progressAtom } from '@/lib/state';
 import { languageNames } from '@/lib/utils';
-import type { Capabilities, Language, Track, TrackId } from '@/lib/types';
+import type { Capabilities, Language, Lesson, Track, TrackId } from '@/lib/types';
 import { PageHeading } from '@/components/common';
 import { Button } from '@/components/ui/button';
 
@@ -47,6 +48,13 @@ interface ExecutionResult {
   notice: string;
 }
 
+function courseTask(lesson: Lesson) {
+  return `我正在学习「${lesson.title}」。目标：${lesson.objective}\n请解释核心机制，给出一个成功输入和一个失败输入，并说明如何验证：${lesson.criteria.join('；')}。`;
+}
+function trackLesson(tracks: Track[], track: TrackId, id?: string) {
+  return tracks.find((item) => item.id === track)?.lessons.find((lesson) => lesson.id === id);
+}
+
 export default function Playground({ tracks }: { tracks: Track[] }) {
   const [params, setParams] = useSearchParams();
   const [progress, setProgress] = useAtom(progressAtom);
@@ -55,7 +63,16 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
   );
   const [mode, setMode] = useState(params.get('mode') === 'code' ? 'code' : 'agent');
   const [provider, setProvider] = useState('demo');
-  const [prompt, setPrompt] = useState('如何设计一个有工具调用和停止条件的 AI Agent？');
+  const selectedLesson = tracks
+    .flatMap((t) => t.lessons)
+    .find((x) => x.id === params.get('lesson') && x.track === trackId);
+  const [prompt, setPrompt] = useState(() =>
+    selectedLesson
+      ? courseTask(selectedLesson)
+      : trackId === 'agent'
+        ? '如何设计一个有工具调用和停止条件的 AI Agent？'
+        : '如何用 FastAPI 构建一个可靠的 AI 问答接口？',
+  );
   const [system, setSystem] = useState(
     '你是一位严谨的 AI 工程导师。给出可验证的步骤，明确不确定性。',
   );
@@ -71,14 +88,14 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
     duration: number;
     usage: unknown;
     provider: string;
+    lessonId?: string;
+    prompt: string;
+    date: string;
   } | null>(null);
   const [history, setHistory] = useState(false);
   const [language, setLanguage] = useState<Language>(
     trackId === 'agent' ? 'python' : progress.language,
   );
-  const selectedLesson = tracks
-    .flatMap((t) => t.lessons)
-    .find((x) => x.id === params.get('lesson') && x.track === trackId);
   const track = tracks.find((x) => x.id === trackId)!;
   const initialCode =
     selectedLesson?.snippets[language] || track.lessons[0].snippets[language] || '';
@@ -146,7 +163,14 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
     let completed = false;
     try {
       await streamRun(
-        { prompt, system, provider, track: trackId, temperature },
+        {
+          prompt,
+          system,
+          provider,
+          track: trackId,
+          temperature,
+          ...(selectedLesson ? { lesson_id: selectedLesson.id } : {}),
+        },
         token,
         c.signal,
         (event) => {
@@ -167,7 +191,16 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
               return;
             }
             const duration = Number(event.data.duration_ms);
-            setRunInfo({ id, duration, usage: event.data.usage, provider });
+            const date = new Date().toISOString();
+            setRunInfo({
+              id,
+              duration,
+              usage: event.data.usage,
+              provider,
+              lessonId: selectedLesson?.id,
+              prompt,
+              date,
+            });
             setProgress((p) => ({
               ...p,
               runs: [
@@ -177,7 +210,8 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
                   answer,
                   provider,
                   track: trackId,
-                  date: new Date().toISOString(),
+                  ...(selectedLesson ? { lesson_id: selectedLesson.id } : {}),
+                  date,
                   duration_ms: duration,
                 },
                 ...p.runs,
@@ -251,6 +285,14 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
     }
   }
   const canExecute = cap?.sandbox?.languages.includes(language) || false;
+  const noteMarker = runInfo ? `### 实验记录 ${runInfo.id}` : '';
+  const noteEntry = runInfo
+    ? `${noteMarker}\n\n${runInfo.provider === 'demo' ? '教学演示' : runInfo.provider} · ${new Date(runInfo.date).toLocaleString('zh-CN')}\n\n任务：${runInfo.prompt}\n\n${output}\n\n以上是学习参考，请另行记录实践输入、实际结果与验收证据。`
+    : '';
+  const canSaveNote = Boolean(selectedLesson && runInfo?.lessonId === selectedLesson.id);
+  const currentNote = selectedLesson ? progress.notes[selectedLesson.id] || '' : '';
+  const alreadySaved = Boolean(noteMarker && currentNote.includes(noteMarker));
+  const noteFits = `${currentNote}${currentNote ? '\n\n' : ''}${noteEntry}`.length <= 10000;
   const templates =
     trackId === 'agent'
       ? [
@@ -308,6 +350,12 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
           <ChevronDown size={14} />
         </label>
       </div>
+      {selectedLesson && (
+        <p className="linked-lesson">
+          当前课程：<Link to={`/lesson/${selectedLesson.id}`}>{selectedLesson.title}</Link>
+          <span>{mode === 'agent' ? ' · 实验内容可写入本课笔记' : ' · 回到课程记录实践结果'}</span>
+        </p>
+      )}
       {history && (
         <div className="run-history">
           <h3>最近运行 · 当前浏览器</h3>
@@ -317,6 +365,18 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
                 key={record.id}
                 disabled={running}
                 onClick={() => {
+                  const lesson = trackLesson(tracks, record.track, record.lesson_id);
+                  setTrackId(record.track);
+                  setMode('agent');
+                  setLanguage(record.track === 'agent' ? 'python' : progress.language);
+                  setParams(
+                    {
+                      track: record.track,
+                      mode: 'agent',
+                      ...(lesson ? { lesson: lesson.id } : {}),
+                    },
+                    { replace: true },
+                  );
                   setPrompt(record.prompt);
                   setOutput(record.answer);
                   setTrace([]);
@@ -325,12 +385,19 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
                     duration: record.duration_ms,
                     usage: null,
                     provider: record.provider,
+                    lessonId: lesson?.id,
+                    prompt: record.prompt,
+                    date: record.date,
                   });
                   setError('');
                   setHistory(false);
                 }}
               >
-                <span>{record.provider === 'demo' ? '教学演示' : record.provider}</span>
+                <span>
+                  {record.provider === 'demo' ? '教学演示' : record.provider}
+                  {record.lesson_id &&
+                    ` · ${trackLesson(tracks, record.track, record.lesson_id)?.title || '课程实验'}`}
+                </span>
                 <strong>{record.prompt}</strong>
                 <small>{new Date(record.date).toLocaleString('zh-CN')}</small>
               </button>
@@ -390,6 +457,12 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
               </label>
               <div className="prompt-templates">
                 <span>试试这些任务</span>
+                {selectedLesson && (
+                  <button disabled={running} onClick={() => setPrompt(courseTask(selectedLesson))}>
+                    使用本课目标与验收项
+                    <ArrowRightIcon />
+                  </button>
+                )}
                 {templates.map((text) => (
                   <button disabled={running} key={text} onClick={() => setPrompt(text)}>
                     {text}
@@ -543,6 +616,32 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
                   <code>run / {runInfo.id.slice(0, 8)}</code>
                 </div>
               )}
+              {canSaveNote && selectedLesson && (
+                <div className="lab-note-action">
+                  <Button
+                    variant="outline"
+                    disabled={running || alreadySaved || !noteFits}
+                    onClick={() =>
+                      setProgress((p) => {
+                        const previous = p.notes[selectedLesson.id] || '';
+                        const next = `${previous}${previous ? '\n\n' : ''}${noteEntry}`;
+                        if (previous.includes(noteMarker) || next.length > 10000) return p;
+                        return { ...p, notes: { ...p.notes, [selectedLesson.id]: next } };
+                      })
+                    }
+                  >
+                    <StickyNote size={16} />
+                    {alreadySaved ? '已写入本课笔记' : '写入本课笔记'}
+                  </Button>
+                  <p role="status">
+                    {alreadySaved
+                      ? '原有笔记已保留，同一次实验只写入一次。'
+                      : !noteFits
+                        ? '本课笔记容量不足，请先整理笔记后再写入。'
+                        : '保留原有笔记；实验回答仍需要你用实际实践验证。'}
+                  </p>
+                </div>
+              )}
             </section>
           </div>
         </>
@@ -555,11 +654,6 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
               检查基础文本结构。隔离运行需托管沙箱配置与访问码，运行会产生沙箱费用。
             </span>
           </div>
-          {selectedLesson && (
-            <p className="linked-lesson">
-              来自课程：<Link to={`/lesson/${selectedLesson.id}`}>{selectedLesson.title}</Link>
-            </p>
-          )}
           <div className="code-lab">
             <section>
               <div className="panel-heading">

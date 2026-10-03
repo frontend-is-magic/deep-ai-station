@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createSSEParser } from '../src/lib/api';
 import { emptyProgress, toggleBookmark, validateProgress } from '../src/lib/state';
-import type { FeedItem } from '../src/lib/types';
+import type { FeedItem, RunRecord } from '../src/lib/types';
 
 const article: FeedItem = {
   id: 'news-1',
@@ -57,5 +57,23 @@ describe('import boundary', () => {
     expect(validateProgress(JSON.parse(JSON.stringify(saved)))).toBe(true);
     expect(saved.savedItems?.[0].title).toBe(article.title);
     expect(toggleBookmark(saved, article).savedItems).toEqual([]);
+  });
+  it('accepts legacy runs and course runs but rejects mismatched or unsafe course identifiers', () => {
+    const run: RunRecord = {
+      id: 'run-1',
+      prompt: '任务',
+      answer: '结果',
+      provider: 'demo',
+      track: 'fullstack',
+      date: '2026-10-03T00:00:00Z',
+      duration_ms: 10,
+    };
+    expect(validateProgress({ ...emptyProgress, runs: [run] })).toBe(true);
+    expect(
+      validateProgress({ ...emptyProgress, runs: [{ ...run, lesson_id: 'fullstack-http' }] }),
+    ).toBe(true);
+    for (const lesson_id of ['agent-mcp', '', '../fullstack-http', 12]) {
+      expect(validateProgress({ ...emptyProgress, runs: [{ ...run, lesson_id }] })).toBe(false);
+    }
   });
 });

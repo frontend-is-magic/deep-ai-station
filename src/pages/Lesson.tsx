@@ -9,6 +9,7 @@ import {
   Clipboard,
   Clock3,
   Download,
+  Bot,
   ExternalLink,
   FlaskConical,
 } from 'lucide-react';
@@ -137,6 +138,12 @@ export default function LessonPage({ tracks }: { tracks: Track[] }) {
             <Link to={`/playground?track=${track.id}&lesson=${lesson.id}&mode=code`}>
               <FlaskConical size={16} />
               在实验空间编辑
+            </Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link to={`/playground?track=${track.id}&lesson=${lesson.id}&mode=agent`}>
+              <Bot size={16} />
+              向导师提问本课
             </Link>
           </Button>
           <Button variant="ghost" asChild>

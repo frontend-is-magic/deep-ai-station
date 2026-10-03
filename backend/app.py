@@ -93,6 +93,7 @@ class RunInput(BaseModel):
     )
     provider: Provider = "demo"
     track: Literal["agent", "fullstack"] = "agent"
+    lesson_id: str | None = Field(default=None, min_length=1, max_length=100)
     temperature: float = Field(default=0.3, ge=0, le=1)
 
 
@@ -124,6 +125,11 @@ async def run(
 ):
     if not body.prompt.strip():
         raise HTTPException(422, "请输入任务")
+    course = LESSONS.get(body.lesson_id) if body.lesson_id else None
+    if body.lesson_id and course is None:
+        raise HTTPException(404, "课时不存在")
+    if course and course["track"] != body.track:
+        raise HTTPException(422, "课时与学习方向不匹配")
     if body.provider != "demo":
         if not os.getenv(PROVIDERS[body.provider]["key"]):
             raise HTTPException(503, "该模型尚未配置")
@@ -132,7 +138,7 @@ async def run(
 
     async def events():
         start = time.monotonic()
-        yield sse("start", {"run_id": run_id, "mode": body.provider})
+        yield sse("start", {"run_id": run_id, "mode": body.provider, "lesson_id": body.lesson_id})
         yield sse(
             "trace",
             {
@@ -142,6 +148,16 @@ async def run(
             },
         )
         selected = retrieve(body.prompt, body.track)
+        if course:
+            selected = [course, *[item for item in selected if item["id"] != course["id"]]][:3]
+            yield sse(
+                "trace",
+                {
+                    "title": "绑定当前课程",
+                    "detail": f"{course['title']} · 目标与验收项来自课程索引",
+                    "status": "success",
+                },
+            )
         yield sse(
             "trace",
             {
@@ -152,9 +168,20 @@ async def run(
         )
         if body.provider == "demo":
             await asyncio.sleep(0.12)
+            course_plan = (
+                f"\n\n### 当前课程：{course['title']}\n\n目标：{course['objective']}\n\n"
+                + "实践步骤：\n"
+                + "\n".join(f"{i + 1}. {step}" for i, step in enumerate(course["steps"]))
+                + "\n\n验收时记录实际结果：\n"
+                + "\n".join(f"- {criterion}" for criterion in course["criteria"])
+                + "\n\n以下资料用于理解课程；教学输出不能代替实践验收。"
+                if course
+                else ""
+            )
             answer = (
                 "### 教学演示 · 课程检索工作流\n\n这是确定性的课程检索演示，没有调用语言模型。你的任务是：\n\n> "
                 + body.prompt.replace("\n", " ")
+                + course_plan
                 + (
                     "\n\n可从以下课程开始：\n\n"
                     if selected
@@ -193,6 +220,13 @@ async def run(
                     f"[{item['id']}] {item['title']}\n{item['body'][0]}\n来源：{item['resources'][0]['url']}"
                     for item in selected
                 )
+                if course:
+                    evidence += (
+                        f"\n\n当前课程 [{course['id']}] 目标：{course['objective']}\n实践："
+                        + "；".join(course["steps"])
+                        + "\n验收项："
+                        + "；".join(course["criteria"])
+                    )
                 augmented = (
                     body.prompt
                     + "\n\n<untrusted_course_evidence>\n"
@@ -234,6 +268,7 @@ async def run(
             {
                 "run_id": run_id,
                 "mode": body.provider,
+                "lesson_id": body.lesson_id,
                 "model": result["model"],
                 "usage": result["usage"],
                 "truncated": result.get("truncated", False),

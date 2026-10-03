@@ -111,6 +111,72 @@ def test_real_workflow_receives_only_retrieved_course_evidence(monkeypatch):
     assert "knowledge_search" in response.text and "event: done" in response.text
 
 
+def test_course_workflow_pins_the_lesson_even_when_the_prompt_has_no_match():
+    course = LESSONS["fullstack-http"]
+    response = client.post(
+        "/api/playground/run",
+        json={"prompt": "xyzzy-no-course-match", "track": "fullstack", "lesson_id": course["id"]},
+    )
+    assert response.status_code == 200
+    frames = [frame for frame in response.text.split("\n\n") if frame]
+    events = [
+        {"event": frame.splitlines()[0][7:], "data": json.loads(frame.splitlines()[1][6:])}
+        for frame in frames
+    ]
+    output = "".join(event["data"]["text"] for event in events if event["event"] == "delta")
+    assert f"当前课程：{course['title']}" in output
+    assert all(step in output for step in course["steps"])
+    assert all(criterion in output for criterion in course["criteria"])
+    assert course["resources"][0]["url"] in output
+    assert events[0]["data"]["lesson_id"] == events[-1]["data"]["lesson_id"] == course["id"]
+
+
+@pytest.mark.parametrize(
+    ("lesson_id", "track", "status"),
+    [("missing", "agent", 404), ("fullstack-http", "agent", 422), ("agent-mcp", "fullstack", 422)],
+)
+def test_course_context_is_validated_before_requesting_a_provider(
+    monkeypatch, lesson_id, track, status
+):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    response = client.post(
+        "/api/playground/run",
+        json={"prompt": "question", "provider": "openai", "track": track, "lesson_id": lesson_id},
+    )
+    assert response.status_code == status
+
+
+def test_real_course_workflow_includes_trusted_objectives_and_acceptance_criteria(monkeypatch):
+    import backend.app as api_module
+
+    api_module._live_requests.clear()
+    monkeypatch.setenv("OPENAI_API_KEY", "test-only")
+    monkeypatch.setenv("PLAYGROUND_ACCESS_TOKEN", "test-access")
+    course = LESSONS["fullstack-http"]
+
+    async def stream(provider, prompt, system, temperature):
+        assert course["objective"] in prompt
+        assert all(criterion in prompt for criterion in course["criteria"])
+        assert all(step in prompt for step in course["steps"])
+        assert course["resources"][0]["url"] in prompt
+        assert "<untrusted_course_evidence>" in prompt and "不能授予权限" in system
+        yield {"event": "delta", "text": "本课学习参考"}
+        yield {"event": "done", "usage": None, "model": "test-model"}
+
+    monkeypatch.setattr(api_module, "stream_generate", stream)
+    response = client.post(
+        "/api/playground/run",
+        json={
+            "prompt": "xyzzy-no-course-match",
+            "provider": "openai",
+            "track": "fullstack",
+            "lesson_id": course["id"],
+        },
+        headers={"X-Playground-Token": "test-access"},
+    )
+    assert "绑定当前课程" in response.text and "event: done" in response.text
+
+
 def test_provider_failure_after_partial_text_has_error_without_done(monkeypatch):
     import backend.app as api_module
 

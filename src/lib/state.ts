@@ -87,7 +87,16 @@ export function validateProgress(value: unknown): value is Progress {
       (x) =>
         x &&
         Object.keys(x).every((key) =>
-          ['id', 'prompt', 'answer', 'provider', 'track', 'date', 'duration_ms'].includes(key),
+          [
+            'id',
+            'prompt',
+            'answer',
+            'provider',
+            'track',
+            'lesson_id',
+            'date',
+            'duration_ms',
+          ].includes(key),
         ) &&
         typeof x.id === 'string' &&
         typeof x.prompt === 'string' &&
@@ -95,6 +104,11 @@ export function validateProgress(value: unknown): value is Progress {
         typeof x.answer === 'string' &&
         x.answer.length <= 50000 &&
         ['agent', 'fullstack'].includes(x.track) &&
+        (x.lesson_id === undefined ||
+          (typeof x.lesson_id === 'string' &&
+            x.lesson_id.length <= 100 &&
+            x.lesson_id.startsWith(`${x.track}-`) &&
+            /^[a-z0-9-]+$/.test(x.lesson_id))) &&
         typeof x.provider === 'string' &&
         typeof x.date === 'string' &&
         Number.isFinite(Date.parse(x.date)) &&

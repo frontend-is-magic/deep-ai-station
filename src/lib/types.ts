@@ -46,6 +46,7 @@ export interface RunRecord {
   answer: string;
   provider: string;
   track: TrackId;
+  lesson_id?: string;
   date: string;
   duration_ms: number;
 }
