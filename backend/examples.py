@@ -112,10 +112,15 @@ AGENT_EXAMPLES = {
         print(call_discovered_tool("knowledge_search", {"query": "MCP"}, {"knowledge_search"}))
     """),
     "tool-safety": code(r"""
+        # 这里只演示进程内控制流程；持久事务与故障恢复请参考本课独立实验。
+        # authorized/confirmed 必须来自服务端授权与审批；生产仍需真实身份与审批通道。
+        # 调用方须先校验 owner/requester 和精确意图，并限定 receipts 的范围。
         def prepare_write(operation_id, authorized, confirmed, receipts):
+            if not authorized:
+                return {"error": "tool_not_authorized"}
             if operation_id in receipts:
                 return {"status": "reused", "receipt": receipts[operation_id]}
-            if not authorized or not confirmed:
+            if not confirmed:
                 return {"status": "needs_confirmation"}
             # 真实系统在数据库事务中记录幂等键与业务写入。
             receipt = {"operation_id": operation_id, "status": "applied"}
