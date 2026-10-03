@@ -282,7 +282,7 @@ describe('experiment evidence compatibility and capacity', () => {
     expect(evidenceFor(saved, 'fullstack-legacy--0-', 'python')).toEqual(old.evidence?.[0]);
   });
 
-  it('roundtrips the actual 27 lab and 12 capstone course-language combinations', () => {
+  it('roundtrips the actual 28 lab and 12 capstone course-language combinations', () => {
     const labLessons = [
       'fullstack-routing',
       'fullstack-validation',
@@ -303,6 +303,7 @@ describe('experiment evidence compatibility and capacity', () => {
     const languages: Language[] = ['typescript', 'go', 'python'];
     for (const lessonId of labLessons) expect(courseLabFor(lessonId)).toBeDefined();
     const records = [
+      record({ lesson_id: 'agent-tool-safety', language: 'python' }),
       ...[...labLessons, ...fullstackCapstones].flatMap((lesson_id) =>
         languages.map((language) =>
           record({ lesson_id, language, success: `${lesson_id}/${language}` }),
@@ -310,9 +311,9 @@ describe('experiment evidence compatibility and capacity', () => {
       ),
       ...agentCapstones.map((lesson_id) => record({ lesson_id, language: 'python' })),
     ];
-    expect(records).toHaveLength(39);
+    expect(records).toHaveLength(40);
     const saved = records.reduce(saveEvidence, emptyProgress);
-    expect(saved.evidence).toHaveLength(39);
+    expect(saved.evidence).toHaveLength(40);
     const restored = JSON.parse(JSON.stringify(saved));
     expect(validateProgress(restored)).toBe(true);
     for (const expected of records)
@@ -328,7 +329,7 @@ describe('experiment evidence compatibility and capacity', () => {
     expect(evidenceFor(changed, 'fullstack-database', 'typescript')?.success).toBe(
       'fullstack-database/typescript',
     );
-    expect(changed.evidence).toHaveLength(39);
+    expect(changed.evidence).toHaveLength(40);
     expect(restored.completed).toEqual([]);
     expect(restored.practice).toBeUndefined();
   });

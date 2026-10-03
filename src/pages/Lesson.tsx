@@ -103,7 +103,7 @@ export default function LessonPage({ tracks }: { tracks: Track[] }) {
   const index = track.lessons.findIndex((x) => x.id === lesson.id);
   const language = track.id === 'agent' ? 'python' : requestedLanguage || progress.language;
   const code = lesson.snippets[language] || '';
-  const courseLab = track.id === 'fullstack' ? courseLabFor(lesson.id) : undefined;
+  const courseLab = courseLabFor(lesson.id, language);
   const answer = quizState?.key === quizKey ? quizState.answer : null;
   const checked = quizState?.key === quizKey && quizState.checked;
   const quizPassed = checked && answer === lesson.quiz.answer;

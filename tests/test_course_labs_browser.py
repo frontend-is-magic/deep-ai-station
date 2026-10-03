@@ -265,9 +265,25 @@ def assert_standalone_archive(path, lab_id, language, lesson_id):
         manifest = json.loads(archive.read("manifest.json"))
         assert manifest == json.loads((source / "manifest.json").read_text())
         assert manifest["id"] == lab_id
-        assert manifest["version"] == LABS[lab_id]["version"]
+        assert manifest["version"] == f"{lab_id}-v1"
         assert lesson_id in manifest["lessons"] and language in manifest["languages"]
-        if lab_id == "api-contract":
+        if lab_id == "agent-write-safety":
+            assert manifest["languages"] == ["python"]
+            assert {
+                "app.py",
+                "auth.py",
+                "repository.py",
+                "test_app.py",
+                "migrations/001.sql",
+                "client/src/main.tsx",
+                "client/src/protocol.mjs",
+                "client/src/protocol.test.mjs",
+                "client/pnpm-lock.yaml",
+            } <= files
+            fixtures = json.loads(archive.read("fixtures.json"))
+            assert {item["owner_id"] for item in fixtures["sessions"]} == {"alice", "bob"}
+            assert "result_unconfirmed" in archive.read("CONTRACT.md").decode()
+        elif lab_id == "api-contract":
             assert_api_contract_archive(archive, language, files)
         elif lab_id == "sse-stream":
             assert {
@@ -407,3 +423,68 @@ def test_course_labs_are_limited_to_their_bound_lessons(page):
         for lab_id in LABS:
             expect(lab(page, lab_id)).to_have_count(0)
         expect(page.get_by_role("link", name="下载本课练习资料", exact=True)).to_be_visible()
+
+
+def test_agent_write_lab_download_is_python_only_and_evidence_does_not_award_progress(page):
+    errors, paid = [], []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on(
+        "request",
+        lambda request: (
+            paid.append(request.url)
+            if any(p in request.url for p in ("/api/playground/run", "/api/playground/execute"))
+            else None
+        ),
+    )
+    goto(page, "/lesson/agent-tool-safety?language=go")
+    seed_existing_records(page)
+    page.get_by_label("课程笔记", exact=True).fill("先批准完整意图，结果不明先查原操作。")
+    before = stored(page)
+    title = "可运行工具审批与幂等实验"
+    region = page.get_by_role("region", name=title, exact=True)
+    expect(region).to_be_visible()
+    expect(region).to_contain_text("公开假身份无生产权限")
+    expect(region.get_by_role("link")).to_have_count(1)
+    download_link = region.get_by_role("link", name="下载实验 · Python", exact=True)
+    expect(download_link).to_have_attribute("href", "/labs/agent-write-safety-python.zip")
+    for language in ("Go", "TypeScript"):
+        expect(page.get_by_role("button", name=language, exact=True)).to_have_count(0)
+    with page.expect_download() as result:
+        download_link.click()
+    assert result.value.suggested_filename == "agent-write-safety-python.zip"
+    assert_standalone_archive(
+        result.value.path(), "agent-write-safety", "python", "agent-tool-safety"
+    )
+    for field in ("notes", "completed", "practice", "evidence"):
+        assert stored(page)[field] == before[field]
+    with page.expect_download() as reference_download:
+        page.get_by_role("link", name="下载本课练习资料", exact=True).click()
+    with zipfile.ZipFile(reference_download.value.path()) as archive:
+        from backend.examples import AGENT_EXAMPLES
+
+        assert archive.read("example.py").decode() == AGENT_EXAMPLES["tool-safety"]
+    evidence = page.get_by_role("region", name="实验实践证据", exact=True)
+    expect(evidence).to_contain_text(title)
+    expect(evidence).to_contain_text("当前记录：Python")
+    evidence.get_by_label("验证命令", exact=True).fill("uv run --frozen pytest -q")
+    evidence.get_by_label("失败输入与实际结果", exact=True).fill("待执行：提交后 503，查询原 ID")
+    page.reload()
+    expect(evidence.get_by_label("验证命令", exact=True)).to_have_value("uv run --frozen pytest -q")
+    after = stored(page)
+    assert len(after["evidence"]) == 2
+    assert after["evidence"][0] == before["evidence"][0]
+    assert after["evidence"][1]["language"] == "python"
+    assert after["evidence"][1]["lesson_id"] == "agent-tool-safety"
+    for field in ("notes", "completed", "practice"):
+        assert after[field] == before[field]
+    with page.expect_download() as exported:
+        evidence.get_by_role("button", name="下载实践证据 Markdown", exact=True).click()
+    text = Path(exported.value.path()).read_text()
+    assert title in text and "agent-tool-safety" in text and "未经平台核验" in text
+    assert "不会自动完成课程" in text and "待执行：提交后 503，查询原 ID" in text
+    page.set_viewport_size({"width": 375, "height": 812})
+    expect(region).to_be_visible()
+    assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+    goto(page, "/lesson/agent-tool-contract")
+    expect(page.get_by_role("region", name=title, exact=True)).to_have_count(0)
+    assert not errors and not paid

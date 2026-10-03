@@ -63,9 +63,12 @@ def page():
 
 
 def goto(page, lesson, language="python"):
-    page.goto(
+    target = (
         os.getenv("E2E_BASE_URL", "http://127.0.0.1:5173") + f"/lesson/{lesson}?language={language}"
     )
+    page.goto(target)
+    expect(page).to_have_url(target)
+    page.wait_for_load_state("networkidle")
     expect(page.locator(".lesson-article h1")).to_be_visible()
 
 
