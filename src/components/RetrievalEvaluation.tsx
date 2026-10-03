@@ -1,7 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Download, FlaskConical, Loader2, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import RetrievalEvaluationNote from '@/components/RetrievalEvaluationNote';
+import type { EvaluationLesson } from '@/lib/retrieval-note';
 import type { TrackId } from '@/lib/types';
 import {
   missedLessons,
@@ -192,7 +194,13 @@ function EvaluationCase({ item }: { item: RetrievalEvaluationCase }) {
   );
 }
 
-function EvaluationReport({ result }: { result: RetrievalEvaluationResponse }) {
+function EvaluationReport({
+  result,
+  children,
+}: {
+  result: RetrievalEvaluationResponse;
+  children?: ReactNode;
+}) {
   return (
     <div className="min-w-0 space-y-4">
       <div className="space-y-1 rounded-lg border border-border p-3 text-xs text-muted-foreground">
@@ -220,6 +228,7 @@ function EvaluationReport({ result }: { result: RetrievalEvaluationResponse }) {
           未命中记 0。负例单独统计返回空列表的比例。词法评分用于排序，不是概率。
         </p>
       </details>
+      {children}
       <h3 className="text-sm font-semibold">逐题排名与漏检分析</h3>
       <div className="min-w-0 space-y-3">
         {result.cases.map((item) => (
@@ -230,7 +239,12 @@ function EvaluationReport({ result }: { result: RetrievalEvaluationResponse }) {
   );
 }
 
-function RetrievalEvaluationSession({ track }: { track: TrackId }) {
+interface EvaluationContext {
+  track: TrackId;
+  lesson?: EvaluationLesson;
+}
+
+function RetrievalEvaluationSession({ track, lesson }: EvaluationContext) {
   const [baseline, setBaseline] = useState<RetrievalConfiguration>({ strategy: 'title', top_k: 3 });
   const [candidate, setCandidate] = useState<RetrievalConfiguration>({
     strategy: 'weighted',
@@ -240,6 +254,7 @@ function RetrievalEvaluationSession({ track }: { track: TrackId }) {
   const [running, setRunning] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [reflection, setReflection] = useState('');
   const controller = useRef<AbortController | null>(null);
   useEffect(
     () => () => {
@@ -253,6 +268,7 @@ function RetrievalEvaluationSession({ track }: { track: TrackId }) {
     if (side === 'baseline') setBaseline(configuration);
     else setCandidate(configuration);
     setResult(null);
+    setReflection('');
     setError('');
     setMessage('配置已更新，请重新运行评测。');
   }
@@ -263,6 +279,7 @@ function RetrievalEvaluationSession({ track }: { track: TrackId }) {
     controller.current = current;
     setRunning(true);
     setResult(null);
+    setReflection('');
     setError('');
     setMessage('正在比较固定标注集中的课时检索结果……');
     let timedOut = false;
@@ -367,11 +384,33 @@ function RetrievalEvaluationSession({ track }: { track: TrackId }) {
           {error}
         </p>
       ) : null}
-      {result ? <EvaluationReport result={result} /> : null}
+      {result ? (
+        <EvaluationReport result={result}>
+          {lesson && lesson.track === track && result.track === lesson.track ? (
+            <RetrievalEvaluationNote
+              result={result}
+              lesson={lesson}
+              reflection={reflection}
+              onReflectionChange={setReflection}
+            />
+          ) : null}
+        </EvaluationReport>
+      ) : null}
+      {!lesson && (
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          从课程页进入评测，可把结果和观察保存到本课笔记。评测结果仍可导出为 JSON。
+        </p>
+      )}
     </section>
   );
 }
 
-export default function RetrievalEvaluation({ track }: { track: TrackId }) {
-  return <RetrievalEvaluationSession key={track} track={track} />;
+export default function RetrievalEvaluation({ track, lesson }: EvaluationContext) {
+  return (
+    <RetrievalEvaluationSession
+      key={`${track}:${lesson?.id ?? 'without-lesson'}`}
+      track={track}
+      lesson={lesson}
+    />
+  );
 }

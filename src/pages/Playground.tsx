@@ -563,7 +563,7 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
         </div>
       )}
       {mode === 'evaluation' ? (
-        <RetrievalEvaluation key={trackId} track={trackId} />
+        <RetrievalEvaluation track={trackId} lesson={selectedLesson} />
       ) : mode === 'agent' ? (
         <>
           <div className={`mode-notice ${provider === 'demo' ? '' : 'live'}`}>
