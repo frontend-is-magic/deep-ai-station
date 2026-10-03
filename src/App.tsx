@@ -321,7 +321,7 @@ export default function App() {
         open={settings}
         onOpenChange={setSettings}
         title="你的学习空间"
-        description="学习位置、课程进度、语言实践、笔记、收藏与最近 20 次运行记录保存在当前浏览器，可导出备份。"
+        description="学习位置、课程进度、语言实践、测验回顾、证据、笔记、收藏与最近 20 次运行记录保存在当前浏览器，可导出备份。"
       >
         <div className="settings-content">
           <div className="info-box">
@@ -332,7 +332,7 @@ export default function App() {
             · 已收藏 {progress.bookmarks.length} 条资料
           </p>
           <p id="import-description" className="text-sm text-muted-foreground">
-            导入会替换当前全部学习记录，建议先导出备份。旧备份没有学习位置时推荐下一节未完成课；没有语言实践记录时该部分为空，课程完成不会自动证明各语言都已实践。
+            导入会替换当前全部学习记录，建议先导出备份。旧备份没有学习位置时推荐下一节未完成课；没有语言实践或测验回顾时对应部分为空，课程完成不会自动证明各语言都已实践。
           </p>
           <div className="flex flex-wrap gap-3">
             <Button onClick={exportProgress}>导出学习记录</Button>
@@ -352,7 +352,7 @@ export default function App() {
           <details>
             <summary>清空当前设备记录</summary>
             <p className="text-sm text-muted-foreground my-3">
-              清空会删除当前浏览器中的学习位置、课程进度、语言实践、证据、笔记、收藏和运行历史。建议先导出备份。
+              清空会删除当前浏览器中的学习位置、课程进度、语言实践、测验回顾、证据、笔记、收藏和运行历史。建议先导出备份。
             </p>
             <Button
               variant="outline"

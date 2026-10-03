@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAtom } from 'jotai';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft,
   ArrowRight,
@@ -13,7 +13,8 @@ import {
   ExternalLink,
   FlaskConical,
 } from 'lucide-react';
-import { progressAtom } from '@/lib/state';
+import { latestProgress, progressAtom } from '@/lib/state';
+import { MAX_QUIZ_REVIEWS, addQuizReview, removeQuizReview } from '@/lib/quiz-review';
 import { recordLessonVisit } from '@/lib/resume';
 import type { Track } from '@/lib/types';
 import { languageNames } from '@/lib/utils';
@@ -25,11 +26,25 @@ import LanguagePractice from '@/components/LanguagePractice';
 
 export default function LessonPage({ tracks }: { tracks: Track[] }) {
   const { lessonId } = useParams();
+  const { hash } = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const track = tracks.find((x) => x.lessons.some((l) => l.id === lessonId));
   const lesson = track?.lessons.find((x) => x.id === lessonId);
   const [progress, setProgress] = useAtom(progressAtom);
-  const [answer, setAnswer] = useState<number | null>(null);
+  const quizKey = lesson
+    ? JSON.stringify([
+        lesson.id,
+        lesson.quiz.question,
+        lesson.quiz.options,
+        lesson.quiz.answer,
+        lesson.quiz.explanation,
+      ])
+    : '';
+  const [quizState, setQuizState] = useState<{
+    key: string;
+    answer: number;
+    checked: boolean;
+  } | null>(null);
   const [checks, setChecks] = useState<number[]>([]);
   const [copyState, setCopyState] = useState('');
   const visitedLesson = useRef<string | undefined>(undefined);
@@ -63,10 +78,20 @@ export default function LessonPage({ tracks }: { tracks: Track[] }) {
     );
   }, [validLessonId, validTrackId, setProgress]);
   useEffect(() => {
-    setAnswer(null);
     setChecks([]);
     setCopyState('');
   }, [lessonId]);
+  useEffect(() => {
+    // A revised question must not restore a previously checked answer if it changes back.
+    setQuizState(null);
+  }, [quizKey]);
+  useEffect(() => {
+    if (!validLessonId || hash !== '#quiz') return;
+    const frame = window.requestAnimationFrame(() => {
+      document.getElementById('quiz')?.scrollIntoView({ block: 'start' });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [validLessonId, hash]);
   if (!lesson || !track)
     return (
       <div className="state-panel">
@@ -79,7 +104,32 @@ export default function LessonPage({ tracks }: { tracks: Track[] }) {
   const language = track.id === 'agent' ? 'python' : requestedLanguage || progress.language;
   const code = lesson.snippets[language] || '';
   const courseLab = track.id === 'fullstack' ? courseLabFor(lesson.id) : undefined;
-  const ready = checks.length === lesson.criteria.length && answer === lesson.quiz.answer;
+  const answer = quizState?.key === quizKey ? quizState.answer : null;
+  const checked = quizState?.key === quizKey && quizState.checked;
+  const quizPassed = checked && answer === lesson.quiz.answer;
+  const reviews = progress.quizReview || [];
+  const inReview = reviews.some((record) => record.lesson_id === lesson.id);
+  const reviewFull = reviews.length >= MAX_QUIZ_REVIEWS;
+  const ready = checks.length === lesson.criteria.length && quizPassed;
+  function checkAnswer() {
+    if (
+      !lesson ||
+      answer === null ||
+      !Number.isInteger(answer) ||
+      answer < 0 ||
+      answer >= lesson.quiz.options.length
+    )
+      return;
+    const currentLesson = lesson;
+    const addedAt = new Date().toISOString();
+    setQuizState({ key: quizKey, answer, checked: true });
+    setProgress((previous) => {
+      const current = latestProgress(previous);
+      return answer === currentLesson.quiz.answer
+        ? removeQuizReview(current, currentLesson.id)
+        : addQuizReview(current, currentLesson.id, addedAt);
+    });
+  }
   async function copy() {
     try {
       await navigator.clipboard.writeText(code);
@@ -342,29 +392,53 @@ export default function LessonPage({ tracks }: { tracks: Track[] }) {
             <EvidenceCard key={`${lesson.id}:${language}`} lesson={lesson} language={language} />
           )}
           <h2>检查你的理解</h2>
-          <div className="quiz-box">
-            <p>{lesson.quiz.question}</p>
-            {lesson.quiz.options.map((option, i) => (
-              <label className={`quiz-option ${answer === i ? 'chosen' : ''}`} key={option}>
-                <input
-                  type="radio"
-                  name="quiz"
-                  checked={answer === i}
-                  onChange={() => setAnswer(i)}
-                />
-                <span>{option}</span>
-              </label>
-            ))}
-            {answer !== null && (
-              <div
-                className={`quiz-result ${answer === lesson.quiz.answer ? 'correct' : ''}`}
-                role="status"
-              >
-                {answer === lesson.quiz.answer ? '回答正确。' : '再想一想。'}
-                {lesson.quiz.explanation}
+          <section id="quiz" className="quiz-box scroll-mt-24" aria-label="本课测验">
+            <p id="quiz-question">{lesson.quiz.question}</p>
+            <div role="radiogroup" aria-labelledby="quiz-question">
+              {lesson.quiz.options.map((option, i) => (
+                <label className={`quiz-option ${answer === i ? 'chosen' : ''}`} key={option}>
+                  <input
+                    type="radio"
+                    name="quiz"
+                    checked={answer === i}
+                    onChange={() => setQuizState({ key: quizKey, answer: i, checked: false })}
+                  />
+                  <span>{option}</span>
+                </label>
+              ))}
+            </div>
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <Button disabled={answer === null} onClick={checkAnswer}>
+                检查答案
+              </Button>
+              <Button asChild variant="outline">
+                <Link to="/library?tab=quiz-review">查看测验回顾</Link>
+              </Button>
+            </div>
+            <div className="mt-3 text-sm leading-relaxed text-slate-600">
+              先选择，再检查答案。答错的课时进入回顾清单，检查答对后移出。
+              {inReview && !checked && (
+                <span className="mt-1 block">本课待回顾，请检查当前题目后更新记录。</span>
+              )}
+            </div>
+            {checked && (
+              <div className={`quiz-result ${quizPassed ? 'correct' : ''}`} role="status">
+                <div>
+                  {quizPassed ? '本题检查通过。' : '再想一想。'}
+                  {lesson.quiz.explanation}
+                </div>
+                <div className="mt-2">
+                  {inReview
+                    ? '本课待回顾（本浏览器记录）；重新检查答对后可移出。'
+                    : quizPassed
+                      ? '本课当前不在测验回顾清单中。'
+                      : reviewFull
+                        ? `回顾清单已满（${MAX_QUIZ_REVIEWS} 课），本课未加入。可先在学习库移除记录，再检查答案。`
+                        : '本课当前不在测验回顾清单中；再次检查可重新加入。'}
+                </div>
               </div>
             )}
-          </div>
+          </section>
           <h2>官方资料</h2>
           {lesson.resources.map((resource) => (
             <a
@@ -437,7 +511,7 @@ export default function LessonPage({ tracks }: { tracks: Track[] }) {
               <CheckCircle2 size={16} />
               {completed ? '取消完成标记' : '标记本课完成'}
             </Button>
-            {!completed && !ready && <small>通过测验并确认全部验收项后可完成。</small>}
+            {!completed && !ready && <small>先检查答案并答对，再确认全部验收项。</small>}
           </section>
           <LanguagePractice
             key={`${lesson.id}:${language}`}

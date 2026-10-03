@@ -34,6 +34,8 @@ def test_course_completion_and_notes_survive_refresh(page):
     ):
         checkbox.check()
     page.get_by_label("课程笔记").fill("循环必须有停止条件")
+    expect(complete).to_be_disabled()
+    page.get_by_role("button", name="检查答案", exact=True).click()
     complete.click()
     page.reload()
     expect(page.get_by_role("button", name="取消完成标记")).to_be_visible()

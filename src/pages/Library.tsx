@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAtomValue } from 'jotai';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   ArrowRight,
   Bookmark,
@@ -15,10 +15,23 @@ import type { FeedResponse, Track } from '@/lib/types';
 import { PageHeading } from '@/components/common';
 import { Button } from '@/components/ui/button';
 import FeedCourseLink from '@/components/FeedCourseLink';
+import QuizReviewList from '@/components/QuizReviewList';
 
 export default function Library({ tracks }: { tracks: Track[] }) {
   const progress = useAtomValue(progressAtom);
-  const [tab, setTab] = useState('completed');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedTab = searchParams.get('tab');
+  const tab = ['notes', 'bookmarks', 'quiz-review'].includes(requestedTab || '')
+    ? requestedTab
+    : 'completed';
+  function selectTab(value: string) {
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous);
+      if (value === 'completed') next.delete('tab');
+      else next.set('tab', value);
+      return next;
+    });
+  }
   const [feed, setFeed] = useState<FeedResponse | null>(null);
   useEffect(() => {
     const c = new AbortController();
@@ -59,17 +72,24 @@ export default function Library({ tracks }: { tracks: Track[] }) {
           <span>收藏资料</span>
         </div>
       </div>
-      <div className="segmented-control library-tabs">
+      <div className="segmented-control library-tabs max-w-full flex-wrap">
         {[
           ['completed', '完成记录'],
           ['notes', '我的笔记'],
           ['bookmarks', '收藏资料'],
+          ['quiz-review', '测验回顾'],
         ].map(([id, name]) => (
-          <button className={tab === id ? 'selected' : ''} key={id} onClick={() => setTab(id)}>
+          <button
+            className={tab === id ? 'selected' : ''}
+            aria-pressed={tab === id}
+            key={id}
+            onClick={() => selectTab(id)}
+          >
             {name}
           </button>
         ))}
       </div>
+      {tab === 'quiz-review' && <QuizReviewList tracks={tracks} />}
       {tab === 'completed' && (
         <div className="library-list">
           {completed.map((lesson) => (

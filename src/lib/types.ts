@@ -79,6 +79,10 @@ export interface PracticeRecord {
   language: Language;
   completed_at: string;
 }
+export interface QuizReviewRecord {
+  lesson_id: string;
+  added_at: string;
+}
 export interface LearningPosition {
   lesson_id: string;
   visited_at: string;
@@ -98,6 +102,7 @@ export interface Progress {
   evidence?: EvidenceRecord[];
   practice?: PracticeRecord[];
   resume?: ResumeState;
+  quizReview?: QuizReviewRecord[];
 }
 export interface Capabilities {
   providers: { id: string; name: string; enabled: boolean; model: string | null }[];

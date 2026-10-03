@@ -289,6 +289,8 @@ def test_download_evidence_and_common_completion_do_not_mark_language_practice(p
     checkpoint = page.get_by_role("region", name="本课验收", exact=True)
     for checkbox in checkpoint.get_by_role("checkbox").all():
         checkbox.check()
+    expect(checkpoint.get_by_role("button", name="标记本课完成", exact=True)).to_be_disabled()
+    page.get_by_role("button", name="检查答案", exact=True).click()
     checkpoint.get_by_role("button", name="标记本课完成", exact=True).click()
     assert stored(page)["completed"] == [lesson_id]
     assert not stored(page).get("practice")
