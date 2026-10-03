@@ -205,6 +205,21 @@ MCP_FILES = {
     ],
 }
 MCP_SHARED = ["README.md", "CONTRACT.md", "EVIDENCE.md", "AGENTS.md", ".gitignore"]
+CHECKPOINT_FILES = {
+    "python": [
+        "app.py",
+        "workflow.py",
+        "repository.py",
+        "schema.sql",
+        "fixtures.json",
+        "test_workflow.py",
+        "test_repository.py",
+        "test_process.py",
+        "pyproject.toml",
+        "uv.lock",
+    ],
+}
+CHECKPOINT_SHARED = ["README.md", "CONTRACT.md", "EVIDENCE.md", "AGENTS.md", ".gitignore"]
 LABS = {
     "api-contract": (FILES, SHARED),
     "sqlite-storage": (STORAGE_FILES, STORAGE_SHARED),
@@ -213,6 +228,7 @@ LABS = {
     "sse-stream": (STREAM_FILES, STREAM_SHARED),
     "agent-write-safety": (WRITE_FILES, WRITE_SHARED),
     "mcp-readonly": (MCP_FILES, MCP_SHARED),
+    "workflow-checkpoint": (CHECKPOINT_FILES, CHECKPOINT_SHARED),
 }
 
 

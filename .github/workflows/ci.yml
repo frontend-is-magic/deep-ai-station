@@ -123,6 +123,18 @@ jobs:
           cache-dependency-glob: labs/mcp-readonly/python/uv.lock
       - run: uv run --no-project --python 3.12 python scripts/build_course_labs.py --check
       - run: uv run --no-project --python 3.12 python scripts/verify_mcp_lab.py
+  checkpoint-lab:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.12.22'
+          python-version: '3.12'
+          enable-cache: true
+          cache-dependency-glob: labs/workflow-checkpoint/python/uv.lock
+      - run: uv run --no-project --python 3.12 python scripts/build_course_labs.py --check
+      - run: uv run --no-project --python 3.12 python scripts/verify_checkpoint_lab.py
   shared-quota:
     runs-on: ubuntu-latest
     services:

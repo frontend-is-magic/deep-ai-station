@@ -310,3 +310,33 @@ def test_mcp_connection_configs_are_ignored_and_rejected_inside_forced_zip(
     for name in paths:
         assert f"sensitive-path: index:lesson.zip!{name}" in captured.out
     assert contents.decode() not in captured.out + captured.err
+
+
+@pytest.mark.parametrize(
+    "ignore_template", [".gitignore", "labs/workflow-checkpoint/shared/.gitignore"]
+)
+def test_checkpoint_runtime_state_is_ignored_and_rejected_inside_forced_zip(
+    repository, capsys, ignore_template
+):
+    root, git = repository
+    template = Path(__file__).resolve().parents[1] / ignore_template
+    (root / ".gitignore").write_bytes(template.read_bytes())
+    paths = [".data/checkpoints.sqlite3", ".data/checkpoints.sqlite3-journal", ".data/report.json"]
+    contents = b"test-only-private-runtime-state"
+    for name in paths:
+        target = root / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(contents)
+        git("check-ignore", "--", name)
+    scanner.main()
+    assert "sensitive-path" not in capsys.readouterr().out
+    with zipfile.ZipFile(root / "checkpoint.zip", "w") as archive:
+        for name in paths:
+            archive.writestr(name, contents)
+    git("add", "checkpoint.zip")
+    with pytest.raises(SystemExit):
+        scanner.main()
+    captured = capsys.readouterr()
+    for name in paths:
+        assert f"sensitive-path: index:checkpoint.zip!{name}" in captured.out
+    assert contents.decode() not in captured.out + captured.err

@@ -16,7 +16,6 @@ playwright-report/
 test-results/
 .DS_Store
 artifacts/
-.data/
 
 # Local secrets, private keys, auth state and diagnostic captures.
 .envrc
@@ -70,8 +69,11 @@ logs/
 *.tfstate
 *.tfstate.*
 
-# Local MCP connection configuration can contain credentials.
+# MCP host/server configuration may contain authentication material.
 .mcp.json
 mcp_config.json
 mcp-settings.json
 .mcp/
+
+# Local checkpoints and all exercise reports, including JSON files.
+.data/

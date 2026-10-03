@@ -65,6 +65,7 @@ SENSITIVE_DIRS = {
     ".kube",
     ".azure",
     ".auth",
+    ".data",
     ".mcp",
     ".vercel",
     "gcloud",

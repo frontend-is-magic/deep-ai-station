@@ -1,0 +1,6 @@
+{
+  "id": "workflow-checkpoint",
+  "version": "workflow-checkpoint-v1",
+  "lessons": ["agent-state-machine"],
+  "languages": ["python"]
+}
