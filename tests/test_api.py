@@ -21,6 +21,8 @@ def test_course_contract_and_python_examples():
     assert len({lesson["quiz"]["question"] for lesson in LESSONS.values()}) == 48
     assert len({lesson["id"] for track in TRACKS for lesson in track["lessons"]}) == 48
     for track in TRACKS:
+        for language in track["languages"]:
+            assert len({lesson["snippets"][language] for lesson in track["lessons"]}) == 24
         for stage in track["stages"]:
             assert all(id in LESSONS for id in stage["lessons"])
         for lesson in track["lessons"]:

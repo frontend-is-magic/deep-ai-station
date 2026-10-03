@@ -2,6 +2,8 @@
 
 from typing import Any
 
+from backend.examples import AGENT_EXAMPLES
+from backend.fullstack_examples import FULLSTACK_EXAMPLES
 from backend.quizzes import quiz_for
 
 AGENT_MODULES = [
@@ -594,14 +596,6 @@ FULLSTACK_MODULES = [
     ),
 ]
 
-SNIPPETS = {
-    "python": 'from fastapi import FastAPI\nfrom pydantic import BaseModel, Field\n\napp = FastAPI()\n\nclass Query(BaseModel):\n    question: str = Field(min_length=1, max_length=2000)\n\n@app.get("/api/health")\ndef health():\n    return {"status": "ok"}\n\n@app.post("/api/ask")\ndef ask(query: Query):\n    return {"answer": query.question, "sources": []}\n',
-    "typescript": 'import { Hono } from "hono";\n\nconst app = new Hono();\napp.get("/api/health", (c) => c.json({ status: "ok" }));\napp.post("/api/ask", async (c) => {\n  const body: unknown = await c.req.json();\n  if (!body || typeof body !== "object" || !("question" in body)\n      || typeof body.question !== "string" || !body.question.trim()) {\n    return c.json({ error: "invalid_question" }, 400);\n  }\n  return c.json({ answer: body.question, sources: [] });\n});\n\nexport default app;\n',
-    "go": 'package main\n\nimport (\n    "net/http"\n    "github.com/gin-gonic/gin"\n)\n\ntype Query struct {\n    Question string `json:"question" binding:"required,max=2000"`\n}\n\nfunc main() {\n    app := gin.Default()\n    app.GET("/api/health", func(c *gin.Context) {\n        c.JSON(http.StatusOK, gin.H{"status": "ok"})\n    })\n    app.POST("/api/ask", func(c *gin.Context) {\n        var q Query\n        if err := c.ShouldBindJSON(&q); err != nil {\n            c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_question"})\n            return\n        }\n        c.JSON(http.StatusOK, gin.H{"answer": q.Question, "sources": []string{}})\n    })\n    app.Run(":8080")\n}\n',
-}
-
-AGENT_CODE = 'from dataclasses import dataclass, field\n\n@dataclass\nclass AgentState:\n    goal: str\n    observations: list[str] = field(default_factory=list)\n    max_steps: int = 5\n\ndef knowledge_search(query: str) -> str:\n    """只读工具；实际项目接入经过授权的知识索引。"""\n    return "资料：工具调用前要校验参数与权限。"\n\ndef run_agent(goal: str) -> dict:\n    state = AgentState(goal=goal)\n    for step in range(state.max_steps):\n        observation = knowledge_search(state.goal)\n        state.observations.append(observation)\n        if observation:\n            return {"answer": observation, "steps": step + 1}\n    return {"error": "step_budget_exceeded"}\n\nprint(run_agent("怎样安全调用工具？"))\n'
-
 
 def build_track(track_id: str, modules: list) -> dict[str, Any]:
     lessons = []
@@ -629,7 +623,9 @@ def build_track(track_id: str, modules: list) -> dict[str, Any]:
                 "criteria": criteria,
                 "resources": [{"title": "官方文档", "url": source}],
                 "quiz": quiz_for(slug, len(lessons)),
-                "snippets": {"python": AGENT_CODE} if track_id == "agent" else SNIPPETS,
+                "snippets": {"python": AGENT_EXAMPLES[slug]}
+                if track_id == "agent"
+                else FULLSTACK_EXAMPLES[slug],
             }
             lessons.append(lesson)
             stage_lessons.append(lesson_id)

@@ -94,9 +94,7 @@ export default function LessonPage({ tracks }: { tracks: Track[] }) {
           </ol>
           <div className="code-heading">
             <h2>
-              {track.id === 'agent'
-                ? 'Agent 循环基础示例'
-                : `${languageNames[language]} 服务端参考`}
+              {track.id === 'agent' ? '本课 Python 参考' : `${languageNames[language]} 服务端参考`}
             </h2>
             <Button variant="outline" size="sm" onClick={() => void copy()}>
               <Clipboard size={14} />
@@ -104,7 +102,9 @@ export default function LessonPage({ tracks }: { tracks: Track[] }) {
             </Button>
           </div>
           <p className="code-description">
-            这是路线的基础参考骨架。本课实践需要按照上方目标扩展，并用成功与失败样例验证。
+            参考代码展示本课的核心机制。补充成功与失败样例，将输入、结果和验证证据记入笔记。
+            {track.id === 'fullstack' &&
+              ' React 界面统一使用 TypeScript；Go/Python 示例展示对应服务契约。框架示例需在独立练习项目安装依赖。'}
           </p>
           <pre className="code-block">
             <code>{code}</code>
