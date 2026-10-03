@@ -20,6 +20,14 @@ describe('course lab language availability', () => {
     expect(courseLabFor('agent-tool-contract', 'python')).toBeUndefined();
   });
 
+  it('offers the checkpoint lab only for the state-machine lesson and Python', () => {
+    expect(courseLabFor('agent-state-machine', 'python')?.id).toBe('workflow-checkpoint');
+    expect(courseLabFor('agent-state-machine')?.languages).toEqual(['python']);
+    expect(courseLabFor('agent-state-machine', 'go')).toBeUndefined();
+    expect(courseLabFor('agent-state-machine', 'typescript')).toBeUndefined();
+    expect(courseLabFor('agent-memory', 'python')).toBeUndefined();
+  });
+
   it('retains all three language downloads for the existing fullstack labs', () => {
     for (const lesson of [
       'fullstack-routing',

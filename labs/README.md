@@ -16,7 +16,9 @@
 
 `mcp-readonly-v1` 对应 Agent MCP 课，提供 Python 官方 SDK 的实际 stdio 客户端与服务端：发现工具 schema、读取固定资源、严格参数、错误分层、超时取消和断连退出。[运行](mcp-readonly/shared/README.md) · [契约](mcp-readonly/shared/CONTRACT.md)。只有包内固定只读资料，不开放远端地址、任意命令或模型调用。
 
-每个实验的 `shared/` 放契约、案例与说明，语言子目录放完整实现，manifest 记录版本/课时/语言。SQLite 的共享 SQL 在 `shared/migrations/`。当前共 17 个下载包。`public/labs/` 为固定白名单生成的确定性 ZIP，不包含依赖缓存、数据文件或秘密配置。
+`workflow-checkpoint-v1` 对应 Agent 工作流与状态机课，提供 Python / SQLite 的检索→起草→引用校验实验。通过原运行 ID 和 expected revision，练习真实进程退出后的检查点恢复、竞争拒绝及损坏状态保留。[运行](workflow-checkpoint/shared/README.md) · [契约](workflow-checkpoint/shared/CONTRACT.md)。仅使用包内固定资料和纯计算节点，无模型或外部副作用。
+
+每个实验的 `shared/` 放契约、案例与说明，语言子目录放完整实现，manifest 记录版本/课时/语言。SQLite 的共享 SQL 在 `shared/migrations/`。当前共 18 个下载包。`public/labs/` 为固定白名单生成的确定性 ZIP，不包含依赖缓存、数据文件或秘密配置。
 
 ```sh
 python3 scripts/build_course_labs.py

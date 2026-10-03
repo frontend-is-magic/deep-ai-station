@@ -295,6 +295,24 @@ def assert_standalone_archive(path, lab_id, language, lesson_id):
             assert "mcp==2.3.0" in archive.read("pyproject.toml").decode()
             assert "2026-07-28" in archive.read("CONTRACT.md").decode()
             assert "server/discover" in archive.read("CONTRACT.md").decode()
+        elif lab_id == "workflow-checkpoint":
+            assert manifest["languages"] == ["python"]
+            assert {
+                "app.py",
+                "workflow.py",
+                "repository.py",
+                "schema.sql",
+                "fixtures.json",
+                "test_workflow.py",
+                "test_repository.py",
+                "test_process.py",
+            } <= files
+            fixtures = json.loads(archive.read("fixtures.json"))
+            assert fixtures["documents"] == json.loads(
+                (ROOT / "starters" / "agent" / "documents.json").read_text()
+            )
+            assert "revision_conflict" in archive.read("CONTRACT.md").decode()
+            assert "before-commit" in archive.read("CONTRACT.md").decode()
         elif lab_id == "api-contract":
             assert_api_contract_archive(archive, language, files)
         elif lab_id == "sse-stream":
@@ -453,6 +471,13 @@ def test_course_labs_are_limited_to_their_bound_lessons(page):
             "可运行 MCP 只读协议实验",
             "仅访问包内固定课程资料",
             "待执行：超时取消后复用连接并确认子进程退出",
+        ),
+        (
+            "workflow-checkpoint",
+            "agent-state-machine",
+            "可运行检查点与重启恢复实验",
+            "仅使用包内固定资料与纯计算节点",
+            "待执行：提交后未响应，检查原运行并从新版本恢复",
         ),
     ],
 )

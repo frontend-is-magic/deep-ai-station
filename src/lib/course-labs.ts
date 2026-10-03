@@ -8,7 +8,8 @@ export interface CourseLab {
     | 'text-upload'
     | 'sse-stream'
     | 'agent-write-safety'
-    | 'mcp-readonly';
+    | 'mcp-readonly'
+    | 'workflow-checkpoint';
   lessons: readonly string[];
   languages: readonly Language[];
   title: string;
@@ -17,6 +18,16 @@ export interface CourseLab {
 }
 
 const courseLabs: readonly CourseLab[] = [
+  {
+    id: 'workflow-checkpoint',
+    lessons: ['agent-state-machine'],
+    languages: ['python'],
+    title: '可运行检查点与重启恢复实验',
+    description:
+      '独立项目，使用 SQLite 逐步保存检索、起草和引用校验结果。在提交前后中断进程，再用原运行 ID 恢复；观察版本冲突、已提交节点复用和损坏状态拒绝。',
+    notice:
+      '仅使用包内固定资料与纯计算节点，无模型调用或外部写入。下载后按 README 在独立练习环境运行，将实际重启、数据库状态与引用结果记入下方证据卡；不会自动完成课程或 Python 实践。',
+  },
   {
     id: 'mcp-readonly',
     lessons: ['agent-mcp'],
