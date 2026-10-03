@@ -112,10 +112,13 @@ export default function App() {
   }
   return (
     <div className="app-shell">
+      <a className="skip-link" href="#main-content">
+        跳到主要内容
+      </a>
       {menu && (
         <button aria-label="关闭导航" className="mobile-overlay" onClick={() => setMenu(false)} />
       )}
-      <aside className={`sidebar ${menu ? 'is-open' : ''}`}>
+      <aside id="workspace-sidebar" className={`sidebar ${menu ? 'is-open' : ''}`}>
         <Link to="/" className="brand">
           <span className="brand-mark">
             <span />
