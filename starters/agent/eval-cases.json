@@ -1,0 +1,23 @@
+[
+  {
+    "name": "有证据",
+    "prompt": "API 超时",
+    "outcome": "complete",
+    "sources": ["api"],
+    "tool_calls": 2
+  },
+  {
+    "name": "证据不足",
+    "prompt": "zzzz unmatched",
+    "outcome": "insufficient_evidence",
+    "sources": [],
+    "tool_calls": 1
+  },
+  {
+    "name": "合成冲突",
+    "prompt": "取消计费冲突",
+    "outcome": "conflicting_evidence",
+    "sources": ["billing-a", "billing-b"],
+    "tool_calls": 2
+  }
+]
