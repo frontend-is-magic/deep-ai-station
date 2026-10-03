@@ -74,3 +74,9 @@ Vercel 使用静态构建与 Python Function。同域 `/api/*` 路由进入 Fast
 Vite 框架构建与 `functions` 配置共同使用，避免 `builds` / `functions` 冲突；Python 函数排除前端依赖与开发资料，保留后端课程源文件。[Vercel 配置冲突说明](https://vercel.com/docs/errors/error-list#conflicting-functions-and-builds-configuration)。
 
 生产集成参考：[Vercel Python Runtime](https://vercel.com/docs/functions/runtimes/python)、[FastAPI](https://fastapi.tiangolo.com/)、[Jotai Storage](https://jotai.org/docs/utilities/storage)、[shadcn/ui](https://ui.shadcn.com/docs)。
+
+## 毕业实践证据
+
+毕业阶段的证据卡按 lesson_id 与 language 分别保存于原 version 1 学习记录的可选 evidence 数组；旧备份无该字段仍可导入。Agent 固定 Python，全栈沿用所选语言。最多 24 条记录，代码版本最多 200 字符，命令、成功/失败结果和未验证事项各 2000 字符；拒绝额外字段、重复组合和非法时间。
+
+保存只更新对应记录，不更改笔记、测验或完成状态；存储失败仍通过全局提示要求备份。Markdown 导出以动态长度文本围栏包住填写内容，防止用户文本逃逸成 HTML 或其他 Markdown 结构，并注明未经平台核验。该功能不上传云端、不调用模型；只保存学习者手动填写的实际证据，禁止填写密钥或访问码。

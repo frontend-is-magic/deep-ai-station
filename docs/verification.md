@@ -2,6 +2,14 @@
 
 本文件记录实际执行证据，未完成事项保留真实状态。
 
+## 2026-10-03 / 毕业实践证据卡
+
+- 六节毕业课提供证据卡，按课程和参考语言分别保存源码版本、实际命令、成功输入/结果、失败输入/结果及未验证事项；Agent 固定 Python。记录由学习者填写，不自动勾选验收，不改变原笔记和完成状态，不上传云端或调用模型。
+- 原 version 1 备份增加可选 evidence，旧备份继续可导入。最多24条，拒绝重复课程/语言组合、非法字段、Agent语言错误与超限文本；满额仍可更新已有记录，新增明确提示。Markdown 包含课程/语言/时间及填写内容，动态长度纯文本围栏避免反引号、HTML或Markdown逃逸。
+- 新增10项Vitest覆盖旧备份、结构边界、容量、独立更新和实际Markdown渲染；平台30项前端测试、类型、Prettier与生产构建通过。100项后端结果沿用同一未修改后端版本，Ruff全部通过。
+- 新增3条headless流程通过，并重跑全部32条平台流程全部通过：Go填写后刷新保留，切Python/另课不串；实际Markdown下载不混入笔记；JSON备份导出、清空测试context后恢复及旧v1导入；三个Agent毕业课固定Python、普通课隐藏、375px不溢出。测试context与浏览器在finally关闭，没有恢复桌面控制。
+- 提交前敏感扫描通过131个既有index blob与135个工作区文件及ZIP成员。远端CI与上线状态以对应提交回执为准；本轮内置Browser尚待已有独立对话的具体有界验收安排。
+
 ## 2026-10-03 / DeepSeek 兼容协议与敏感文件保护
 
 - 平台与四套毕业骨架的新真实调用统一使用 DeepSeek；保留 OpenAI 兼容的 `messages`、`tool_calls`、`choices` 和平台 SSE 格式，固定 DeepSeek endpoint、服务端 `DEEPSEEK_API_KEY`、默认 `deepseek-flash`，显式关闭 thinking。研究助手采用 JSON mode，并由本地 Pydantic 独立检查结构与已读引用；不发送 beta strict 或未文档化的并行字段。
@@ -10,7 +18,7 @@
 - 四套 React → 实际 API 演示链路全部通过；测试环境不含供应商密钥，8010 / 5174 自有服务已释放。骨架后端 Python 25 项、TypeScript 19 项、Go 9 组（15 个共享契约案例）、Agent 34 项及共用前端 13 项响应契约测试通过。Go 新增响应头之后读取正文的取消 / 超时测试，分别返回 499 / 504 并关闭连接。
 - 根目录与四个下载包的 .gitignore 覆盖敏感环境配置、私钥、认证缓存、日志与本地数据库；空值 .env.example 保持可提交。全局与项目 AGENTS 同步简短规则。`scripts/check_secrets.py` 纳入 CI，检查已跟踪/待提交文件和 ZIP 内部路径与常见凭据特征，只输出文件名和规则，不输出匹配值。当前扫描与 295 个历史 Git 文件对象扫描均未命中常见凭据特征；这不保证识别所有可能的秘密格式。
 - 首次远端 CI 捕获 Go 部署课示例的 raw string 字面量转义回归；修正为空格缩进，重新从当前源码导出96份示例并校验。此前本地 Go 检查使用的是修正前导出，不能替代本次重新生成后的结果。
-- 四个 ZIP 已重新生成并逐字节校验。真实 DeepSeek / E2B 尚未调用；托管配置与费用上限继续集中在既有独立人工配置对话，未使用重置卡或购买额度。DeepSeek迁移的 [完整 CI](https://github.com/frontend-is-magic/deep-ai-station/actions/runs/37127485098) 已通过，核对提交 a8451e1，包含29条浏览器流程和四条骨架链路；Production等待稳定分支晋级。
+- 四个 ZIP 已重新生成并逐字节校验。真实 DeepSeek / E2B 尚未调用；托管配置与费用上限继续集中在既有独立人工配置对话，未使用重置卡或购买额度。DeepSeek迁移的 [完整 CI](https://github.com/frontend-is-magic/deep-ai-station/actions/runs/37127485098) 已通过，核对提交 a8451e1，包含29条浏览器流程和四条骨架链路；之后暂存区保护提交dc0f430的 [最终完整CI](https://github.com/frontend-is-magic/deep-ai-station/actions/runs/37127785959) 通过，main/develop普通快进到该提交。Production deployment 6828498483成功；主线正常TLS验证线上健康48课、只提供demo/deepseek、四个ZIP与提交逐字节一致、免费Agent SSE结束且无error。真实DeepSeek未启用，没有真实模型调用。
 
 补充：扫描器继续覆盖 Git index blob 与工作区双版本，避免暂存后覆盖/删除工作区导致漏检；输出区分 index/worktree，不读取符号链接目标。9项敏感文件测试使用临时Git仓库验证暂存、ZIP替换、已跟踪却被忽略、工作区新文件和空模板；当前131个index blob、131个工作区文件及ZIP成员通过。完整非浏览器回归现为100项通过。该增强单独提交并验证CI。
 
