@@ -67,7 +67,7 @@ jobs:
           version: '0.12.22'
           python-version: '3.12'
           enable-cache: true
-          cache-dependency-glob: labs/api-contract/python/uv.lock
+          cache-dependency-glob: labs/**/python/uv.lock
       - uses: pnpm/action-setup@v4
         if: matrix.language == 'typescript'
         with:
@@ -77,7 +77,7 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-          cache-dependency-path: labs/api-contract/typescript/pnpm-lock.yaml
+          cache-dependency-path: labs/**/typescript/pnpm-lock.yaml
       - uses: actions/setup-go@v6
         if: matrix.language == 'go'
         with:
@@ -85,3 +85,4 @@ jobs:
           cache: false
       - run: uv run --no-project --python 3.12 python scripts/build_course_labs.py --check
       - run: uv run --no-project --python 3.12 python scripts/verify_course_labs.py --language ${{ matrix.language }}
+      - run: uv run --no-project --python 3.12 python scripts/verify_sqlite_labs.py --language ${{ matrix.language }}

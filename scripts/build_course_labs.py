@@ -32,11 +32,41 @@ SHARED = [
     "contract-cases.json",
 ]
 
+STORAGE_FILES = {
+    "python": ["app.py", "repository.py", "test_app.py", "pyproject.toml", "uv.lock"],
+    "typescript": [
+        "src/main.ts",
+        "src/request.ts",
+        "src/repository.ts",
+        "src/repository.test.ts",
+        "package.json",
+        "pnpm-lock.yaml",
+        "tsconfig.json",
+    ],
+    "go": ["main.go", "request.go", "repository.go", "repository_test.go", "go.mod", "go.sum"],
+}
+STORAGE_SHARED = [
+    "README.md",
+    "CONTRACT.md",
+    "EVIDENCE.md",
+    "AGENTS.md",
+    ".gitignore",
+    "contract-cases.json",
+    "migrations/001.sql",
+    "migrations/002.sql",
+]
+LABS = {
+    "api-contract": (FILES, SHARED),
+    "sqlite-storage": (STORAGE_FILES, STORAGE_SHARED),
+}
 
-def bundle(language):
-    files = {name: (SOURCE / language / name).read_bytes() for name in FILES[language]}
-    files.update({name: (SOURCE / "shared" / name).read_bytes() for name in SHARED})
-    files["manifest.json"] = (SOURCE / "manifest.json").read_bytes()
+
+def bundle(language, lab="api-contract"):
+    source = ROOT / "labs" / lab
+    members, shared = LABS[lab]
+    files = {name: (source / language / name).read_bytes() for name in members[language]}
+    files.update({name: (source / "shared" / name).read_bytes() for name in shared})
+    files["manifest.json"] = (source / "manifest.json").read_bytes()
     files[".prettierrc.json"] = (ROOT / ".prettierrc.json").read_bytes()
     output = io.BytesIO()
     with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as archive:
@@ -54,15 +84,16 @@ def main():
     args = parser.parse_args()
     if not args.check:
         DESTINATION.mkdir(parents=True, exist_ok=True)
-    for language in FILES:
-        expected = bundle(language)
-        path = DESTINATION / f"api-contract-{language}.zip"
-        if args.check:
-            if not path.exists() or path.read_bytes() != expected:
-                raise SystemExit(f"Course lab archive is stale: {path.name}")
-        else:
-            path.write_bytes(expected)
-        print(f"{path.name}: {len(expected)} bytes, {'verified' if args.check else 'built'}")
+    for lab, (languages, _) in LABS.items():
+        for language in languages:
+            expected = bundle(language, lab)
+            path = DESTINATION / f"{lab}-{language}.zip"
+            if args.check:
+                if not path.exists() or path.read_bytes() != expected:
+                    raise SystemExit(f"Course lab archive is stale: {path.name}")
+            else:
+                path.write_bytes(expected)
+            print(f"{path.name}: {len(expected)} bytes, {'verified' if args.check else 'built'}")
 
 
 if __name__ == "__main__":

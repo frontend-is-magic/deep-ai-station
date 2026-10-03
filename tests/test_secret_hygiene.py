@@ -156,7 +156,12 @@ SQLITE_SIDECARS = [
 
 @pytest.mark.parametrize(
     "ignore_template",
-    [".gitignore", "starters/shared/.gitignore", "labs/api-contract/shared/.gitignore"],
+    [
+        ".gitignore",
+        "starters/shared/.gitignore",
+        "labs/api-contract/shared/.gitignore",
+        "labs/sqlite-storage/shared/.gitignore",
+    ],
 )
 def test_sqlite_sidecars_are_ignored_but_force_tracked_copies_are_rejected(
     repository, capsys, ignore_template

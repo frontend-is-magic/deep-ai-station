@@ -1,24 +1,23 @@
 # 可运行课程实验
 
-当前实验为 `api-contract-v1`，对应全栈路线的“路由与依赖注入”和“输入校验”。三个下载包分别使用 Python / FastAPI、TypeScript / Hono、Go / Gin，共享固定资料和 HTTP 契约。课程页按当前所选语言提供下载，原有参考片段练习资料继续保留。
+课程页按当前所选语言下载独立项目，原有参考片段练习包继续保留。两个实验各提供 Python、TypeScript、Go 下载，均包含源码、入口、成功/失败测试、冻结依赖、README、契约、证据模板与 .gitignore。
 
-学习者的启动命令、curl 请求和练习步骤见 [实验 README](api-contract/shared/README.md)，响应规则见 [共同契约](api-contract/shared/CONTRACT.md)。每个 ZIP 都包含这些说明、证据模板、源码、测试、依赖锁文件、.gitignore 与独立格式配置；不需要模型凭据。
+| 实验                | 对应课时                   | 核心行为                                                    | 说明                                                                                |
+| ------------------- | -------------------------- | ----------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `api-contract-v1`   | 路由与依赖注入、输入校验   | FastAPI / Hono / Gin，共同 HTTP 请求与响应、注入 Repository | [运行](api-contract/shared/README.md) · [契约](api-contract/shared/CONTRACT.md)     |
+| `sqlite-storage-v1` | SQL 与数据建模、迁移与事务 | 真实 SQLite、幂等写入、owner 分页、迁移与原子回滚           | [运行](sqlite-storage/shared/README.md) · [契约](sqlite-storage/shared/CONTRACT.md) |
 
-## 维护与验证
-
-- `api-contract/shared/`：共同资料、请求/响应案例、契约、学习说明与证据模板。
-- `api-contract/python/`、`typescript/`、`go/`：各自完整入口、路由、服务、可注入 Repository 与测试。
-- `api-contract/manifest.json`：实验版本、课时与支持语言。
-- `public/labs/`：生成的确定性 ZIP，固定文件白名单，不包含本地缓存或依赖目录。
+每个实验的 `shared/` 放契约、案例与说明，语言子目录放完整实现，manifest 记录版本/课时/语言。SQLite 的共享 SQL 在 `shared/migrations/`。`public/labs/` 为固定白名单生成的确定性 ZIP，不包含依赖缓存、数据文件或秘密配置。
 
 ```sh
 python3 scripts/build_course_labs.py
 python3 scripts/build_course_labs.py --check
 python3 scripts/verify_course_labs.py
-# 单独验证一种语言
-python3 scripts/verify_course_labs.py --language go
+python3 scripts/verify_sqlite_labs.py
+# 各验证脚本均可选择一种语言
+python3 scripts/verify_sqlite_labs.py --language go
 ```
 
-验证环境需 Python 3.12 / uv、Node.js 24 / pnpm 10.32.1、Go 1.27.1。脚本将包解压到仓库之外，使用冻结依赖运行格式、类型与行为测试，再启动实际 HTTP 监听验证共同案例；请求固定为本机回环地址，进程结束后确认端口释放。测试子进程不接收模型密钥。CI 分三种语言独立执行同样检查，额外 headless 页面测试核对两课的语言选择、实际下载与窄屏显示。
+维护环境需 Python 3.12 / uv、Node.js 24 / pnpm 10.32.1、Go 1.27.1。验证脚本在仓库之外解包并冻结安装、检查格式/类型、运行原生测试；API 实验再启动临时本地服务检查37次HTTP请求，结束后释放自有监听；SQLite 实验再逐命令启动独立进程完成6组78次CLI调用与真实SQL故障断言，连接关闭后清理临时数据库。子进程不接收模型密钥。CI 按三种语言执行相同检查，headless 页面检查四课全部12个实验ZIP、原资料包、学习记录保留及375px显示。
 
-实验只使用维护者固定资料，不调用模型、数据库或外部 URL。学习者应在独立练习环境运行修改，平台 API 不执行这些输入。通过固定案例不等于新增业务已验收，真实结果应填写包内 `EVIDENCE.md`。
+这些维护脚本只运行固定教学代码。学习者修改应在独立练习环境运行，平台 API 不执行修改后的输入。SQLite CLI 的身份字段不是登录验证，不可直接信任来自客户端的 owner。实验无需模型凭据、不会调用模型；首次依赖安装需要网络。通过固定案例不等于新增业务已验收，应记录自己的实际结果。
