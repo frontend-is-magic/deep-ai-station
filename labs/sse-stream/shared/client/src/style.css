@@ -1,0 +1,14 @@
+@import 'tailwindcss';
+:root {
+  font-family: Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  color: #242c24;
+  background: #f7f8f3;
+  font-synthesis: none;
+}
+button,
+select {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: default;
+}

@@ -1,0 +1,6 @@
+{
+  "id": "sse-stream",
+  "version": "sse-stream-v1",
+  "lessons": ["fullstack-ai-stream", "fullstack-async"],
+  "languages": ["python", "typescript", "go"]
+}

@@ -1,0 +1,209 @@
+[
+  {
+    "id": "health",
+    "path": "/health",
+    "status": 200,
+    "expected": {
+      "ok": true,
+      "lab": "sse-stream"
+    }
+  },
+  {
+    "id": "success",
+    "path": "/stream?scenario=success",
+    "status": 200,
+    "events": [
+      {
+        "event": "start",
+        "data": {
+          "scenario": "success"
+        }
+      },
+      {
+        "event": "delta",
+        "data": {
+          "seq": 1,
+          "text": "理解 "
+        }
+      },
+      {
+        "event": "delta",
+        "data": {
+          "seq": 2,
+          "text": "流式 "
+        }
+      },
+      {
+        "event": "delta",
+        "data": {
+          "seq": 3,
+          "text": "响应 🌱"
+        }
+      },
+      {
+        "event": "done",
+        "data": {
+          "seq": 3
+        }
+      }
+    ]
+  },
+  {
+    "id": "error",
+    "path": "/stream?scenario=error",
+    "status": 200,
+    "events": [
+      {
+        "event": "start",
+        "data": {
+          "scenario": "error"
+        }
+      },
+      {
+        "event": "delta",
+        "data": {
+          "seq": 1,
+          "text": "理解 "
+        }
+      },
+      {
+        "event": "error",
+        "data": {
+          "code": "producer_failed",
+          "message": "教学数据源失败"
+        }
+      }
+    ]
+  },
+  {
+    "id": "timeout",
+    "path": "/stream?scenario=timeout",
+    "status": 200,
+    "events": [
+      {
+        "event": "start",
+        "data": {
+          "scenario": "timeout"
+        }
+      },
+      {
+        "event": "delta",
+        "data": {
+          "seq": 1,
+          "text": "理解 "
+        }
+      },
+      {
+        "event": "error",
+        "data": {
+          "code": "deadline_exceeded",
+          "message": "教学运行超时"
+        }
+      }
+    ]
+  },
+  {
+    "id": "hold",
+    "path": "/stream?scenario=hold",
+    "status": 200,
+    "events": [
+      {
+        "event": "start",
+        "data": {
+          "scenario": "hold"
+        }
+      },
+      {
+        "event": "delta",
+        "data": {
+          "seq": 1,
+          "text": "理解 "
+        }
+      },
+      {
+        "event": "error",
+        "data": {
+          "code": "deadline_exceeded",
+          "message": "教学运行超时"
+        }
+      }
+    ]
+  },
+  {
+    "id": "reject-missing",
+    "path": "/stream",
+    "status": 400,
+    "expected": {
+      "error": {
+        "code": "invalid_request",
+        "message": "仅支持一个有效的 scenario 参数"
+      }
+    }
+  },
+  {
+    "id": "reject-empty",
+    "path": "/stream?scenario=",
+    "status": 400,
+    "expected": {
+      "error": {
+        "code": "invalid_request",
+        "message": "仅支持一个有效的 scenario 参数"
+      }
+    }
+  },
+  {
+    "id": "reject-unknown",
+    "path": "/stream?scenario=other",
+    "status": 400,
+    "expected": {
+      "error": {
+        "code": "invalid_request",
+        "message": "仅支持一个有效的 scenario 参数"
+      }
+    }
+  },
+  {
+    "id": "reject-duplicate",
+    "path": "/stream?scenario=success&scenario=success",
+    "status": 400,
+    "expected": {
+      "error": {
+        "code": "invalid_request",
+        "message": "仅支持一个有效的 scenario 参数"
+      }
+    }
+  },
+  {
+    "id": "reject-ambiguous",
+    "path": "/stream?scenario=success&scenario=hold",
+    "status": 400,
+    "expected": {
+      "error": {
+        "code": "invalid_request",
+        "message": "仅支持一个有效的 scenario 参数"
+      }
+    }
+  },
+  {
+    "id": "reject-extra",
+    "path": "/stream?scenario=success&token=public-test",
+    "status": 400,
+    "expected": {
+      "error": {
+        "code": "invalid_request",
+        "message": "仅支持一个有效的 scenario 参数"
+      }
+    }
+  },
+  {
+    "id": "reject-wrong-key",
+    "path": "/stream?Scenario=success",
+    "status": 400,
+    "expected": {
+      "error": {
+        "code": "invalid_request",
+        "message": "仅支持一个有效的 scenario 参数"
+      }
+    }
+  }
+]

@@ -126,11 +126,45 @@ UPLOAD_SHARED = [
     "fixtures.json",
     "contract-cases.json",
 ]
+STREAM_FILES = {
+    "python": ["app.py", "streaming.py", "test_app.py", "pyproject.toml", "uv.lock"],
+    "typescript": [
+        "src/app.ts",
+        "src/streaming.ts",
+        "src/server.ts",
+        "src/app.test.ts",
+        "package.json",
+        "pnpm-lock.yaml",
+        "tsconfig.json",
+    ],
+    "go": ["app.go", "streaming.go", "main.go", "app_test.go", "go.mod", "go.sum"],
+}
+STREAM_SHARED = [
+    "README.md",
+    "CONTRACT.md",
+    "EVIDENCE.md",
+    "AGENTS.md",
+    ".gitignore",
+    "fixtures.json",
+    "contract-cases.json",
+    "client/package.json",
+    "client/pnpm-lock.yaml",
+    "client/tsconfig.json",
+    "client/vite.config.ts",
+    "client/index.html",
+    "client/src/main.tsx",
+    "client/src/style.css",
+    "client/src/components/ui/button.tsx",
+    "client/src/stream.mjs",
+    "client/src/stream.d.mts",
+    "client/src/stream.test.mjs",
+]
 LABS = {
     "api-contract": (FILES, SHARED),
     "sqlite-storage": (STORAGE_FILES, STORAGE_SHARED),
     "session-authorization": (AUTH_FILES, AUTH_SHARED),
     "text-upload": (UPLOAD_FILES, UPLOAD_SHARED),
+    "sse-stream": (STREAM_FILES, STREAM_SHARED),
 }
 
 

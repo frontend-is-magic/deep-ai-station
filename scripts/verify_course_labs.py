@@ -48,7 +48,60 @@ def request(base, case):
             raise RuntimeError(f"{case['id']}: JSON response does not match the shared contract")
 
 
-def verify_http(args, folder, env, port, request_case=request, cases_override=None):
+def stop_owned_process_group(process, *, grace_seconds=5.0, kill_grace_seconds=5.0):
+    """Stop only the PGID created by this Popen(start_new_session=True).
+
+    The leader may already be gone while uv/pnpm descendants still own a listener.
+    poll()/wait() reap our leader; killpg(..., 0) observes only its recorded group.
+    """
+    if grace_seconds < 0 or kill_grace_seconds <= 0:
+        raise ValueError("process cleanup waits must be bounded and positive")
+    pgid = process.pid
+
+    def signal_group(sig):
+        try:
+            os.killpg(pgid, sig)
+        except ProcessLookupError:
+            return False
+        return True
+
+    def wait_for_group(seconds):
+        deadline = time.monotonic() + seconds
+        while True:
+            process.poll()
+            if not signal_group(0):
+                return True
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return False
+            time.sleep(min(0.05, remaining))
+
+    try:
+        signal_group(signal.SIGTERM)
+        if not wait_for_group(grace_seconds):
+            signal_group(signal.SIGKILL)
+            # An orphan zombie can keep the PGID visible on Linux until init reaps it.
+            # SIGKILL cannot be ignored; keep this wait bounded, then let the caller's
+            # ensure_listener_closed verify the actual service instead of a zombie group ID.
+            wait_for_group(kill_grace_seconds)
+    finally:
+        process.wait(timeout=kill_grace_seconds)
+
+
+def ensure_listener_closed(port):
+    # Observe closure only; never stop an unrelated process that appears later.
+    for _ in range(20):
+        try:
+            with socket.create_connection(("127.0.0.1", port), timeout=0.1):
+                time.sleep(0.05)
+        except ConnectionRefusedError:
+            return
+    raise RuntimeError("Owned course lab listener has not closed")
+
+
+def verify_http(
+    args, folder, env, port, request_case=request, cases_override=None, extra_check=None
+):
     with socket.socket() as check:
         check.bind(("127.0.0.1", port))
     cases = (
@@ -79,25 +132,17 @@ def verify_http(args, folder, env, port, request_case=request, cases_override=No
                 raise RuntimeError("Course lab server did not become healthy")
             for case in cases:
                 request_case(base, case)
+            if extra_check is not None:
+                extra_check(base, folder, env)
         finally:
-            if process.poll() is None:
-                os.killpg(process.pid, signal.SIGTERM)
-                try:
-                    process.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    os.killpg(process.pid, signal.SIGKILL)
-                    process.wait()
-    # Observe closure; do not stop any unrelated process that appears later.
-    for _ in range(20):
-        try:
-            with socket.create_connection(("127.0.0.1", port), timeout=0.1):
-                time.sleep(0.05)
-        except ConnectionRefusedError:
-            return len(cases)
-    raise RuntimeError("Owned course lab listener has not closed")
+            stop_owned_process_group(process)
+            ensure_listener_closed(port)
+    return len(cases)
 
 
-def verify(language, port, lab="api-contract", request_case=request, restart_cases=None):
+def verify(
+    language, port, lab="api-contract", request_case=request, restart_cases=None, extra_check=None
+):
     # Deliberately omit provider keys and authentication material from child processes.
     allowed = {
         "PATH",
@@ -165,12 +210,12 @@ def verify(language, port, lab="api-contract", request_case=request, restart_cas
             if unformatted.strip():
                 raise RuntimeError("Go lab is not formatted")
             go_tests = ["go", "test", "-mod=readonly"]
-            if lab in {"session-authorization", "text-upload"}:
+            if lab in {"session-authorization", "text-upload", "sse-stream"}:
                 go_tests.append("-race")
             command([*go_tests, "./..."], folder, env)
             command(["go", "build", "-mod=readonly", "-o", "lab-server", "."], folder, env)
             server = [str(folder / "lab-server")]
-        count = verify_http(server, folder, env, port, request_case)
+        count = verify_http(server, folder, env, port, request_case, extra_check=extra_check)
         restart_count = 0
         if restart_cases:
             with socket.socket() as listener:
