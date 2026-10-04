@@ -471,8 +471,11 @@ def test_course_lab_downloads_follow_language_and_preserve_reference_bundle(
     seed_existing_records(page)
     card = lab(page, lab_id)
     expect(card).to_be_visible()
-    expect(card).to_contain_text("完整依赖配置与锁文件、启动入口")
-    expect(card).to_contain_text("成功/失败测试")
+    if lab_id == "api-contract":
+        expect(card).to_contain_text("输入草稿、URL 查询和真实服务端结果")
+    else:
+        expect(card).to_contain_text("完整依赖配置与锁文件、启动入口")
+        expect(card).to_contain_text("成功/失败测试")
     if lab_id == "sse-stream":
         expect(card).to_contain_text("共享 React 客户端")
         expect(card).to_contain_text("真实 HTTP 断连清理")

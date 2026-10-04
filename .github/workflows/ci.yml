@@ -252,6 +252,31 @@ jobs:
       - run: uv run playwright install --with-deps chromium
       - run: uv run python scripts/build_course_labs.py --check
       - run: uv run python scripts/verify_frontend_state_lab.py
+  api-navigation-lab:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.12.22'
+          python-version: '3.12'
+          enable-cache: true
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.32.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: labs/api-contract/shared/client/pnpm-lock.yaml
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.27.1'
+          cache-dependency-path: labs/api-contract/go/go.sum
+      - run: uv sync --locked
+      - run: uv run playwright install --with-deps chromium
+      - run: uv run python scripts/build_course_labs.py --check
+      - run: uv run python scripts/verify_api_navigation_lab.py
   shared-quota:
     runs-on: ubuntu-latest
     services:
