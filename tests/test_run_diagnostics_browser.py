@@ -8,8 +8,8 @@ import json
 import math
 import os
 from pathlib import Path
-from urllib.parse import urlparse
-from uuid import UUID
+from urllib.parse import parse_qs, urlparse
+from uuid import UUID, uuid4
 
 import pytest
 from playwright.sync_api import expect
@@ -112,26 +112,172 @@ def capture(page, name):
         page.screenshot(path=str(Path(directory) / (name + ".png")), full_page=True)
 
 
-def run(page, scenario=None, *, keyboard=False):
-    if scenario is not None:
-        lab(page).get_by_label("诊断场景", exact=True).select_option(scenario)
-    button = lab(page).get_by_role("button", name=RUN, exact=True)
-    with page.expect_response(
-        lambda response: (
-            urlparse(response.url).path == ENDPOINT and response.request.method == "POST"
-        )
-    ) as response:
-        if keyboard:
-            button.focus()
-            page.keyboard.press("Enter")
-        else:
-            button.click()
-    actual = response.value
-    assert actual.status == 200
-    assert actual.headers.get("cache-control") == "no-store"
-    report = actual.json()
-    assert_report(page, report)
+# Observe the app's own Response while CDP independently identifies the request.
+# Each run installs one temporary wrapper, including around an existing race seam.
+RESPONSE_CAPTURE = """({ticket, url, limit, deadline}) => {
+  if (window.__diagnosticObservation) throw new Error('capture_already_installed');
+  const original = window.fetch;
+  const observation = {ticket, count:0, record:null};
+  let active = true, cancel = () => {}, pending = Promise.resolve();
+  const readClone = async (response, record) => {
+    let reader, timer;
+    record.status = response.status;
+    record.responseUrl = response.url;
+    record.responseHeaders = Object.fromEntries(response.headers);
+    record.state = 'reading';
+    try {
+      reader = response.clone().body.getReader();
+      const stopped = new Promise(resolve => {cancel = resolve;});
+      timer = setTimeout(() => cancel('capture_timeout'), deadline);
+      const chunks = [];
+      let total = 0;
+      while (true) {
+        const part = await Promise.race([reader.read(), stopped]);
+        if (typeof part === 'string') {record.failure = part; break;}
+        if (part.done) {
+          record.bytes = chunks.flatMap(chunk => Array.from(chunk));
+          record.state = 'complete';
+          return;
+        }
+        total += part.value.byteLength;
+        if (total > limit) {record.failure = 'capture_too_large'; break;}
+        chunks.push(part.value);
+      }
+    } catch {
+      record.failure = 'capture_failed';
+    } finally {
+      clearTimeout(timer);
+      cancel = () => {};
+      if (record.state !== 'complete') {
+        record.state = 'failed';
+        record.bytes = null;
+        // A tee cancellation can wait for the original branch. Do not await it.
+        if (reader) void reader.cancel().catch(() => {});
+      }
+      if (reader) {try {reader.releaseLock();} catch {}}
+    }
+  };
+  const wrapped = async function(input, init) {
+    const requestUrl = new URL(input instanceof Request ? input.url : String(input), location.href).href;
+    const method = String(init?.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase();
+    if (!active || requestUrl !== url || method !== 'POST')
+      return Reflect.apply(original, this, [input, init]);
+    observation.count += 1;
+    const record = {ticket, requestUrl, method,
+      requestHeaders: {'content-type':new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined)).get('content-type')},
+      requestBytes: typeof init?.body === 'string' ? Array.from(new TextEncoder().encode(init.body)) : null,
+      state:'pending', status:null, responseUrl:null, responseHeaders:null, bytes:null, failure:null};
+    if (observation.count === 1) observation.record = record;
+    let response;
+    try {
+      response = await Reflect.apply(original, this, [input, init]);
+    } catch (error) {
+      record.state = 'failed';
+      record.failure = 'fetch_failed';
+      throw error;
+    }
+    // Return this exact Response without awaiting the observer's clone or EOF.
+    if (active && observation.count === 1) pending = readClone(response, record);
+    return response;
+  };
+  observation.dispose = async () => {
+    active = false;
+    const owned = window.fetch === wrapped;
+    if (owned) window.fetch = original;
+    cancel('capture_cancelled');
+    await pending;
+    if (window.__diagnosticObservation === observation) delete window.__diagnosticObservation;
+    if (!owned) throw new Error('capture_wrapper_replaced');
+    return observation.count;
+  };
+  window.__diagnosticObservation = observation;
+  window.fetch = wrapped;
+}"""
+RESPONSE_LIMIT = 32768
+
+
+def captured_report(page, actual, ticket, expected):
+    page.wait_for_function(
+        "ticket => {const capture=window.__diagnosticObservation;"
+        "return capture?.ticket===ticket && capture.record &&"
+        "!['pending','reading'].includes(capture.record.state);}",
+        arg=ticket,
+        timeout=7000,
+    )
+    captured = page.evaluate(
+        "() => {const {ticket,count,record}=window.__diagnosticObservation;"
+        "return {ticket,count,record};}"
+    )
+    assert captured["ticket"] == ticket and captured["count"] == 1
+    item = captured["record"]
+    assert item["ticket"] == ticket and item["state"] == "complete"
+    assert item["failure"] is None
+    assert item["method"] == actual.request.method == "POST"
+    assert item["requestUrl"] == item["responseUrl"] == actual.url == actual.request.url
+    assert item["status"] == actual.status == 200
+    request_headers = actual.request.all_headers()
+    assert item["requestHeaders"] == {"content-type": request_headers.get("content-type")}
+    assert item["requestHeaders"]["content-type"] == "application/json"
+    assert item["requestBytes"] == list(actual.request.post_data_buffer)
+    for name in ("content-type", "cache-control"):
+        assert item["responseHeaders"][name] == actual.headers[name]
+    assert item["responseHeaders"]["cache-control"] == "no-store"
+    assert item["responseHeaders"]["content-type"].split(";")[0].strip() == "application/json"
+    raw = item["bytes"]
+    assert isinstance(raw, list) and 0 < len(raw) <= RESPONSE_LIMIT
+    assert all(type(value) is int and 0 <= value <= 255 for value in raw)
+    report = json.loads(bytes(raw).decode("utf-8", errors="strict"))
+    request = json.loads(actual.request.post_data_buffer.decode("utf-8", errors="strict"))
+    assert request == expected
+    assert request == {key: report[key] for key in ("track", "lesson_id", "scenario")}
     return report
+
+
+def run(page, scenario=None, *, keyboard=False):
+    selector = lab(page).get_by_label("诊断场景", exact=True)
+    if scenario is not None:
+        selector.select_option(scenario)
+    location = urlparse(page.url)
+    query = parse_qs(location.query, keep_blank_values=True, strict_parsing=True)
+    assert location.path == "/playground" and query.get("mode") == ["diagnostics"]
+    assert query.get("track") in [["agent"], ["fullstack"]]
+    track = query["track"][0]
+    assert query.get("lesson") == [LESSONS[track]]
+    selected = selector.input_value()
+    expected_scenario = selected if scenario is None else scenario
+    assert expected_scenario in EXPECTED and selected == expected_scenario
+    expected = {
+        "track": track,
+        "lesson_id": LESSONS[track],
+        "scenario": expected_scenario,
+    }
+    button = lab(page).get_by_role("button", name=RUN, exact=True)
+    ticket = str(uuid4())
+    endpoint = page.evaluate("path => new URL(path, location.href).href", ENDPOINT)
+    page.evaluate(
+        RESPONSE_CAPTURE,
+        {"ticket": ticket, "url": endpoint, "limit": RESPONSE_LIMIT, "deadline": 5000},
+    )
+    try:
+        with page.expect_response(
+            lambda response: response.url == endpoint and response.request.method == "POST"
+        ) as response:
+            if keyboard:
+                button.focus()
+                page.keyboard.press("Enter")
+            else:
+                button.click()
+        report = captured_report(page, response.value, ticket, expected)
+        assert_report(page, report)
+        return report
+    finally:
+        final_count = page.evaluate(
+            "ticket => {const capture=window.__diagnosticObservation;"
+            "if (capture?.ticket!==ticket) throw new Error('capture_ticket_mismatch');"
+            "return capture.dispose();}",
+            ticket,
+        )
+        assert final_count == 1, "One explicit diagnostic run must issue exactly one POST"
 
 
 def preview(page, report, *, wrong=False, observation=REFLECTION):
