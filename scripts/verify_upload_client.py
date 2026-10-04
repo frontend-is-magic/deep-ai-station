@@ -43,11 +43,10 @@ ACK = "我已核对，允许再次上传（可能重复）"
 HEADERS = {"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"}
 
 LAUNCHER = """
-import {createServer} from 'vite';
+import {preview} from 'vite';
 const port = Number(process.env.PORT);
 if (!Number.isInteger(port) || port < 1 || port > 65535) process.exit(1);
-const server = await createServer({logLevel:'error', server:{host:'127.0.0.1',port,strictPort:true}});
-await server.listen();
+const server = await preview({logLevel:'error', preview:{host:'127.0.0.1',port,strictPort:true,open:false}});
 let closing = false;
 async function stop() {
   if (closing) return;
@@ -401,6 +400,12 @@ def browser_page(browser, base, *, clock=False):
     page = context.new_page()
     page.set_default_timeout(10000)
     errors, downloads, destinations = [], [], []
+    navigations, websockets = [], []
+    page.on(
+        "framenavigated",
+        lambda frame: navigations.append(True) if frame == page.main_frame else None,
+    )
+    page.on("websocket", lambda _socket: websockets.append(True))
     page.on("pageerror", lambda error: errors.append(type(error).__name__))
     page.on("download", lambda item: downloads.append(item))
 
@@ -419,7 +424,15 @@ def browser_page(browser, base, *, clock=False):
         page.goto(base)
         expect(page.get_by_role("heading", name="受限文本上传实验", exact=True)).to_be_visible()
         listing(page, 0)
+        # The exact ZIP was built above. Exercise that output without dev HMR
+        # replacing the document while a real POST response is being observed.
+        scripts = page.locator('script[type="module"][src]').evaluate_all(
+            "nodes => nodes.map(node => new URL(node.src).pathname)"
+        )
+        assert scripts and all(path.startswith("/assets/") for path in scripts)
+        assert len(navigations) == 1 and not websockets
         yield page, downloads
+        assert len(navigations) == 1 and not websockets
         assert not errors and not destinations
         assert page.evaluate("window.__uploadAudit.violations") == []
         assert page.evaluate("window.__uploadAudit.urls.size") == 0
@@ -967,6 +980,8 @@ def verify(selected, screenshots=None):
                 "detailed_backend": representative,
                 "checks": details,
                 **counters,
+                "client_serving": "built_dist_no_hmr",
+                "documents_stable": True,
                 "headless_closed": True,
                 "listeners_released": True,
                 "model_calls": 0,
