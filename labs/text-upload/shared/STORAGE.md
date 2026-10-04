@@ -135,7 +135,7 @@ COMMIT前失败必须无新增行、next_id/配额不变。授权失败的私有
 
 1. 原共同HTTP案例在全新memory与全新SQLite上分别原样执行；health/201/附件bytes/headers不变。默认memory完全不触碰持久文件。CLI词法先于文件I/O；init任意已有库拒绝，无目录/文件时serve不造库。
 2. 每语言真实201后退出Popen、wait/reap，再新进程同cwd读取原ID/原bytes/SHA/额度。另TS→Go→Python→TS顺序读写同一数据库格式；不得导出JSON重建代替同库。跨包复制仅在服务/连接完全关闭且无未恢复journal时进行。
-3. 两个真实服务进程同cwd不同自有PORT争同owner最后名额/字节预算。独立SQL必须仅新增1行。另一请求允许409 quota_exceeded或503 repository_unavailable（无等待锁冲突）；不能两次201、消耗两个ID或超过配额。先持真实BEGIN IMMEDIATE锁的定向测试须得到有限503，释放后下一次明确请求可成功。
+3. 两个真实服务进程同cwd不同自有PORT争同owner最后名额/字节预算。无等待锁不保证至少一个成功：独立SQL只允许新增0或1行，旧行原字节不变，next_id只随真实新增推进；不能两次201、消耗两个ID或超过配额。201必须对应实际新增行，409 quota_exceeded必须已有该次新增；503可以是repository_unavailable或result_unconfirmed，不能仅凭HTTP推断是否提交。真实SHARED读锁可令双方503且最终无新增；释放后先独立查询确认数据库，再发一次明确的新请求填剩余额度并核对下一次409。BEGIN IMMEDIATE写锁的定向测试须有界503，释放后显式新请求可成功。
 4. 真实SQLite故障：INSERT后COMMIT前可信hook抛异常，独立连接验证0残留；COMMIT后响应前可信hook中断进程，重新启动确认已提交原行。fault只存在原生测试构造/固定子进程helper，不增加正式CLI/HTTP故障开关。独立ZIP公共CLI验收与原生故障证据分别记录，不相互冒充。
 5. checker确定性测试：正文暂停后到期/撤销/降权，Repository调用数仍0；通过正文后初次检查后，在仓储final checker同步点改变Clock/会话/owner，验证401/403/503、无INSERT、锁释放。Repository任意抛LabError/ApiError私密文本仍固定repository_unavailable；检查checker实际恰1次。
 6. 直接固定SQL构造坏版本/应用ID/多余trigger/坏type/UTF8/SHA/next_id/超额库，CLI拒绝启动且无端口；运行中修改同类状态的下一私有请求固定503，无部分内容。原文件稳定bytes前后相同（无热journal场景）。返回缓冲区修改不改变持久数据。

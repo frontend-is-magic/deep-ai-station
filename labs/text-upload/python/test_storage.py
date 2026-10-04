@@ -643,7 +643,8 @@ def test_real_http_process_restart_original_bytes_owner_and_quota(tmp_path):
 
 
 @pytest.mark.parametrize("quota", ["count", "bytes"])
-def test_two_real_processes_share_atomic_last_quota(tmp_path, quota):
+@pytest.mark.parametrize("held_reader", [False, True])
+def test_two_real_processes_share_atomic_last_quota(tmp_path, quota, held_reader):
     initialize(tmp_path)
     repo = SQLiteRepository(tmp_path)
     for body in [b"a", b"b"] if quota == "count" else [b"a" * 4096]:
@@ -651,20 +652,76 @@ def test_two_real_processes_share_atomic_last_quota(tmp_path, quota):
     before = sql_state(repo.path)
     body = b"c" if quota == "count" else b"c" * 4096
     gate = Barrier(2)
-    with process_server(tmp_path) as (_, left), process_server(tmp_path) as (_, right):
+    reader = sqlite3.connect(repo.path, timeout=0, isolation_level=None) if held_reader else None
+    try:
+        if reader is not None:
+            reader.execute("BEGIN")
+            reader.execute("SELECT * FROM documents").fetchall()
+        with process_server(tmp_path) as (_, left), process_server(tmp_path) as (_, right):
 
-        def upload(client):
-            gate.wait(timeout=2)
-            return client.post("/documents", headers=HEADERS, content=body)
+            def upload(client):
+                gate.wait(timeout=2)
+                return client.post("/documents", headers=HEADERS, content=body)
 
-        with ThreadPoolExecutor(max_workers=2) as executor:
-            futures = [executor.submit(upload, client) for client in (left, right)]
-            responses = [future.result(timeout=5) for future in futures]
-    assert sorted(response.status_code for response in responses) in ([201, 409], [201, 503])
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                futures = [executor.submit(upload, client) for client in (left, right)]
+                responses = [future.result(timeout=5) for future in futures]
+    finally:
+        if reader is not None:
+            reader.rollback()
+            reader.close()
     after = sql_state(repo.path)
-    assert len(after[0]) == len(before[0]) + 1 and after[1] == before[1] + 1
+    added = len(after[0]) - len(before[0])
+    confirmed = sum(response.status_code == 201 for response in responses)
+    assert added in (0, 1) and confirmed <= added
+    assert after[0][: len(before[0])] == before[0]
+    assert after[1] == before[1] + added
+    for response in responses:
+        if response.status_code == 201:
+            assert response.json() == {
+                "id": f"doc-{before[1]:06d}",
+                "filename": "notes.txt",
+                "media_type": "text/plain",
+                "size_bytes": len(body),
+                "sha256": hashlib.sha256(body).hexdigest(),
+            }
+        elif response.status_code == 409:
+            assert response.json() == {"error": "quota_exceeded"} and added == 1
+        else:
+            assert response.status_code == 503
+            assert response.json() in (
+                {"error": "repository_unavailable"},
+                {"error": "result_unconfirmed"},
+            )
+    if added:
+        assert after[0][-1] == (
+            before[1],
+            "alice",
+            "notes.txt",
+            body,
+            hashlib.sha256(body).hexdigest(),
+        )
+        assert confirmed == 1 or any(
+            response.json() == {"error": "result_unconfirmed"} for response in responses
+        )
+    if held_reader:
+        # A real shared lock prevents both commits; busy_timeout=0 promises no winner.
+        assert [response.status_code for response in responses] == [503, 503]
+        assert any(response.json() == {"error": "result_unconfirmed"} for response in responses)
+        assert after == before
     assert sum(len(row[3]) for row in after[0]) <= 8192
     assert len(after[0]) <= 3
+    # Inspect the actual database before a new explicit attempt, never replay an unknown POST.
+    with process_server(tmp_path) as (_, client):
+        if not added:
+            response = client.post("/documents", headers=HEADERS, content=body)
+            assert response.status_code == 201
+            assert response.json()["id"] == f"doc-{before[1]:06d}"
+        filled = sql_state(repo.path)
+        assert len(filled[0]) == len(before[0]) + 1 and filled[1] == before[1] + 1
+        response = client.post("/documents", headers=HEADERS, content=body)
+        assert response.status_code == 409 and response.json() == {"error": "quota_exceeded"}
+        assert sql_state(repo.path) == filled
 
 
 def test_real_exit_after_commit_cannot_be_mistaken_for_rollback(tmp_path):

@@ -284,6 +284,127 @@ def assert_preserved(port, expected):
     return count
 
 
+def upload_metadata(number, content):
+    return {
+        "id": f"doc-{number:06d}",
+        "filename": "notes.txt",
+        "media_type": "text/plain",
+        "size_bytes": len(content),
+        "sha256": hashlib.sha256(content).hexdigest(),
+    }
+
+
+def check_quota_race(path, before, results, content, *, held_reader=False):
+    """Judge responses against independent committed rows, never an assumed winner."""
+    after = sql_snapshot(path)
+    added = len(after) - len(before)
+    confirmed = sum(status == 201 for status, _ in results)
+    if (
+        len(results) != 2
+        or added not in (0, 1)
+        or confirmed > added
+        or after[: len(before)] != before
+        or len(after) > 3
+        or sum(row[4] for row in after) > 8192
+    ):
+        raise RuntimeError("Race overspent persistent quota or changed existing rows")
+    metadata = upload_metadata(len(before) + 1, content)
+    if added:
+        wanted = (
+            len(before) + 1,
+            "alice",
+            "notes.txt",
+            "text/plain",
+            len(content),
+            metadata["sha256"],
+            content,
+        )
+        if after[-1] != wanted:
+            raise RuntimeError("Race committed an unexpected document")
+    unconfirmed = False
+    for status, value in results:
+        if status == 201:
+            require_result((status, value), 201, metadata)
+        elif status == 409:
+            require_result((status, value), 409, {"error": "quota_exceeded"})
+            if added != 1:
+                raise RuntimeError("Quota refusal without a committed last document")
+        elif status == 503:
+            if value not in ({"error": "repository_unavailable"}, {"error": "result_unconfirmed"}):
+                raise RuntimeError("Unexpected storage failure response")
+            unconfirmed |= value == {"error": "result_unconfirmed"}
+        else:
+            raise RuntimeError("Unexpected quota race response")
+    if added and not confirmed and not unconfirmed:
+        raise RuntimeError("Committed row has neither confirmed nor unknown response")
+    if held_reader and (added or confirmed or not unconfirmed or any(s != 503 for s, _ in results)):
+        raise RuntimeError("Held shared reader did not block both commits")
+    return added
+
+
+def verify_quota_race(args, work, env, counters, quota, *, held_reader=False):
+    with (
+        server(args, work, env, counters) as first,
+        server(args, work, env, counters) as second,
+    ):
+        seeds = [b"seed", b"seed"] if quota == "count" else [b"a" * 4096]
+        for number, seed in enumerate(seeds, start=1):
+            require_result(
+                exchange(first, "POST", "/documents", body=seed),
+                201,
+                upload_metadata(number, seed),
+            )
+            counters["http_cases"] += 1
+        before = sql_snapshot(work / DB)
+        gate = threading.Barrier(2)
+
+        def compete(port):
+            gate.wait(timeout=5)
+            return exchange(port, "POST", "/documents", body=content)
+
+        content = b"last" if quota == "count" else b"b" * 4096
+        reader = (
+            sqlite3.connect(work / DB, timeout=0, isolation_level=None) if held_reader else None
+        )
+        try:
+            if reader is not None:
+                reader.execute("BEGIN")
+                reader.execute("SELECT * FROM documents").fetchall()
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                futures = [pool.submit(compete, port) for port in (first, second)]
+                results = [future.result(timeout=10) for future in futures]
+        finally:
+            if reader is not None:
+                try:
+                    reader.rollback()
+                finally:
+                    reader.close()
+        counters["http_cases"] += 2
+        added = check_quota_race(work / DB, before, results, content, held_reader=held_reader)
+        if not added:
+            # The SQL read above proved zero commits. This is a new explicit request,
+            # not an automatic replay based on a 503 response's guessed meaning.
+            fresh = exchange(second, "POST", "/documents", body=content)
+            require_result(fresh, 201, upload_metadata(len(before) + 1, content))
+            sql_expect(
+                work / DB,
+                [
+                    ("alice", upload_metadata(number, body), body)
+                    for number, body in enumerate([*seeds, content], start=1)
+                ],
+            )
+            counters["http_cases"] += 1
+        filled = sql_snapshot(work / DB)
+        require_result(
+            exchange(second, "POST", "/documents", body=content),
+            409,
+            {"error": "quota_exceeded"},
+        )
+        counters["http_cases"] += 1
+        if sql_snapshot(work / DB) != filled:
+            raise RuntimeError("Full-quota refusal changed committed storage")
+
+
 def verify_storage(language, folder, env):
     # Imported lazily because the existing memory verifier calls this function.
     from verify_upload_labs import request
@@ -318,47 +439,10 @@ def verify_storage(language, folder, env):
         counters["http_cases"] += assert_preserved(port, expected)
     sql_expect(folder / DB, expected)
 
-    for quota in ("count", "bytes"):
-        work = workspace(folder, "race-" + quota)
+    for quota, held_reader in (("count", False), ("bytes", False), ("count", True)):
+        work = workspace(folder, "race-" + quota + ("-held-reader" if held_reader else ""))
         invoke(["init"], work, INIT)
-        with (
-            server(args, work, env, counters) as first,
-            server(args, work, env, counters) as second,
-        ):
-            seeds = [b"seed", b"seed"] if quota == "count" else [b"a" * 4096]
-            for seed in seeds:
-                if exchange(first, "POST", "/documents", body=seed)[0] != 201:
-                    raise RuntimeError("Quota race seed failed")
-                counters["http_cases"] += 1
-            gate = threading.Barrier(2)
-
-            def compete(port, body, start_gate=gate):
-                start_gate.wait(timeout=5)
-                return exchange(port, "POST", "/documents", body=body)
-
-            content = b"last" if quota == "count" else b"b" * 4096
-            with ThreadPoolExecutor(max_workers=2) as pool:
-                futures = [pool.submit(compete, port, content) for port in (first, second)]
-                results = [future.result(timeout=10) for future in futures]
-            counters["http_cases"] += 2
-            if sorted(result[0] for result in results) not in ([201, 409], [201, 503]):
-                raise RuntimeError("Two services did not enforce the last shared quota")
-            for status, value in results:
-                if status != 201:
-                    require_result(
-                        (status, value),
-                        status,
-                        {"error": "quota_exceeded" if status == 409 else "repository_unavailable"},
-                    )
-            rows = sql_snapshot(work / DB)
-            if len(rows) != len(seeds) + 1 or sum(row[4] for row in rows) > 8192:
-                raise RuntimeError("Race overspent persistent quota or inserted partial rows")
-            require_result(
-                exchange(second, "POST", "/documents", body=content),
-                409,
-                {"error": "quota_exceeded"},
-            )
-            counters["http_cases"] += 1
+        verify_quota_race(args, work, env, counters, quota, held_reader=held_reader)
 
     work = workspace(folder, "busy")
     invoke(["init"], work, INIT)
