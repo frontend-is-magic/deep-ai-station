@@ -48,6 +48,7 @@ import { PageHeading } from '@/components/common';
 import { Button } from '@/components/ui/button';
 import RetrievalEvaluation from '@/components/RetrievalEvaluation';
 import ToolContractExperiment from '@/components/ToolContractExperiment';
+import RunDiagnostics from '@/components/RunDiagnostics';
 
 interface CheckResult {
   mode: string;
@@ -120,7 +121,7 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
   const [drafts, setDrafts] = useAtom(codeDraftsAtom);
   const trackId: TrackId = params.get('track') === 'fullstack' ? 'fullstack' : 'agent';
   const requestedMode = params.get('mode');
-  const mode = ['evaluation', 'code', 'tool-contract'].includes(requestedMode || '')
+  const mode = ['evaluation', 'code', 'tool-contract', 'diagnostics'].includes(requestedMode || '')
     ? requestedMode!
     : 'agent';
   const [provider, setProvider] = useState<LiveProvider>('demo');
@@ -594,6 +595,14 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
             <FlaskConical size={16} />
             工具契约
           </button>
+          <button
+            disabled={running}
+            className={mode === 'diagnostics' ? 'selected' : ''}
+            onClick={() => switchMode('diagnostics')}
+          >
+            <FlaskConical size={16} />
+            诊断演练
+          </button>
         </div>
         <label className="track-select">
           学习方向
@@ -683,7 +692,9 @@ export default function Playground({ tracks }: { tracks: Track[] }) {
           <p>成功、失败和停止尝试共用最近 20 条；输入、已接收内容与轨迹保存在当前浏览器。</p>
         </section>
       )}
-      {mode === 'tool-contract' ? (
+      {mode === 'diagnostics' ? (
+        <RunDiagnostics track={trackId} lesson={selectedLesson} tracks={tracks} />
+      ) : mode === 'tool-contract' ? (
         <ToolContractExperiment
           track={trackId}
           lesson={selectedLesson}

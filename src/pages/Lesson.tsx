@@ -26,6 +26,7 @@ import type { Track } from '@/lib/types';
 import { languageNames } from '@/lib/utils';
 import { courseLabFor } from '@/lib/course-labs';
 import { toolContractLessonEligible } from '@/lib/tool-contract';
+import { diagnosticLessonEligible } from '@/lib/run-diagnostics';
 import { Button } from '@/components/ui/button';
 import EvidenceCard from '@/components/EvidenceCard';
 import LanguagePractice from '@/components/LanguagePractice';
@@ -325,6 +326,14 @@ export default function LessonPage({ tracks }: { tracks: Track[] }) {
               <Link to={'/playground?track=agent&lesson=' + lesson.id + '&mode=tool-contract'}>
                 <FlaskConical size={16} />
                 运行工具契约实验
+              </Link>
+            </Button>
+          )}
+          {diagnosticLessonEligible(lesson) && (
+            <Button variant="outline" asChild>
+              <Link to={`/playground?track=${track.id}&lesson=${lesson.id}&mode=diagnostics`}>
+                <FlaskConical size={16} />
+                运行诊断演练
               </Link>
             </Button>
           )}
