@@ -43,6 +43,8 @@ CI 对 48 份 Python 参考做 AST 校验，对 24 份 TS 参考做严格类型�
 
 文档问答课增加独立受限文本上传实验，只接收原始 UTF-8 `.txt` / `.md`。显式假 Bearer 提供服务端身份，正文按实际字节限制4096；严格文件名仅作元数据，服务端ID作为私有对象键。仓储在同一个短原子操作内检查每owner三份/8192字节配额并发布元数据和不可变内容；失败不留记录或消耗ID，正文完成后重检会话。下载强制attachment、octet-stream、nosniff和no-store，不渲染或解析内容。78个共同HTTP案例覆盖字节/类型/文件名、身份、隔离、配额和同名不覆盖；独立包重启清空数据。实验不落盘，不代表生产文件系统、持久存储、复杂解析器或RAG已经完成。详细边界见[上传契约](../labs/text-upload/shared/CONTRACT.md)。
 
+三个上传ZIP共用React/TypeScript、Tailwind、Jotai与源码Button客户端。单一controller管理上传、列表、内容三个请求槽，身份generation和每槽票据在异步文件读取、摘要、响应体和下载前后隔离迟到结果；Jotai只订阅不可变快照。HTTP固定同源/api代理至回环后端，响应有界读取并核对元数据、原字节SHA与安全attachment。未知POST以owner范围的内存标记保留，显式许可只放行一个新POST，不由后续列表或201清除旧未知；没有幂等、跨页面恢复、正文持久化或HTML渲染。
+
 流式与异步两课增加[独立 SSE 实验](../labs/sse-stream/shared/README.md)，三语言后端共用 start/delta/done/error 协议与固定文本，每请求独立 Producer、运行ID及单个总deadline。真实HTTP断连测试观察取消和一次清理；Python额外保证异步清理开始后收到取消仍完成清理。共享React客户端使用增量UTF-8解码、完整事件解析、序号/身份/终态校验、字节/事件上限与重跑隔离，失败保留已有文字。下载包包含客户端源码和锁文件；`verify_stream_labs.py --browser` 在仓库之外验证各后端与客户端，仍不执行学习者输入或证明生产部署生命周期。
 
 Agent 工具安全课增加 [独立审批与幂等实验](../labs/agent-write-safety/shared/CONTRACT.md)：服务端公开教学身份按 owner / requester / capability 授权，批准绑定不可变目标、全文、预期版本与摘要；正文读取及数据库锁后重检会话。SQLite 同一事务更新文档、唯一发布回执与 applied 状态，同操作重放只读原回执；提交后返回丢失标记为结果不明，保留原 ID 查询恢复。React 在切身份时清除旧数据并拒绝迟到响应，改草稿后需重新审核。实际平台 Agent 工具目录继续只读；ZIP 的本地教学写入不授予外部写工具权限。审批与回执持久化，教学会话重启重置，外部系统不在 SQLite 事务内。

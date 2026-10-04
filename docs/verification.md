@@ -1,5 +1,17 @@
 # 验证记录
 
+## 2026-10-04 / 三语言上传的共享 React 客户端
+
+- 三个 text-upload ZIP 内包含同一份 React / TypeScript、Tailwind、Jotai 与源码Button客户端；默认回环5197代理本机8023，可显式设置数字LAB_API_PORT。固定公开教学身份，文件选择后只有点击才POST原字节；201逐项核对文件名、媒体、长度和SHA，列表、纯文本预览与原始附件形成实际操作闭环。后端HTTP与SQLite schema不变，不根据健康响应宣称SQLite已启用。
+- JSON/附件均有界读取，严格响应类型、no-store/nosniff、attachment及内容摘要核对；HTML/Markdown只作文本节点，下载保留原bytes且Blob URL在finally释放。三请求槽与身份/文件票据隔离迟到read/hash/fetch/body，10秒deadline覆盖全部异步链。Jotai只桥接单一不可变快照，无浏览器持久化、任意URL或真实凭据输入。
+- 已发POST的停止、断连、超时或无效响应保留owner范围的“可能已保存”；GET和后续201均不能清除旧未知。明确核对只授权一次新POST，清掉旧File并要求重选和手点，发送时消费许可，没有自动重试或幂等保证。切换Bob隐藏Alice反馈，同owner另一会话仍显示未知；刷新页面会丢失本页标记，文案明示限制。
+- 独立审查先红后绿复现两个问题：同步abort回调在身份切换中多发旧Alice GET，dispose快照仍含文件名与原文。分别改为整体换代/移出全部请求槽后再abort并门控切换期命令，以及销毁时直接清私有快照而不通知。Node24.14.1/pnpm10.32.1下61项原生、Prettier、TypeScript与Vite构建通过；另一作者7组独立探针验证分类、有界流、永不完成的cancel、未知保留和迟到阶段零下载/零回填，所有注入timer清空。
+- 仓库外独立解包：3个ZIP的15个client文件逐字节一致，只安装检查一份相同客户端；六个语言×memory/SQLite组合经真实Vite代理完成原始UTF-8/CRLF/emoji/组合字符上传、同名新ID、只读和owner隔离、真实409、附件字节比对与退出后的新PID重启。memory为空，SQLite原文/ID/配额保留。另在Python SQLite执行5组故障/边界流程；浏览器时钟推进验证deadline，与真实HTTP/SQLite证据分别记录。
+- 未知结果流程先由Playwright route.fetch拿到真实201，独立只读SQL核对恰1条原BODY和next_id，再丢弃浏览器响应。完整核对流程中POST一直为1；明确许可、重选并点击后为2，SQL两份同名同SHA原文，新201与旧未知同时显示。另一受控调度核对忽略AbortSignal的旧POST/列表/下载、停止与本地读文件替代；损坏一个附件字节被拒绝。没有将代理响应故障称为数据库COMMIT故障。
+- 首次独立浏览器运行已走通真实上传/下载，验收器add_init_script未调用包装函数导致审计对象缺失；修正验收脚本后完整矩阵通过，产品未因此改动。最终30/30自有服务进程wait/reap，headless关闭、监听释放；Vite公共关闭API与自有进程组复核，权限异常不能视作退出。5项验收器自测含真实stdin EOF helper回收及失败分支；87份Python Ruff检查/格式通过。
+- 平台612项Vitest、Prettier、TypeScript与生产构建、529项后端通过，本地41项专用PG明确跳过。课程实际三语言ZIP/原参考下载及记录保留，加桌面/375px布局共2项headless通过（4.13秒）。客户端桌面纯文本与移动端“旧未知+新201”截图已查看，无横向溢出；自有8006/5175释放，原primary749c9a0与8000/5173未动。
+- 全部20包重建一致，上传ZIP为Python103188、TS92493、Go99463字节，dist副本一致；提交前扫描暂存、工作区和内嵌ZIP。0真实模型/沙箱调用，无新托管配置；精确提交的十二项CI、Preview、Notion与原人工对话回执另行记录，原生Browser和Production仍未新增验收。
+
 ## 2026-10-04 / 三语言上传的 SQLite 耐久仓储
 
 - 现有 text-upload 三语言包增加显式 `init` 与 `serve --storage sqlite`，默认 memory 继续重启清空。固定 cwd/.data/uploads.sqlite3 保存完整 BLOB、server owner、元数据及 next_id；同一共享 SQL/application_id/version 格式可跨语言读取。已有库不覆盖、缺库不创建，未知或损坏库拒绝；假会话仍随进程重建，固定 Alice/Bob 教学库不代表真实身份或托管存储。
@@ -11,6 +23,8 @@
 - 初轮Python独立检查完成最后坏库断言后，通用清理器的进程组零信号探测返回PermissionError；finally已wait且后查无对应进程。新脚本对无包装/worker的固定入口改为直接terminate/wait/kill/wait及监听检查，不把EPERM视作退出证据；通用runner未改。6项验收器自测证明正确JSON不能替代真实退出，歧义JSON、额外诊断与不合作进程均拒绝；回收后另检查服务日志仅允许固定Node运行时警告。
 - 平台612项Vitest、Prettier、TypeScript与生产构建通过，524项后端通过、41项本地专用PG明确跳过，85份Python Ruff通过。实际三语言ZIP/原参考下载和记录保留，加桌面/375px视觉共2条headless通过（4.29秒）；截图已查看无横向溢出，自有8006/5175及浏览器释放，原primary749c9a0与8000/5173未动。
 - 全部20包重建一致，最终上传ZIP分别Python58829、TS48134、Go55104字节，dist副本相同。.data及SQLite旁文件忽略与强制ZIP拦截均通过；提交前扫描暂存、工作区和内嵌ZIP。0真实模型/沙箱调用，无新托管迁移；精确提交的十一项CI、Preview、Notion与原人工清单回执另行记录，原生Browser和Production边界保持。
+
+- 最终 `942d136` [完整 CI](https://github.com/frontend-is-magic/deep-ai-station/actions/runs/37165545892) 十一项全部成功；质量日志确认612项前端、524项后端、181条完整headless（409.87秒）和521文件/ZIP扫描。三个语言作业各确认119个SQLite HTTP、17个CLI及8个服务回收，独立TS→Go→Python→TS四进程同库作业成功；真实PostgreSQL17.11的41项通过。Preview `6835009262` 成功，正常TLS匿名健康302；Notion三页回读verified，原人工清单同步此精确版本。共享React上传客户端单独进入下一轮，原生Browser、托管配置与Production边界不变。
 
 ## 2026-10-04 / Agent 结构化结果回归与硬门禁实验
 

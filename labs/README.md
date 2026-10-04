@@ -48,3 +48,5 @@ python3 scripts/verify_sqlite_labs.py --language go
 这些维护脚本只运行固定教学代码。学习者修改应在独立练习环境运行，平台 API 不执行修改后的输入。SQLite CLI 的身份字段不是登录验证，不可直接信任来自客户端的 owner。实验无需模型凭据、不会调用模型；首次依赖安装需要网络。通过固定案例不等于新增业务已验收，应记录自己的实际结果。
 
 SSE下载包另运行三语言真实HTTP生命周期测试与12个共同HTTP案例；共享客户端31项协议测试覆盖UTF-8单字节分块、换行形式、提前EOF和终态校验。浏览器连接每个实际后端检查完成/故障/超时、停止A而B完成、重跑和375px布局；独立控制的提前EOF及忽略AbortSignal旧响应用于检查客户端故障隔离。每个服务及浏览器在 finally 关闭并确认端口释放，包括验证失败时。
+
+上传包内含共享React客户端，双终端启动和原字节/未知结果操作见 [上传实验](text-upload/shared/README.md)。维护者用 `python3 scripts/verify_upload_client.py` 检查三语言的 memory / SQLite 浏览器链路；实际版本与结果另记入验证记录。

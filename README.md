@@ -76,6 +76,8 @@ uv run python -m scripts.compile_go_examples
 
 路由、输入校验、SQLite 数据/迁移、会话/授权及受限文本上传实验的运行说明见 [课程实验](labs/README.md)。`python3 scripts/build_course_labs.py --check` 比较源码与 ZIP；`python3 scripts/verify_course_labs.py` 在仓库之外解包，冻结安装、运行各语言测试并启动实际 HTTP 服务验证共同案例，结束后确认自有监听已释放。`python3 scripts/verify_sqlite_labs.py` 在独立临时目录验证三语言真实 SQLite CLI、迁移及故障回滚。`python3 scripts/verify_session_labs.py` 验证假会话、权限隔离、CSRF、原始重复头及进程重启；服务端Cookie属性测试不代表真实HTTPS浏览器验收。`python3 scripts/verify_upload_labs.py` 验证真实UTF-8字节上传、owner范围、原子配额和附件下载：默认内存重启清空，显式SQLite经新进程保留原文与配额；另验双服务竞争、忙锁和坏库拒绝。`python3 scripts/verify_upload_storage.py` 在同一个数据库文件上按TS→Go→Python→TS读写，所有服务退出后用独立SQL核对。维护者脚本只运行仓库固定代码。
 
+`python3 scripts/verify_upload_client.py` 验证上传包中的共享 React 界面：三种后端分别使用 memory / SQLite，实际选择文件、上传、查看纯文本、下载原字节和重启；另通过真实提交后丢失浏览器响应验证未知提示与显式新尝试。客户端与后端双终端启动见 [上传实验](labs/text-upload/shared/README.md)。
+
 `python3 scripts/verify_agent_write_lab.py` 在独立解包环境冻结安装，检查工具审批的真实 SQLite / HTTP、重启、提交后 503 与断连恢复；`--browser` 另验 React 到实际后端的流程。教学身份为公开假值，不产生模型费用或外部发布。
 
 `python3 scripts/verify_mcp_lab.py` 验证 [MCP 只读协议实验](labs/mcp-readonly/shared/README.md)：官方 Python SDK 的真实 stdio 两进程、工具与资源发现、严格参数、超时取消和断连清理。下载包独立冻结依赖，只访问固定课程资料；平台不会运行修改后的代码。
