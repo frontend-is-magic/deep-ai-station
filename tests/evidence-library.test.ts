@@ -379,3 +379,22 @@ describe('current record lookup before export', () => {
     );
   });
 });
+
+it('returns to shared frontend evidence without changing server preference or inventing Go evidence', () => {
+  const catalogue = [track('fullstack', [lesson('fullstack-jotai')])];
+  const original = {
+    ...progress([
+      record({ lesson_id: 'fullstack-jotai', language: 'typescript' }),
+      record({ lesson_id: 'fullstack-jotai', language: 'go' }),
+    ]),
+    language: 'go' as const,
+  };
+  const entries = resolveEvidenceEntries(original, catalogue);
+  const frontend = entries.find((entry) => entry.record.language === 'typescript')!;
+  const legacy = entries.find((entry) => entry.record.language === 'go')!;
+  expect(frontend.href).toBe('/lesson/fullstack-jotai');
+  expect(frontend.editable).toBe(true);
+  expect(legacy.editable).toBe(false);
+  expect(original.language).toBe('go');
+  expect(original.evidence).toHaveLength(2);
+});

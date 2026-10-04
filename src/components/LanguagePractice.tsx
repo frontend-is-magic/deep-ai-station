@@ -12,10 +12,12 @@ export default function LanguagePractice({
   lessonId,
   language,
   languages,
+  label: sectionLabel = '本课实践记录',
 }: {
   lessonId: string;
   language: Language;
   languages: readonly Language[];
+  label?: string;
 }) {
   const [progress, setProgress] = useAtom(progressAtom);
   const [confirmed, setConfirmed] = useState(false);
@@ -50,11 +52,11 @@ export default function LanguagePractice({
 
   return (
     <section
-      aria-label="本课实践记录"
+      aria-label={sectionLabel}
       className="mb-5 min-w-0 space-y-4 rounded-xl border border-slate-200 bg-white p-5"
     >
       <div>
-        <h3 className="text-sm font-semibold">本课实践记录</h3>
+        <h3 className="text-sm font-semibold">{sectionLabel}</h3>
         <p className="mt-2 text-xs leading-relaxed text-slate-600">
           由你自行确认，未由平台运行验收。与上方课程完成标记独立保存，不改变课程笔记、测验答案或验收选择。
         </p>

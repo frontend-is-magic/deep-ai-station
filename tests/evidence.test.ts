@@ -282,7 +282,7 @@ describe('experiment evidence compatibility and capacity', () => {
     expect(evidenceFor(saved, 'fullstack-legacy--0-', 'python')).toEqual(old.evidence?.[0]);
   });
 
-  it('roundtrips the actual 33 lab and 12 capstone course-language combinations', () => {
+  it('roundtrips the actual 35 lab and 12 capstone course-language combinations', () => {
     const labLessons = [
       'fullstack-routing',
       'fullstack-validation',
@@ -303,6 +303,8 @@ describe('experiment evidence compatibility and capacity', () => {
     const languages: Language[] = ['typescript', 'go', 'python'];
     for (const lessonId of labLessons) expect(courseLabFor(lessonId)).toBeDefined();
     const records = [
+      record({ lesson_id: 'fullstack-components', language: 'typescript' }),
+      record({ lesson_id: 'fullstack-jotai', language: 'typescript' }),
       record({ lesson_id: 'agent-tool-safety', language: 'python' }),
       record({ lesson_id: 'agent-mcp', language: 'python' }),
       record({ lesson_id: 'agent-state-machine', language: 'python' }),
@@ -316,9 +318,9 @@ describe('experiment evidence compatibility and capacity', () => {
       ),
       ...agentCapstones.map((lesson_id) => record({ lesson_id, language: 'python' })),
     ];
-    expect(records).toHaveLength(45);
+    expect(records).toHaveLength(47);
     const saved = records.reduce(saveEvidence, emptyProgress);
-    expect(saved.evidence).toHaveLength(45);
+    expect(saved.evidence).toHaveLength(47);
     const restored = JSON.parse(JSON.stringify(saved));
     expect(validateProgress(restored)).toBe(true);
     for (const expected of records)
@@ -334,7 +336,7 @@ describe('experiment evidence compatibility and capacity', () => {
     expect(evidenceFor(changed, 'fullstack-database', 'typescript')?.success).toBe(
       'fullstack-database/typescript',
     );
-    expect(changed.evidence).toHaveLength(45);
+    expect(changed.evidence).toHaveLength(47);
     expect(restored.completed).toEqual([]);
     expect(restored.practice).toBeUndefined();
   });

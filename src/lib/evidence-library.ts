@@ -83,7 +83,9 @@ export function resolveEvidenceEntries(
         lesson: match.lesson,
         href:
           `/lesson/${encodeURIComponent(record.lesson_id)}` +
-          (track === 'fullstack' ? `?language=${record.language}` : ''),
+          (track === 'fullstack' && !courseLabFor(record.lesson_id, record.language)?.sharedFrontend
+            ? `?language=${record.language}`
+            : ''),
         editable:
           Boolean(courseLabFor(record.lesson_id, record.language)) ||
           (track === 'fullstack' && match.lesson.stage === 'ship') ||

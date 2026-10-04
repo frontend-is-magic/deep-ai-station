@@ -1,4 +1,4 @@
-import { courseLabFor, type CourseLab } from './course-labs';
+import { courseLabSelectionFor, type CourseLab } from './course-labs';
 import { practiceFor } from './practice';
 import type { Language, Lesson, Progress, Track, TrackId } from './types';
 
@@ -69,20 +69,28 @@ export function labPracticeGroups(
       continue;
     const snippet = lesson.snippets[language];
     if (typeof snippet !== 'string' || !snippet.trim()) continue;
-    const lab = courseLabFor(lesson.id, language);
-    if (!lab) continue;
+    const selection = courseLabSelectionFor(lesson.id, language);
+    if (!selection) continue;
+    const { lab, language: labLanguage } = selection;
+    if (
+      !track.languages.includes(labLanguage) ||
+      !Object.hasOwn(lesson.snippets, labLanguage) ||
+      typeof lesson.snippets[labLanguage] !== 'string' ||
+      !lesson.snippets[labLanguage]?.trim()
+    )
+      continue;
     let group = groups.get(lab.id);
     if (!group) {
-      group = { lab, language, lessons: [] };
+      group = { lab, language: labLanguage, lessons: [] };
       groups.set(lab.id, group);
     }
     group.lessons.push({
       lesson,
       href:
         `/lesson/${lesson.id}` +
-        (trackId === 'fullstack' ? `?language=${language}` : '') +
+        (trackId === 'fullstack' && !lab.sharedFrontend ? `?language=${language}` : '') +
         '#course-lab',
-      practiceRecorded: Boolean(practiceFor(progress, lesson.id, language)),
+      practiceRecorded: Boolean(practiceFor(progress, lesson.id, labLanguage)),
     });
   }
   return [...groups.values()];

@@ -317,6 +317,25 @@ MEMORY_SHARED = [
     ".gitignore",
 ]
 
+FRONTEND_STATE_FILES = {
+    "typescript": [
+        "package.json",
+        "pnpm-lock.yaml",
+        "tsconfig.json",
+        "vite.config.ts",
+        "index.html",
+        "src/main.tsx",
+        "src/App.tsx",
+        "src/LessonCard.tsx",
+        "src/state.ts",
+        "src/state.test.ts",
+        "src/style.css",
+        "src/components/ui/button.tsx",
+        "src/lib/utils.ts",
+    ],
+}
+FRONTEND_STATE_SHARED = ["README.md", "CONTRACT.md", "EVIDENCE.md", "AGENTS.md", ".gitignore"]
+
 LABS = {
     "api-contract": (FILES, SHARED),
     "sqlite-storage": (STORAGE_FILES, STORAGE_SHARED),
@@ -329,6 +348,7 @@ LABS = {
     "document-chunking": (CHUNKING_FILES, CHUNKING_SHARED),
     "output-regression": (REGRESSION_FILES, REGRESSION_SHARED),
     "memory-policy": (MEMORY_FILES, MEMORY_SHARED),
+    "frontend-state": (FRONTEND_STATE_FILES, FRONTEND_STATE_SHARED),
 }
 
 

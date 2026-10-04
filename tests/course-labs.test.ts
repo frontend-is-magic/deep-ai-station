@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { courseLabFor } from '../src/lib/course-labs';
+import { courseLabFor, courseLabSelectionFor } from '../src/lib/course-labs';
 
 describe('course lab language availability', () => {
   it('offers the write lab only for the Agent safety lesson and Python', () => {
@@ -70,8 +70,10 @@ describe('course lab language availability', () => {
         expect(courseLabFor(lesson, language)).toBe(lab);
     }
   });
-  it('maps eleven lab types, fifteen lessons and twenty-one language packages', () => {
+  it('maps twelve lab types, seventeen lessons and twenty-two language packages', () => {
     const lessonIds = [
+      'fullstack-components',
+      'fullstack-jotai',
       'fullstack-routing',
       'fullstack-validation',
       'fullstack-database',
@@ -90,11 +92,34 @@ describe('course lab language availability', () => {
     ];
     const labs = lessonIds.map((id) => courseLabFor(id));
     expect(labs.every((lab) => lab !== undefined)).toBe(true);
-    expect(new Set(lessonIds).size).toBe(15);
-    expect(new Set(labs.map((lab) => lab?.id)).size).toBe(11);
+    expect(new Set(lessonIds).size).toBe(17);
+    expect(new Set(labs.map((lab) => lab?.id)).size).toBe(12);
     expect(
       new Set(labs.flatMap((lab) => lab!.languages.map((language) => `${lab!.id}:${language}`)))
         .size,
-    ).toBe(21);
+    ).toBe(22);
+  });
+});
+
+describe('shared frontend package selection', () => {
+  it.each(['typescript', 'go', 'python'] as const)(
+    'keeps a single TypeScript package with %s server references',
+    (language) => {
+      for (const id of ['fullstack-components', 'fullstack-jotai']) {
+        const choice = courseLabSelectionFor(id, language)!;
+        expect(choice.language).toBe('typescript');
+        expect(choice.lab.id).toBe('frontend-state');
+        expect(choice.lab.sharedFrontend).toBe(true);
+        expect(choice.lab.languages).toEqual(['typescript']);
+        expect(courseLabFor(id, 'go')).toBeUndefined();
+        expect(courseLabFor(id, 'python')).toBeUndefined();
+      }
+      expect(courseLabSelectionFor('fullstack-routing', language)?.language).toBe(language);
+    },
+  );
+  it('does not widen Agent or unsupported-language access', () => {
+    expect(courseLabSelectionFor('agent-memory', 'go')).toBeUndefined();
+    expect(courseLabSelectionFor('fullstack-jotai', 'ruby' as never)).toBeUndefined();
+    expect(courseLabSelectionFor('fullstack-product', 'typescript')).toBeUndefined();
   });
 });

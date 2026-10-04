@@ -1,0 +1,6 @@
+{
+  "id": "frontend-state",
+  "version": "frontend-state-v1",
+  "lessons": ["fullstack-components", "fullstack-jotai"],
+  "languages": ["typescript"]
+}

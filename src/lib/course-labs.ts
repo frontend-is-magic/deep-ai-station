@@ -12,7 +12,9 @@ export interface CourseLab {
     | 'workflow-checkpoint'
     | 'document-chunking'
     | 'output-regression'
-    | 'memory-policy';
+    | 'memory-policy'
+    | 'frontend-state';
+  sharedFrontend?: boolean;
   lessons: readonly string[];
   languages: readonly Language[];
   title: string;
@@ -21,6 +23,17 @@ export interface CourseLab {
 }
 
 const courseLabs: readonly CourseLab[] = [
+  {
+    id: 'frontend-state',
+    sharedFrontend: true,
+    lessons: ['fullstack-components', 'fullstack-jotai'],
+    languages: ['typescript'],
+    title: '可运行 React 组件与状态实验',
+    description:
+      '公共前端独立项目，用三张固定课程卡片练习类型化 Props、完成与收藏事实、派生统计和筛选；刷新后核对状态恢复，再尝试新增一条派生规则。',
+    notice:
+      '公共前端统一使用 TypeScript，不改变你的 Go/Python 服务端参考偏好。实验只操作独立页面的固定数据，无后端或模型；下载、证据和课程完成不会自动记录实践。',
+  },
   {
     id: 'memory-policy',
     lessons: ['agent-memory'],
@@ -137,4 +150,14 @@ export function courseLabFor(lessonId: string, language?: Language): CourseLab |
   return courseLabs.find(
     (lab) => lab.lessons.includes(lessonId) && (!language || lab.languages.includes(language)),
   );
+}
+
+// A shared React lab has one actual package language, independent of server references.
+// Keep courseLabFor strict so stored evidence cannot invent Go/Python frontend packages.
+export function courseLabSelectionFor(lessonId: string, referenceLanguage: Language) {
+  if (!(['typescript', 'go', 'python'] as const).includes(referenceLanguage)) return undefined;
+  const lab = courseLabFor(lessonId);
+  if (!lab) return undefined;
+  const language: Language = lab.sharedFrontend ? 'typescript' : referenceLanguage;
+  return lab.languages.includes(language) ? { lab, language } : undefined;
 }

@@ -24,7 +24,7 @@ import { MAX_QUIZ_REVIEWS, addQuizReview, removeQuizReview } from '@/lib/quiz-re
 import { recordLessonVisit } from '@/lib/resume';
 import type { Track } from '@/lib/types';
 import { languageNames } from '@/lib/utils';
-import { courseLabFor } from '@/lib/course-labs';
+import { courseLabSelectionFor } from '@/lib/course-labs';
 import { toolContractLessonEligible } from '@/lib/tool-contract';
 import { diagnosticLessonEligible } from '@/lib/run-diagnostics';
 import { Button } from '@/components/ui/button';
@@ -123,7 +123,9 @@ export default function LessonPage({ tracks }: { tracks: Track[] }) {
   const index = track.lessons.findIndex((x) => x.id === lesson.id);
   const language = track.id === 'agent' ? 'python' : requestedLanguage || progress.language;
   const code = lesson.snippets[language] || '';
-  const courseLab = courseLabFor(lesson.id, language);
+  const labSelection = courseLabSelectionFor(lesson.id, language);
+  const courseLab = labSelection?.lab;
+  const labLanguage = labSelection?.language ?? language;
   const answer = quizState?.key === quizKey ? quizState.answer : null;
   const checked = quizState?.key === quizKey && quizState.checked;
   const quizPassed = checked && answer === lesson.quiz.answer;
@@ -346,26 +348,35 @@ export default function LessonPage({ tracks }: { tracks: Track[] }) {
               >
                 <h2>{courseLab.title}</h2>
                 <p>
-                  下载 {languageNames[language]} {courseLab.description}
+                  下载 {languageNames[labLanguage]} {courseLab.description}
                 </p>
                 <Button
                   variant="outline"
                   className="h-auto max-w-full whitespace-normal py-2 text-left"
                   asChild
                 >
-                  <a href={`/labs/${courseLab.id}-${language}.zip`} download>
+                  <a href={`/labs/${courseLab.id}-${labLanguage}.zip`} download>
                     <Download size={16} className="shrink-0" aria-hidden="true" />
-                    <span>下载实验 · {languageNames[language]}</span>
+                    <span>下载实验 · {languageNames[labLanguage]}</span>
                   </a>
                 </Button>
                 <p className="text-sm text-slate-600">{courseLab.notice}</p>
               </section>
               <EvidenceCard
-                key={`${lesson.id}:${language}`}
+                key={`${lesson.id}:${labLanguage}`}
                 lesson={lesson}
-                language={language}
+                language={labLanguage}
                 labTitle={courseLab.title}
               />
+              {courseLab.sharedFrontend && language !== 'typescript' && (
+                <LanguagePractice
+                  key={`${lesson.id}:shared-frontend`}
+                  lessonId={lesson.id}
+                  language="typescript"
+                  languages={['typescript']}
+                  label="公共前端实验实践记录"
+                />
+              )}
             </>
           )}
           {((track.id === 'agent' && ['retrieval', 'evaluation'].includes(lesson.stage)) ||

@@ -10,7 +10,7 @@ const fullstackIds = [
   'fullstack-async',
   'fullstack-database',
   'fullstack-routing',
-  'fullstack-jotai',
+  'fullstack-product-planning',
   'fullstack-ai-stream',
   'fullstack-validation',
   'fullstack-migrations',
@@ -260,7 +260,7 @@ describe('runnable practice groups', () => {
   it('does not add regular lessons or graduation skeletons to the existing lab inventory', () => {
     expect(
       labPracticeGroups(
-        [track('fullstack', ['fullstack-jotai', 'fullstack-product'])],
+        [track('fullstack', ['fullstack-product-planning', 'fullstack-product'])],
         'fullstack',
         progress(),
       ),
@@ -377,5 +377,38 @@ describe('catalogue link eligibility', () => {
     const parent = track('fullstack', ['fullstack-routing', 'fullstack-validation']);
     parent.lessons[0].snippets = snippets as Lesson['snippets'];
     expect(lessonIds([parent])).toEqual(['fullstack-validation']);
+  });
+});
+
+describe('shared frontend practice discovery', () => {
+  it.each(['typescript', 'go', 'python'] as const)(
+    'reads only TypeScript facts without changing %s preference',
+    (language) => {
+      const catalogue = [track('fullstack', ['fullstack-components', 'fullstack-jotai'])];
+      const current = freeze(
+        progress({
+          language,
+          practice: [
+            { lesson_id: 'fullstack-components', language: 'go', completed_at: DATE },
+            { lesson_id: 'fullstack-jotai', language: 'typescript', completed_at: DATE },
+          ],
+        }),
+      );
+      const [group] = labPracticeGroups(catalogue, 'fullstack', current);
+      expect(group.lab.id).toBe('frontend-state');
+      expect(group.language).toBe('typescript');
+      expect(group.lessons.map((item) => item.practiceRecorded)).toEqual([false, true]);
+      expect(group.lessons.map((item) => item.href)).toEqual([
+        '/lesson/fullstack-components#course-lab',
+        '/lesson/fullstack-jotai#course-lab',
+      ]);
+      expect(current.language).toBe(language);
+      expect(current.practice).toHaveLength(2);
+    },
+  );
+  it('requires a real TypeScript reference even when the selected server reference exists', () => {
+    const catalogue = [track('fullstack', ['fullstack-jotai'])];
+    catalogue[0].lessons[0].snippets.typescript = '';
+    expect(labPracticeGroups(catalogue, 'fullstack', progress({ language: 'go' }))).toEqual([]);
   });
 });

@@ -34,7 +34,7 @@ export default function LabPracticeList({
         </p>
         <p className="text-xs text-slate-600">
           当前语言：{languageNames[language]}
-          {trackId === 'agent' ? '（Agent 固定使用 Python）' : ''}
+          {trackId === 'agent' ? '（Agent 固定使用 Python）' : '；公共前端实验单独使用 TypeScript'}
         </p>
       </div>
       <label className="flex w-fit max-w-full items-start gap-2 text-sm">
@@ -78,6 +78,7 @@ export default function LabPracticeList({
                   >
                     <span className="font-medium">{group.lab.title}</span>
                     <span className="ml-2 inline-block text-xs text-slate-600">
+                      {group.lab.sharedFrontend ? '公共前端 · ' : ''}
                       {languageNames[group.language]} · {pending}/{group.lessons.length} 课未记录
                     </span>
                   </summary>
