@@ -22,6 +22,7 @@ from backend.model_usage import begin_model_attempt
 from backend.providers import PROVIDERS, Provider, capabilities, provider_model, stream_generate
 from backend.retrieval import retrieve
 from backend.retrieval_evaluation import RetrievalEvaluationRequest, evaluate_retrieval
+from backend.run_diagnostics import router as run_diagnostics_router
 from backend.sandbox import execute_code
 from backend.tool_contract import router as tool_contract_router
 from backend.usage import ModelRequest, UsageTracker
@@ -39,6 +40,7 @@ app.add_middleware(
 
 app.add_middleware(RequestLimits)
 app.include_router(tool_contract_router)
+app.include_router(run_diagnostics_router)
 
 
 @app.get("/api/health")
