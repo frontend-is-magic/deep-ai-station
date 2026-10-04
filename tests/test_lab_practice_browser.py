@@ -159,7 +159,7 @@ def test_legacy_completed_route_still_offers_unrecorded_labs_and_filters_are_rea
     seed(page, legacy)
     expect(page.locator(".overview-progress")).to_contain_text("24/24 已完成")
     expect(checklist(page).get_by_label(FILTER, exact=True)).to_be_checked()
-    expect(checklist(page).get_by_role("article")).to_have_count(5)
+    expect(checklist(page).get_by_role("article")).to_have_count(6)
     current = expand(page)
     expect(row(current, "fullstack-routing")).to_contain_text("实践未记录")
     expect(row(current, "fullstack-validation")).to_contain_text("实践未记录")
@@ -167,13 +167,13 @@ def test_legacy_completed_route_still_offers_unrecorded_labs_and_filters_are_rea
     expect(checklist(page).locator('a[href*="fullstack-integration"]')).to_have_count(0)
     expect(checklist(page).locator('a[href*="fullstack-launch"]')).to_have_count(0)
     checklist(page).get_by_label(FILTER, exact=True).uncheck()
-    expect(checklist(page).get_by_role("article")).to_have_count(5)
+    expect(checklist(page).get_by_role("article")).to_have_count(6)
     checklist(page).get_by_label(FILTER, exact=True).check()
     assert stored(page) == legacy and "practice" not in stored(page)
     assert export_record(page) == legacy
     page.reload()
     expect(checklist(page).get_by_label(FILTER, exact=True)).to_be_checked()
-    expect(checklist(page).get_by_role("article")).to_have_count(5)
+    expect(checklist(page).get_by_role("article")).to_have_count(6)
     assert stored(page) == legacy
 
 
@@ -269,13 +269,19 @@ def test_agent_python_keyboard_download_confirmation_and_revocation_update_the_r
 
 def test_all_recorded_empty_state_can_show_history_without_claiming_other_languages(page):
     known_labs = {lesson for lab in FULLSTACK_LABS.values() for lesson in lab["lessons"]}
-    value = baseline(practice=[practice_record(lesson, "go") for lesson in sorted(known_labs)])
+    value = baseline(
+        practice=[practice_record(lesson, "go") for lesson in sorted(known_labs)]
+        + [
+            practice_record(lesson, "typescript")
+            for lesson in ("fullstack-components", "fullstack-jotai")
+        ]
+    )
     seed(page, value)
     expect(checklist(page)).to_contain_text("当前语言的可运行实践均已记录")
     expect(checklist(page).get_by_role("article")).to_have_count(0)
     checklist(page).get_by_role("button", name="查看全部实践", exact=True).click()
     expect(checklist(page).get_by_label(FILTER, exact=True)).not_to_be_checked()
-    expect(checklist(page).get_by_role("article")).to_have_count(5)
+    expect(checklist(page).get_by_role("article")).to_have_count(6)
     expect(row(expand(page), "fullstack-routing")).to_contain_text("实践已记录")
     assert stored(page) == value
     page.get_by_role("button", name="Python", exact=True).click()

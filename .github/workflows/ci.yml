@@ -219,6 +219,27 @@ jobs:
           cache-dependency-glob: labs/memory-policy/python/uv.lock
       - run: uv run --no-project --python 3.12 python scripts/build_course_labs.py --check
       - run: uv run --no-project --python 3.12 python scripts/verify_memory_lab.py
+  frontend-state-lab:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.12.22'
+          python-version: '3.12'
+          enable-cache: true
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.32.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: labs/frontend-state/typescript/pnpm-lock.yaml
+      - run: uv sync --locked
+      - run: uv run playwright install --with-deps chromium
+      - run: uv run python scripts/build_course_labs.py --check
+      - run: uv run python scripts/verify_frontend_state_lab.py
   shared-quota:
     runs-on: ubuntu-latest
     services:
