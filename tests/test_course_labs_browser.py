@@ -191,7 +191,8 @@ def assert_session_archive(archive, language, files):
 
 
 def assert_upload_archive(archive, language, files):
-    assert {"fixtures.json", "contract-cases.json"} <= files
+    assert {"fixtures.json", "contract-cases.json", "STORAGE.md", "schema.sql"} <= files
+    assert archive.read("schema.sql") == (ROOT / "labs/text-upload/shared/schema.sql").read_bytes()
     source_files = {
         "python": {"app.py", "repository.py", "test_app.py"},
         "typescript": {"src/app.ts", "src/repository.ts", "src/app.test.ts"},
@@ -436,6 +437,8 @@ def test_course_lab_downloads_follow_language_and_preserve_reference_bundle(
         expect(card).to_contain_text("owner 隔离")
         expect(card).to_contain_text("原子配额")
         expect(card).to_contain_text("内存数据重启清空")
+        expect(card).to_contain_text("SQLite 需显式初始化")
+        expect(card).to_contain_text("提交未确认时先核对记录")
         expect(card).to_contain_text("不解析或执行内容")
     elif lab_id == "session-authorization":
         expect(card).to_contain_text("会话过期与撤销")

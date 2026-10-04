@@ -319,6 +319,7 @@ def test_mcp_connection_configs_are_ignored_and_rejected_inside_forced_zip(
         "labs/workflow-checkpoint/shared/.gitignore",
         "labs/document-chunking/shared/.gitignore",
         "labs/output-regression/shared/.gitignore",
+        "labs/text-upload/shared/.gitignore",
     ],
 )
 def test_checkpoint_runtime_state_is_ignored_and_rejected_inside_forced_zip(

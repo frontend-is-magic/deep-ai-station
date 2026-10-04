@@ -8,6 +8,7 @@ import socket
 
 from build_course_labs import ROOT, UPLOAD_FILES
 from verify_course_labs import verify
+from verify_upload_storage import verify_storage
 
 
 def request(base, case):
@@ -83,7 +84,7 @@ def main():
         with socket.socket() as listener:
             listener.bind(("127.0.0.1", 0))
             port = listener.getsockname()[1]
-        verify(language, port, "text-upload", request, restart_cases)
+        verify(language, port, "text-upload", request, restart_cases, after_verify=verify_storage)
 
 
 if __name__ == "__main__":

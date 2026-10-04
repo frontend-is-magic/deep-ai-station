@@ -141,7 +141,13 @@ def verify_http(
 
 
 def verify(
-    language, port, lab="api-contract", request_case=request, restart_cases=None, extra_check=None
+    language,
+    port,
+    lab="api-contract",
+    request_case=request,
+    restart_cases=None,
+    extra_check=None,
+    after_verify=None,
 ):
     # Deliberately omit provider keys and authentication material from child processes.
     allowed = {
@@ -225,6 +231,8 @@ def verify(
             restart_count = verify_http(
                 restart_server, folder, env, restart_port, request_case, restart_cases
             )
+        if after_verify is not None:
+            after_verify(language, folder, env)
         print(
             json.dumps(
                 {
