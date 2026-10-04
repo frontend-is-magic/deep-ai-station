@@ -88,6 +88,11 @@ export class Authenticator {
       throw new ApiError(401, 'authentication_required');
     return Object.freeze({ user_id: session.user_id, can_write: session.can_write, token });
   }
+  requireCurrentWrite(principal: Principal): void {
+    const current = this.resolve(principal.token);
+    if (current.user_id !== principal.user_id) throw new ApiError(401, 'authentication_required');
+    this.requireWrite(current);
+  }
   requireWrite(principal: Principal): void {
     if (!principal.can_write) throw new ApiError(403, 'forbidden');
   }

@@ -10,7 +10,7 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/server.js",
-    "test": "pnpm build && node --test dist/app.test.js",
+    "test": "pnpm build && node --test dist/*.test.js",
     "check": "prettier --check src package.json tsconfig.json pnpm-lock.yaml && pnpm test"
   },
   "dependencies": {

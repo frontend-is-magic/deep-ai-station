@@ -15,7 +15,7 @@ export interface AppOptions {
 export function createApp(options: AppOptions = {}) {
   const clock = options.clock ?? (() => Date.now() / 1000);
   const auth = new Authenticator(options.sessions ?? new MemorySessionStore(clock()), clock);
-  const service = new UploadService(options.repository ?? new MemoryRepository());
+  const service = new UploadService(options.repository ?? new MemoryRepository(), auth);
   const app = new Hono<{ Bindings: Bindings }>();
   app.use('*', async (c, next) => {
     c.header('Cache-Control', 'no-store');
@@ -54,15 +54,14 @@ export function createApp(options: AppOptions = {}) {
         if (asciiLower(rawHeaders[i]) === name) values.push(rawHeaders[i + 1]);
       return values;
     };
-    let principal = auth.authenticate(headers);
+    const principal = auth.authenticate(headers);
     if (new URL(c.req.url).search.length > 0) throw new ApiError(422, 'invalid_input');
     if (c.req.method === 'POST') {
       auth.requireWrite(principal);
       const bytes = await readBody(c.req.raw);
       const upload = validateUpload(headers, bytes);
       // Bind the final authorization to the original token after body streaming yields.
-      principal = auth.resolve(principal.token);
-      auth.requireWrite(principal);
+      auth.requireCurrentWrite(principal);
       return c.json(service.commit(principal, upload), 201);
     }
     if (path === '/documents') return c.json(service.list(principal));

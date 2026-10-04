@@ -13,7 +13,7 @@ export interface StoredDocument {
   content: Uint8Array;
 }
 export interface Repository {
-  commit(owner: string, upload: UploadInput): Metadata;
+  commit(owner: string, upload: UploadInput, beforeWrite: () => void): Metadata;
   list(owner: string): Metadata[];
   get(owner: string, id: string): StoredDocument | null;
 }
@@ -34,7 +34,8 @@ export class MemoryRepository implements Repository {
   >();
   private nextId = 1;
   constructor(private readonly hooks: { beforeCommit?: () => void } = {}) {}
-  commit(owner: string, upload: UploadInput): Metadata {
+  commit(owner: string, upload: UploadInput, beforeWrite: () => void = () => {}): Metadata {
+    beforeWrite();
     // Copy and prepare before publishing. Callers retain no reference to the owned bytes.
     const content = Uint8Array.from(upload.content);
     const entries = [...this.documents.values()].filter((entry) => entry.owner === owner);
