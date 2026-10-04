@@ -11,7 +11,8 @@ export interface CourseLab {
     | 'mcp-readonly'
     | 'workflow-checkpoint'
     | 'document-chunking'
-    | 'output-regression';
+    | 'output-regression'
+    | 'memory-policy';
   lessons: readonly string[];
   languages: readonly Language[];
   title: string;
@@ -20,6 +21,16 @@ export interface CourseLab {
 }
 
 const courseLabs: readonly CourseLab[] = [
+  {
+    id: 'memory-policy',
+    lessons: ['agent-memory'],
+    languages: ['python'],
+    title: '可运行记忆资格与冲突实验',
+    description:
+      '独立命令行实验，按所属用户、范围、授权和时间筛选固定教学偏好，区分无合格记忆、同语言多来源和冲突。显式指定本次语言，观察本次选择生效，并核对原记忆文件保持不变。',
+    notice:
+      '仅使用包内固定教学偏好与本地结构化规则，无模型、网络或数据库写入。不代表生产长期记忆或注入安全。将实际命令、成功失败与未验证事项记入下方证据卡，不会自动完成课程或 Python 实践。',
+  },
   {
     id: 'output-regression',
     lessons: ['agent-regression'],

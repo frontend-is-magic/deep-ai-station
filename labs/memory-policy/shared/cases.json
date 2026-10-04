@@ -1,0 +1,60 @@
+{
+  "version": "memory-cases-v1",
+  "cases": [
+    {
+      "id": "normal",
+      "title": "相同语言的多个有效来源",
+      "owner": "alice",
+      "scope": "course-agent",
+      "as_of": "2026-10-04T12:00:00.000Z",
+      "memory_ids": ["confirmed-python", "project-python"]
+    },
+    {
+      "id": "request-override",
+      "title": "本次请求覆盖已有偏好",
+      "owner": "alice",
+      "scope": "course-agent",
+      "as_of": "2026-10-04T12:00:00.000Z",
+      "memory_ids": ["confirmed-python"]
+    },
+    {
+      "id": "expiry",
+      "title": "恰好过期与尚未生效",
+      "owner": "alice",
+      "scope": "course-agent",
+      "as_of": "2026-10-04T12:00:00.000Z",
+      "memory_ids": ["expires-now", "future-go"]
+    },
+    {
+      "id": "revoked",
+      "title": "撤回与未获同意",
+      "owner": "alice",
+      "scope": "course-agent",
+      "as_of": "2026-10-04T12:00:00.000Z",
+      "memory_ids": ["revoked-go", "unconsented-typescript"]
+    },
+    {
+      "id": "scope",
+      "title": "归属隔离与知识伪指令",
+      "owner": "alice",
+      "scope": "course-agent",
+      "as_of": "2026-10-04T12:00:00.000Z",
+      "memory_ids": [
+        "confirmed-python",
+        "foreign-owner-preference",
+        "foreign-scope-preference",
+        "knowledge-instruction",
+        "foreign-owner-knowledge",
+        "foreign-scope-knowledge"
+      ]
+    },
+    {
+      "id": "conflict",
+      "title": "两个有效语言偏好冲突",
+      "owner": "alice",
+      "scope": "course-agent",
+      "as_of": "2026-10-04T12:00:00.000Z",
+      "memory_ids": ["confirmed-python", "conflicting-go"]
+    }
+  ]
+}

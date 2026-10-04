@@ -1,0 +1,6 @@
+{
+  "id": "memory-policy",
+  "version": "memory-policy-v1",
+  "lessons": ["agent-memory"],
+  "languages": ["python"]
+}

@@ -295,6 +295,28 @@ REGRESSION_SHARED = [
     ".gitignore",
 ]
 
+MEMORY_FILES = {
+    "python": [
+        "memory_policy.py",
+        "loader.py",
+        "policy.py",
+        "test_loader.py",
+        "test_policy.py",
+        "test_cli.py",
+        "pyproject.toml",
+        "uv.lock",
+    ],
+}
+MEMORY_SHARED = [
+    "memories.json",
+    "cases.json",
+    "README.md",
+    "CONTRACT.md",
+    "EVIDENCE.md",
+    "AGENTS.md",
+    ".gitignore",
+]
+
 LABS = {
     "api-contract": (FILES, SHARED),
     "sqlite-storage": (STORAGE_FILES, STORAGE_SHARED),
@@ -306,6 +328,7 @@ LABS = {
     "workflow-checkpoint": (CHECKPOINT_FILES, CHECKPOINT_SHARED),
     "document-chunking": (CHUNKING_FILES, CHUNKING_SHARED),
     "output-regression": (REGRESSION_FILES, REGRESSION_SHARED),
+    "memory-policy": (MEMORY_FILES, MEMORY_SHARED),
 }
 
 
