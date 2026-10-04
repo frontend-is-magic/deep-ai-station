@@ -1,5 +1,16 @@
 # 验证记录
 
+## 2026-10-04 / 三语言 API 的可导航检索客户端
+
+- 现有 api-contract 三包携带同一 React/TypeScript、Tailwind、Jotai 和源码 Button 客户端，15份文件逐字节相同。输入草稿与已提交URL分开；/search 无q不请求，合法q驱动真实POST，/lessons/:id驱动真实GET。刷新、前进后退和返回保留查询上下文；同题显式重试不增长history。没有客户端伪造结果、缓存、轮询或自动重试。
+- URL严格拒绝重复/未知键、坏编码和hash；Unicode空白归一与1..500码点约束沿用服务合同，BOM不误裁剪。规范URL先replace再挂载请求；每次请求独立身份、包含读body的5秒截止、32KiB真实字节和严格UTF-8/schema，迟到结果不能覆盖当前页面。纯文本展示，credentials omit、redirect error；同源代理只转发/api段边界到数字端口的loopback服务，dev/preview一致。
+- 原三个后端、fixtures、api-contract-v1、六个原证据键及旧数据结构未改；仍为23个实验包、十八课、实验和毕业合计48种证据组合。学习练习是自行加入view枚举到URL，初始包没有提前完成。URL只适合公开教学问题；平台不执行下载者代码，不调用模型。
+- Node24.14.1/pnpm10.32.1冻结离线安装、43项原生行为、Prettier、类型与Vite生产构建通过。最终Python ZIP为74892字节/31成员，SHA256 `265c8fcca5bf8da469382698f13b42e14aac440e877bba871ed0d6ae2d4f5e52`；TypeScript65954/33，`c5f0cdf06a63c801c0adde47b0fa189877338d1fd51110a4eb70d2834242fa0d`；Go70661/32，`762df513191e293431a8b277aefb9e816383cab98c726d8cefaaa45d80e5db4f`。全部23份public/dist一致，其余20包未改。
+- 独立作者事前冻结oracle（SHA256 `d4755d98d92b1961e9011921d5e73ce51a131b80de970f4ead1b0d53c402fb49`），仓库外实际三后端运行20次核心请求、3次深链接导航和2次迟到A/B请求。原Response原样立即返回，后台有界clone与独立网络元数据对应真实请求，不靠CDP取body重试；临时副本仅破坏URL查询恢复，同一正常断言准确拒绝，运输/解析失败不能冒充反事实被识别。正常包、变体、原包恢复完整通过，源码/ZIP不改；3个后端与5个preview均wait/reap并释放监听。
+- 独立验收首轮因add_init_script收到未执行函数而失败，改为明确IIFE并让自测使用同一安装入口；实际首载/刷新探针通过。第二轮macOS End没有移动textarea光标，改用两次真实ArrowRight并先检查selection再ShiftEnter，未写DOM选区或修改产品。最终43原生及完整独立流程通过；8项验收器自测通过。另以最终Python ZIP运行真实Vite dev/StrictMode，规范查询仅1次POST、同题重试累计2次且history不变、详情加刷新累计4次，两个直接服务进程回收；该补充探针不冒充永久CI作业。
+- 平台74项相关helper、完整754项Vitest、Prettier、类型与生产构建通过；635项后端通过（18.42秒），41项本地专用PG跳过，103份Python Ruff通过。两条新headless核对实际三ZIP、15共同文件、既有fixtures、旧六证据键加42记录满容量、刷新/导出及375px键盘。旧回归仅更新两处过时文案断言；实际下载与状态断言保留，最终新旧四条合计通过（12.22秒）。
+- 本地临时runner曾在结束后killpg零信号探测收到EPERM，未视为回收成功；改为自有直接Vite/uvicorn进程terminate/wait与监听检查，最终两个leader实际回收，8006/5175释放。独立客户端和平台375px截图已查看无溢出。primary749c9a0与原8000/5173未动；0真实模型/沙箱。精确十六作业CI、Preview和Notion回执后续核验，原生Browser、托管配置及Production继续在既有人工对话处理。
+
 ## 2026-10-04 / 观察驱动的 Agent 决策循环实验
 
 - Agent第一课新增独立Python标准库CLI，逐轮复制实际状态交给规则策略，执行真实本地search/read并保存before/decision/observation/after。核心不接case或策略名称；CLI只选固定查询与函数。evidence_first依实际观察推进，repeat_search故意重复供学习者修复；finish也占一轮，1..5步耗尽后不能额外decide/dispatch，已read但未finish仍为step_limit。
@@ -8,6 +19,8 @@
 - 最终ZIP29323字节、16白名单成员，SHA256 `1c56fc861ac9623ad88a7d15098a7a52e1186e894766f4097935a4c685c1e83f`。独立作者预先冻结五份完整报告、13步人工快照及反事实，未用实现生成oracle；仓库外解包冻结安装再次50项通过（1.32秒），实际16个实验进程全部wait/reap。核对跨cwd/hashseed逐字节输出、合法改变查询后实际读第二篇原文、真实空search且read零次、预算2外部调用spy、坏policy跳过read被同一正常断言拒绝并精确对应execution_failed。9项验收器自测通过，原包与CLI输入字节不变；交审未发现假阳性或回收缺口。
 - 平台仅新增第一课Python映射，十三类实验、十八课共23包，实验与毕业课合计48种证据组合，v1与原48容量不变。117项相关helper、48组合备份往返、完整754项Vitest、Prettier、类型和Vite构建通过。3项新headless与8项原实践回归共11通过（27.02秒）：真实资料API的Agents SDK入口、实际16成员下载包、证据刷新/Markdown、独立确认撤销、旧数据保留和375px键盘返回。截图已查看无溢出，自有API8006/Vite5175与headless释放。
 - 后端627项通过（18.02秒），41项本地专用PG跳过，100份Python Ruff通过；23个public/dist实验ZIP逐字节相同。提交前扫描暂存/工作区/内嵌ZIP，精确十五作业CI、Preview、Notion与人工回执另行核验。primary749c9a0及原8000/5173未动；0真实模型/沙箱，原生Browser、托管配置和Production仍在既有人工对话。
+
+- 最终 `0919a7c` 的[完整CI](https://github.com/frontend-is-magic/deep-ai-station/actions/runs/37171589742)十五项全部成功：754项前端、627项后端（17.15秒）、216条headless（527.00秒）、616文件/ZIP扫描，以及PostgreSQL17.11的41项（10.09秒）。独立循环包50原生（1.05秒）、五份事前人工报告/13步快照、七场景与16真实CLI全部回收，坏策略由正常断言拒绝。Preview `6835953026` 成功，正常TLS匿名健康302；Notion三页回读verified，精确回执已送至原人工对话。该证据只对应此提交，下一轮API客户端另行验收；原生Browser、托管配置与Production边界不变。
 
 ## 2026-10-04 / 公共 React 组件与派生状态实验
 

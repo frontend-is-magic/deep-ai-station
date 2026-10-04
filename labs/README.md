@@ -1,12 +1,14 @@
 # 可运行课程实验
 
-课程页按当前所选语言下载独立项目，原有参考片段练习包继续保留。公共React前端只有一个TypeScript包，选择Go/Python服务端参考时也可下载，不生成同内容的语言副本。五个全栈实验各提供 Python、TypeScript、Go 下载，均包含源码、入口、成功/失败测试、冻结依赖、README、契约、证据模板与 .gitignore。
+课程页按当前所选语言下载独立项目，原有参考片段练习包继续保留。React组件与Jotai实验只有一个TypeScript包，选择Go/Python服务端参考时也可下载。三语言服务实验中附带的公共客户端则随对应后端一起打包。五个全栈实验各提供 Python、TypeScript、Go 下载，均包含源码、入口、成功/失败测试、冻结依赖、README、契约、证据模板与 .gitignore。
 
 | 实验                       | 对应课时                   | 核心行为                                                    | 说明                                                                                              |
 | -------------------------- | -------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
 | `api-contract-v1`          | 路由与依赖注入、输入校验   | FastAPI / Hono / Gin，共同 HTTP 请求与响应、注入 Repository | [运行](api-contract/shared/README.md) · [契约](api-contract/shared/CONTRACT.md)                   |
 | `sqlite-storage-v1`        | SQL 与数据建模、迁移与事务 | 真实 SQLite、幂等写入、owner 分页、迁移与原子回滚           | [运行](sqlite-storage/shared/README.md) · [契约](sqlite-storage/shared/CONTRACT.md)               |
 | `session-authorization-v1` | 认证、应用安全             | 有效会话、owner隔离、撤销/过期、Cookie CSRF、正文后重检     | [运行](session-authorization/shared/README.md) · [契约](session-authorization/shared/CONTRACT.md) |
+
+API 契约的三个包包含同一[React 检索客户端](api-contract/shared/CLIENT.md)：URL 保存已提交查询，输入草稿留在当前页面，刷新和前进后退重新请求真实后端。资料页只显示 API 提供的 ID/标题摘要，未提交草稿不会改变结果。新客户端复用原两课的六个语言证据位置；旧记录不自动证明新练习已通过。
 
 `text-upload-v1` 对应文档问答课，使用假Bearer、UTF-8/文件名白名单、私有内存对象、原子配额与逐字节附件下载。[运行](text-upload/shared/README.md) · [契约](text-upload/shared/CONTRACT.md)。默认内存重启清空；[SQLite扩展](text-upload/shared/STORAGE.md)显式初始化、保存BLOB原文与配额，验证同机跨进程及三语言互读。提交未确认不能当作未写入；不接入RAG、不解析内容，也不代表生产存储已验收。
 
@@ -34,6 +36,7 @@
 python3 scripts/build_course_labs.py
 python3 scripts/build_course_labs.py --check
 python3 scripts/verify_course_labs.py
+python3 scripts/verify_api_navigation_lab.py
 python3 scripts/verify_sqlite_labs.py
 python3 scripts/verify_session_labs.py
 python3 scripts/verify_upload_labs.py
@@ -46,6 +49,7 @@ python3 scripts/verify_checkpoint_lab.py
 python3 scripts/verify_chunking_lab.py
 python3 scripts/verify_output_regression_lab.py
 python3 scripts/verify_memory_lab.py
+python3 scripts/verify_agent_loop_lab.py
 python3 scripts/verify_frontend_state_lab.py
 # 三语言实验的验证脚本可选择一种语言
 python3 scripts/verify_sqlite_labs.py --language go

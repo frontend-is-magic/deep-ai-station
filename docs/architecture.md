@@ -43,6 +43,8 @@ React组件与Jotai课提供[公共前端状态实验](../labs/frontend-state/sh
 
 数据建模与迁移两课增加独立 SQLite 仓储实验（Python sqlite3 / Node node:sqlite / Go modernc SQLite），共用版本化 SQL 和 CLI 契约。显式迁移、组合唯一约束、参数化 SQL、事务内进度与审计写入、owner 范围及 keyset 分页均在真实数据库运行。CLI 的 owner 是可信调用方教学输入，不包含登录认证；时钟也是显式输入，不承诺迟到事件排序。`scripts/verify_sqlite_labs.py` 在仓库外逐命令启动新进程，验证保存、迁移保留、未来版本拒绝，以及审计/回填故障时的回滚。数据库与事务旁文件只留练习环境。
 
+API 契约包的公共React客户端由React Router管理查询与摘要URL，Jotai承载当前尝试的只读视图。输入草稿不改变已提交URL或结果；有效导航、明确提交/重试才请求同源固定端点。Vite仅将/api段代理到固定回环端口，摘要SPA刷新与后端路径分开；客户端不读fixtures生成结果。请求有单次身份、5秒总期限、32KiB实际正文限制与迟到隔离，旧结果不能覆盖新URL。客户端合同见[CLIENT.md](../labs/api-contract/shared/CLIENT.md)，原三后端契约与六个证据键不变。
+
 认证与应用安全两课提供独立会话授权实验，三语言共享公开假会话与84个HTTP案例。SessionStore构建可信Principal，Repository按服务端owner查找/更新；不同身份不共用记录。Cookie写操作同时验证精确Origin和会话绑定CSRF，凭据混用/重复拒绝。正文读取不持全局锁，正文完成后重检过期/撤销，避免长请求继续使用失效身份。资料owner检查/权限/更新为原子操作；最终准入后的在途操作仍可能完成。实验只在回环运行，重启重置假会话；没有生产登录、持久撤销或完整身份提供商。`scripts/verify_session_labs.py` 在独立包实际启动服务检查原始重复头与重启，Go同时运行race检测；HTTPS浏览器Cookie行为单独验收。
 
 文档问答课增加独立受限文本上传实验，只接收原始 UTF-8 `.txt` / `.md`。显式假 Bearer 提供服务端身份，正文按实际字节限制4096；严格文件名仅作元数据，服务端ID作为私有对象键。仓储在同一个短原子操作内检查每owner三份/8192字节配额并发布元数据和不可变内容；失败不留记录或消耗ID，正文完成后重检会话。下载强制attachment、octet-stream、nosniff和no-store，不渲染或解析内容。78个共同HTTP案例覆盖字节/类型/文件名、身份、隔离、配额和同名不覆盖；独立包重启清空数据。实验不落盘，不代表生产文件系统、持久存储、复杂解析器或RAG已经完成。详细边界见[上传契约](../labs/text-upload/shared/CONTRACT.md)。
