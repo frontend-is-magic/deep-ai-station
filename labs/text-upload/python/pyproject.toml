@@ -9,7 +9,7 @@ dev = ["httpx==0.28.1", "pytest==9.1.1", "pytest-asyncio==1.4.0", "ruff==0.15.22
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
-testpaths = ["test_app.py"]
+testpaths = ["test_app.py", "test_storage.py"]
 asyncio_mode = "auto"
 
 [tool.ruff]

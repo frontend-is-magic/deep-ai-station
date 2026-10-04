@@ -65,10 +65,17 @@ def case_request(case):
     return {"headers": headers, "content": body}
 
 
-def test_shared_contract_sequence():
+@pytest.mark.parametrize("storage", ["memory", "sqlite"])
+def test_shared_contract_sequence(storage, tmp_path):
     cases = json.loads(fixture_path("contract-cases.json").read_text(encoding="utf-8"))
     assert cases
-    with TestClient(create_app()) as client:
+    repository = None
+    if storage == "sqlite":
+        from sqlite_repository import SQLiteRepository, initialize
+
+        initialize(tmp_path)
+        repository = SQLiteRepository(tmp_path)
+    with TestClient(create_app(repository=repository)) as client:
         for case in cases:
             response = client.request(case["method"], case["path"], **case_request(case))
             assert response.status_code == case["status"], case["id"]
@@ -100,9 +107,9 @@ class RecordingRepository(MemoryRepository):
         self.calls.append(("find", owner, document_id))
         return super().find_owned(owner, document_id)
 
-    def commit(self, owner, filename, media_type, content):
+    def commit(self, owner, filename, media_type, content, **kwargs):
         self.calls.append(("commit", owner))
-        return super().commit(owner, filename, media_type, content)
+        return super().commit(owner, filename, media_type, content, **kwargs)
 
 
 async def raw_request(application, chunks, headers, method="POST", path="/documents", query=b""):
@@ -205,7 +212,9 @@ async def test_get_does_not_consume_body():
     assert status == 200 and json.loads(body) == {"documents": []} and unread == 1
 
 
-@pytest.mark.parametrize("change,status", [("expire", 401), ("revoke", 401), ("permission", 403)])
+@pytest.mark.parametrize(
+    "change,status", [("expire", 401), ("revoke", 401), ("owner", 401), ("permission", 403)]
+)
 async def test_body_pause_rechecks_same_session_without_holding_locks(change, status):
     current = [100.0]
     sessions = MemorySessionStore(load_fixture()["sessions"], lambda: current[0])
@@ -228,6 +237,8 @@ async def test_body_pause_rechecks_same_session_without_holding_locks(change, st
             # 独立线程要能取得 SessionStore 锁；调用不经任何 HTTP 管理入口。
             if change == "expire":
                 current[0] = 3700.0
+            elif change == "owner":
+                sessions._sessions["lab-alice-session"]["user_id"] = "bob"
             elif change == "revoke":
                 await asyncio.wait_for(asyncio.to_thread(sessions.revoke, "lab-alice-session"), 2)
             else:
@@ -277,7 +288,7 @@ async def test_aborted_upload_never_commits():
 def test_repository_exceptions_are_fixed_and_not_logged(operation, caplog):
     repository = MemoryRepository()
 
-    def fail(*_args):
+    def fail(*_args, **_kwargs):
         raise LabError(418, "private-path-filename-and-session")
 
     setattr(repository, operation, fail)
@@ -328,13 +339,13 @@ class GatedRepository(MemoryRepository):
         self.entries = 0
         self.publications = 0
 
-    def commit(self, *args):
+    def commit(self, *args, **kwargs):
         if self.armed:
             with self.entry_lock:
                 self.entries += 1
                 if self.entries == 2:
                     self.second_entered.set()
-        return super().commit(*args)
+        return super().commit(*args, **kwargs)
 
     def _before_publish(self):
         if self.armed:

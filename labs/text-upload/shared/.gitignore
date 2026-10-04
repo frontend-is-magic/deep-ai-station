@@ -68,3 +68,6 @@ logs/
 *.db-journal
 *.tfstate
 *.tfstate.*
+
+# Private local upload database and acceptance evidence.
+.data/

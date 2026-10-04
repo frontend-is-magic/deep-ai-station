@@ -1,7 +1,9 @@
-"""原始文本上传教学：无磁盘写入、无解析器、无用户 URL 或模型调用。"""
+"""固定文本上传教学：memory 默认，可显式选择本地 SQLite。"""
 
+import json
 import os
 import re
+import sys
 import time
 
 from fastapi import FastAPI, Request
@@ -20,16 +22,7 @@ from errors import LabError
 from repository import MemoryRepository, Repository
 from resources import load_fixture
 from service import DocumentService
-
-MAX_BODY_BYTES = 4096
-MEDIA = re.compile(r'text/(plain|markdown)(?:[ \t]*;[ \t]*charset[ \t]*=[ \t]*(?:utf-8|"utf-8"))?')
-FILENAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,59}\.(?i:txt|md)", re.ASCII)
-
-
-def ascii_lower(value: str) -> str:
-    return value.translate(
-        str.maketrans("ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz")
-    )
+from upload_policy import FILENAME, MAX_BODY_BYTES, MEDIA, ascii_lower, validate_text
 
 
 def error_response(status: int, code: str):
@@ -103,18 +96,6 @@ def upload_headers(request: Request) -> tuple[str, str]:
     return filename, media
 
 
-def validate_text(body: bytes) -> None:
-    try:
-        text = body.decode("utf-8", errors="strict")
-    except UnicodeError:
-        raise LabError(422, "invalid_text") from None
-    if not text.strip(" \t\r\n") or any(
-        (ord(char) < 32 and char not in "\t\r\n") or 127 <= ord(char) <= 159 or char == "\ufeff"
-        for char in text
-    ):
-        raise LabError(422, "invalid_text")
-
-
 def create_app(
     *,
     clock: Clock = time.monotonic,
@@ -156,9 +137,15 @@ def create_app(
         body = await read_bounded(request)
         filename, media_type = upload_headers(request)
         validate_text(body)
-        principal = resolve_principal(store, auth.token)
-        require_write(principal)
-        return service.upload(principal, filename, media_type, body)
+
+        def authorize():
+            principal = resolve_principal(store, auth.token)
+            if principal.user_id != auth.principal.user_id:
+                raise LabError(401, "authentication_required")
+            require_write(principal)
+
+        authorize()  # 保留正文后早拒绝；此时尚不调用仓储。
+        return service.upload(auth.principal, filename, media_type, body, authorize=authorize)
 
     @api.get("/documents")
     async def listing(request: Request):
@@ -189,14 +176,64 @@ def listen_port(value: str) -> int:
     return int(value)
 
 
-app = create_app()
+def main(argv: list[str] | None = None) -> int:
+    args = sys.argv[1:] if argv is None else argv
+    if args == ["--help"]:
+        print("Usage: python app.py [init | serve --storage sqlite | --help]")
+        return 0
+    if args not in ([], ["init"], ["serve", "--storage", "sqlite"]):
+        print(json.dumps({"error": "invalid_input"}))
+        return 1
+    # 合法词法之后才导入持久仓储；memory 不访问固定数据目录。
+    from sqlite_repository import SQLiteRepository, StorageError, initialize
+
+    try:
+        if args == ["init"]:
+            initialize()
+            print(json.dumps({"schema_version": 1, "storage_contract": "text-upload-sqlite-v1"}))
+            return 0
+        try:
+            port = listen_port(os.getenv("PORT", "8023"))
+        except ValueError:
+            raise StorageError("invalid_input") from None
+        repository = None
+        if args:
+            repository = SQLiteRepository()
+            repository.validate()
+        import uvicorn
+
+        try:
+            uvicorn.run(
+                create_app(repository=repository),
+                host="127.0.0.1",
+                port=port,
+                access_log=False,
+                log_level="critical",
+            )
+        except SystemExit as error:
+            if error.code is None or error.code == 0:
+                raise
+            # Uvicorn 用非零 SystemExit 报绑定失败，CLI 仍只返回固定错误。
+            raise StorageError("repository_unavailable") from None
+        return 0
+    except BrokenPipeError:
+        raise
+    except StorageError as error:
+        print(json.dumps({"error": error.code}))
+        return 1
+    except Exception:
+        print(json.dumps({"error": "repository_unavailable"}))
+        return 1
+
 
 if __name__ == "__main__":
-    import uvicorn
+    try:
+        exit_code = main()
+        sys.stdout.flush()
+    except (BrokenPipeError, OSError):
+        # 不在已经关闭的 stdout 重写错误或打印原始 traceback。
+        os._exit(1)
+    raise SystemExit(exit_code)
 
-    uvicorn.run(
-        app,
-        host="127.0.0.1",
-        port=listen_port(os.getenv("PORT", "8023")),
-        access_log=False,
-    )
+else:
+    app = create_app()

@@ -1,6 +1,7 @@
-"""owner 配额和一次发布在同一短临界区内；内容从不写入文件系统。"""
+"""owner 配额和一次发布在同一短临界区内；memory 内容从不写入文件系统。"""
 
 import hashlib
+from collections.abc import Callable
 from dataclasses import dataclass
 from threading import RLock
 from typing import Protocol
@@ -38,7 +39,13 @@ class Repository(Protocol):
     def find_owned(self, owner: str, document_id: str) -> StoredDocument | None: ...
 
     def commit(
-        self, owner: str, filename: str, media_type: str, content: bytes
+        self,
+        owner: str,
+        filename: str,
+        media_type: str,
+        content: bytes,
+        *,
+        before_write: Callable[[], None] | None = None,
     ) -> StoredDocument: ...
 
 
@@ -62,11 +69,21 @@ class MemoryRepository:
     def _before_publish(self) -> None:
         """可信原生测试可在发布前注入故障，不是 HTTP 配置项。"""
 
-    def commit(self, owner: str, filename: str, media_type: str, content: bytes) -> StoredDocument:
+    def commit(
+        self,
+        owner: str,
+        filename: str,
+        media_type: str,
+        content: bytes,
+        *,
+        before_write: Callable[[], None] | None = None,
+    ) -> StoredDocument:
         # bytes 将 bytearray 等调用方缓冲区复制，之后不可变。
         saved_content = bytes(content)
         digest = hashlib.sha256(saved_content).hexdigest()
         with self._lock:
+            if before_write is not None:
+                before_write()
             owned = [item for item in self._documents.values() if item.owner == owner]
             if (
                 len(owned) >= MAX_DOCUMENTS

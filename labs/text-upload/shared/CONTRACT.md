@@ -1,6 +1,6 @@
 # text-upload-v1：受限文本上传共同契约
 
-适用 Python / FastAPI、TypeScript / Hono、Go / Gin。仅监听 `127.0.0.1:8023`，`PORT` 可改变端口，不允许通过配置改变监听地址。公开假会话沿用会话授权实验，仅显式 Bearer；真实登录、Cookie/CSRF 完整矩阵见该实验。本实验不落盘、无外网/模型、无解析器、无持久化。
+适用 Python / FastAPI、TypeScript / Hono、Go / Gin。仅监听 `127.0.0.1:8023`，`PORT` 可改变端口，不允许通过配置改变监听地址。公开假会话沿用会话授权实验，仅显式 Bearer；真实登录、Cookie/CSRF 完整矩阵见该实验。本文描述默认 memory 模式：不落盘、重启清空。显式 SQLite 模式复用这些 HTTP 输入与响应，耐久数据、初始化、事务内授权和 result_unconfirmed 以 [存储扩展契约](STORAGE.md) 为准；两种模式都无外网/模型和解析器。
 
 ## 请求和身份
 
@@ -8,7 +8,7 @@
 - 一个 `Authorization: Bearer <token>`；scheme ASCII 不区分大小写，至少一个 ASCII 空格，token 1..128 字符，RFC b64token 字符集。缺失/未知/无效/到期/撤销 → 401 `authentication_required`，附 `WWW-Authenticate: Bearer realm="text-upload"`。
 - 重复 Authorization、包含逗号的合并 Authorization，或显式 Authorization 与目标 `__Host-lab_session` Cookie 同时出现 → 400 `ambiguous_credentials`。重复目标 Cookie 同样400。Cookie单独不能认证（401）；其他无关 Cookie 不影响显式 Bearer。保留真实 HTTP 重复头检测，不只测试 fetch 合并后的视图。
 - 所有私有请求先认证；非空 query →422 `invalid_input`，不从 query/owner头/文件名推导身份。写入需要 can_write；初始只读身份直接403 `forbidden`，不读取正文。
-- 上传顺序：初始认证 → query → 写权限 → 有界读取实际字节 → 上传头检查 → 文件名/正文策略 → 使用同一 token 再解析有效会话和写权限 → 仓储原子提交。读正文期间不持全局锁；正文期间撤销/到期必须401，权限收回必须403，不创建文档。最终授权后已进入同步原子提交的操作可完成，不承诺跨实例即时撤销。
+- 上传顺序：初始认证 → query → 写权限 → 有界读取实际字节 → 上传头检查 → 文件名/正文策略 → 使用同一 token 再解析有效会话和写权限 → 仓储原子提交。读正文期间不持全局锁；正文期间撤销/到期必须401，权限收回必须403，不创建文档。正文后重检保持最初 owner，仓储短锁/事务内另执行一次受信最终授权；具体错误隔离见 STORAGE.md。最终授权后已进入同步原子提交的操作可完成，不承诺跨实例即时撤销。
 
 ## 上传与正文
 

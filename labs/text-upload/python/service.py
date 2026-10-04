@@ -1,8 +1,11 @@
 """应用服务只使用认证后的 owner，并隔离仓储内部诊断。"""
 
+from collections.abc import Callable
+
 from auth import Principal
 from errors import LabError
 from repository import QuotaExceeded, Repository
+from sqlite_repository import StorageError
 
 
 def repository_call(operation):
@@ -10,6 +13,11 @@ def repository_call(operation):
         return operation()
     except QuotaExceeded:
         raise LabError(409, "quota_exceeded") from None
+    except StorageError as error:
+        code = (
+            "result_unconfirmed" if error.code == "result_unconfirmed" else "repository_unavailable"
+        )
+        raise LabError(503, code) from None
     except Exception:
         raise LabError(503, "repository_unavailable") from None
 
@@ -30,7 +38,51 @@ class DocumentService:
             raise LabError(404, "document_not_found")
         return document
 
-    def upload(self, principal: Principal, filename: str, media_type: str, content: bytes):
-        return repository_call(
-            lambda: self.repository.commit(principal.user_id, filename, media_type, content)
-        ).metadata()
+    def upload(
+        self,
+        principal: Principal,
+        filename: str,
+        media_type: str,
+        content: bytes,
+        *,
+        authorize: Callable[[], None],
+    ):
+        # 只由本调用可信 checker 写入；仓储抛同类型 HTTP 错误不能冒用它。
+        failure: tuple[int, str] | None = None
+        checks = 0
+
+        class AuthorizationStopped(Exception):
+            pass
+
+        def before_write():
+            nonlocal checks, failure
+            checks += 1
+            if checks != 1:
+                raise AuthorizationStopped
+            try:
+                authorize()
+            except LabError as error:
+                allowed = {
+                    (401, "authentication_required"),
+                    (403, "forbidden"),
+                    (503, "session_store_unavailable"),
+                }
+                if (error.status, error.code) in allowed:
+                    failure = (error.status, error.code)
+                raise AuthorizationStopped from None
+
+        try:
+            document = repository_call(
+                lambda: self.repository.commit(
+                    principal.user_id, filename, media_type, content, before_write=before_write
+                )
+            )
+        except Exception:
+            if failure is not None:
+                raise LabError(*failure) from None
+            raise
+        if failure is not None:
+            raise LabError(*failure)
+        if checks != 1:
+            raise LabError(503, "repository_unavailable")
+        return document.metadata()
