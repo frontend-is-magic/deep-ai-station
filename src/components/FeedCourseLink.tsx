@@ -5,6 +5,7 @@ import { feedCourseFor } from '@/lib/feed-course';
 import { progressAtom } from '@/lib/state';
 import type { FeedItem, Track } from '@/lib/types';
 import { languageNames } from '@/lib/utils';
+import FeedReadingNote from '@/components/FeedReadingNote';
 
 export default function FeedCourseLink({ item, tracks }: { item: FeedItem; tracks: Track[] }) {
   const progress = useAtomValue(progressAtom);
@@ -27,6 +28,7 @@ export default function FeedCourseLink({ item, tracks }: { item: FeedItem; track
         <span>{course.sharedFrontend ? `公共前端 · ${language} 服务端参考` : language}</span>
         <span>{course.practiceRecorded ? '实践已记录' : '实践未记录'}</span>
       </p>
+      <FeedReadingNote item={item} tracks={tracks} />
     </div>
   );
 }

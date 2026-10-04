@@ -1484,6 +1484,7 @@ hr {
   gap: 18px;
 }
 .feed-card {
+  min-width: 0;
   border: 1px solid #e0e8d4;
   border-radius: 10px;
   background: #fff;
