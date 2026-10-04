@@ -154,3 +154,7 @@ Agent 记忆课的[资格与冲突实验](../labs/memory-policy/shared/CONTRACT.
 三语言 text-upload 保留默认内存，并增加 [SQLite 存储契约](../labs/text-upload/shared/STORAGE.md)。显式 init 创建固定 .data/uploads.sqlite3；HTTP仍使用公开假Bearer，SQLite BLOB保存原字节、server owner、完整元数据和同事务next_id。每操作短连接、事务内最终授权与共享配额，错误不输出SQL或原文；COMMIT开始后的异常保守标记result_unconfirmed，不能据断连盲目重传。
 
 这只覆盖同机Alice/Bob教学库，默认会话重启重建；同步小文件I/O没有非阻塞承诺。独立ZIP验证器在实际进程退出后核对SQL和下载，三语言作业直接读写同一文件。原毕业骨架仍未接入上传、身份与资料检索的完整集成；此仓储提供可比较的实践边界，不自动迁移或代替托管数据库。
+
+## 观察驱动的课程循环实验
+
+[Agent循环包](../labs/agent-loop/shared/CONTRACT.md)的核心只接收查询、规则决策函数、只读工具和1..5步预算，不接收case/策略名称。每轮以当前实际observation的快照调用策略，独立校验动作、调用工具并记录before/after；finish也占一轮，完成必须具备本次实际读取的证据。CLI只在外层选择固定资料和两种规则函数。它不调用模型或网络，平台仅提供Python ZIP和原有证据/实践入口；源码修改留在学习者独立环境。

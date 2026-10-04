@@ -26,7 +26,9 @@
 
 `frontend-state-v1` 对应 React 组件与 Jotai 两课，提供同一个独立 React/TypeScript 项目。只保存三张教学卡片的完成与收藏事实，由 atom 派生统计和筛选视图；刷新恢复事实，筛选回到全部。[运行](frontend-state/shared/README.md) · [契约](frontend-state/shared/CONTRACT.md)。公共前端证据与实践固定为 TypeScript，两课分别记录，Go/Python 服务端偏好和旧记录保留；实验勾选不修改平台学习记录。
 
-每个实验的 `shared/` 放契约、案例与说明，语言子目录放完整实现，manifest 记录版本/课时/语言。SQLite 的共享 SQL 在 `shared/migrations/`。当前共 22 个下载包。`public/labs/` 为固定白名单生成的确定性 ZIP，不包含依赖缓存、数据文件或秘密配置。
+`agent-loop-v1` 对应Agent循环第一课，提供独立Python CLI。每轮把真实工具观察交给规则策略，再搜索、读取或结束；对比有证据、空结果、重复搜索及步数耗尽。[运行](agent-loop/shared/README.md) · [契约](agent-loop/shared/CONTRACT.md)。finish本身占一轮，已搜索或已读取不自动算完成；仅验证本地控制流，不证明真实模型规划质量。
+
+每个实验的 `shared/` 放契约、案例与说明，语言子目录放完整实现，manifest 记录版本/课时/语言。SQLite 的共享 SQL 在 `shared/migrations/`。当前共 23 个下载包。`public/labs/` 为固定白名单生成的确定性 ZIP，不包含依赖缓存、数据文件或秘密配置。
 
 ```sh
 python3 scripts/build_course_labs.py

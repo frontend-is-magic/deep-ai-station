@@ -1,5 +1,14 @@
 # 验证记录
 
+## 2026-10-04 / 观察驱动的 Agent 决策循环实验
+
+- Agent第一课新增独立Python标准库CLI，逐轮复制实际状态交给规则策略，执行真实本地search/read并保存before/decision/observation/after。核心不接case或策略名称；CLI只选固定查询与函数。evidence_first依实际观察推进，repeat_search故意重复供学习者修复；finish也占一轮，1..5步耗尽后不能额外decide/dispatch，已read但未finish仍为step_limit。
+- 两份维护者教学摘要标注teaching-summary，source只供延伸阅读，已核对官方最终URL。search是实际关键词子串匹配，read返回原文五字段，完成须有本次实际读取；空结果和执行失败分开。固定包内资产、完整schema、重复JSON键和非法版本拒绝，只有相邻文件缺失可走固定开发布局；无模型、网络、服务器、数据库或用户代码执行入口，不能证明真实模型规划质量。
+- 合同与原始资产先于实现冻结，canonical SHA为`45a01bfcdff94b3d96826ba2f9eab7a750a51ea3e362939d8c2a0e1d1c06007d`。Python3.12冻结pytest9.1.1/Ruff0.15.22，独立临时环境离线安装、锁检查、6文件Ruff及shared Prettier通过；50项原生通过（1.13秒）。另一作者6项核心探针和3个真实CLI验证观察、预算、快照、异常与资产回退，均有界退出，交审未发现实质问题。
+- 最终ZIP29323字节、16白名单成员，SHA256 `1c56fc861ac9623ad88a7d15098a7a52e1186e894766f4097935a4c685c1e83f`。独立作者预先冻结五份完整报告、13步人工快照及反事实，未用实现生成oracle；仓库外解包冻结安装再次50项通过（1.32秒），实际16个实验进程全部wait/reap。核对跨cwd/hashseed逐字节输出、合法改变查询后实际读第二篇原文、真实空search且read零次、预算2外部调用spy、坏policy跳过read被同一正常断言拒绝并精确对应execution_failed。9项验收器自测通过，原包与CLI输入字节不变；交审未发现假阳性或回收缺口。
+- 平台仅新增第一课Python映射，十三类实验、十八课共23包，实验与毕业课合计48种证据组合，v1与原48容量不变。117项相关helper、48组合备份往返、完整754项Vitest、Prettier、类型和Vite构建通过。3项新headless与8项原实践回归共11通过（27.02秒）：真实资料API的Agents SDK入口、实际16成员下载包、证据刷新/Markdown、独立确认撤销、旧数据保留和375px键盘返回。截图已查看无溢出，自有API8006/Vite5175与headless释放。
+- 后端627项通过（18.02秒），41项本地专用PG跳过，100份Python Ruff通过；23个public/dist实验ZIP逐字节相同。提交前扫描暂存/工作区/内嵌ZIP，精确十五作业CI、Preview、Notion与人工回执另行核验。primary749c9a0及原8000/5173未动；0真实模型/沙箱，原生Browser、托管配置和Production仍在既有人工对话。
+
 ## 2026-10-04 / 公共 React 组件与派生状态实验
 
 - React组件与Jotai两课共用独立TypeScript项目：三张固定课程卡、明确checkbox意图、Props回调、Jotai真实派生统计与筛选。只持久化完成/收藏事实；过滤和百分比不保存，重复同意图不写。坏记录整份拒绝，读写失败保留本页内存；README要求学习者自行新增“已收藏且未完成”统计，初始包没有预先实现。
@@ -9,6 +18,8 @@
 - 6项独立验收器自测通过。两次自有preview均实际wait/reap、端口关闭，三次安装/检查/变体构建命令完成；源码/ZIP字节不变，零业务请求/WS，无关storage键不变。桌面与375px截图已查看，无横向溢出；headless未恢复原生Browser控制。
 - 平台新增9项前端测试，完整753项Vitest、Prettier、类型与生产构建通过；47组合备份往返覆盖。另一作者用实际48课程与三语言×两课六条探针核对旧记录保留和TS回链，未发现实质问题。5项新平台headless加既有实践/证据流程共41项通过（97.92秒），覆盖精选Jotai入口、实际ZIP下载、分别记录/撤销与移动键盘，独立API8006/Vite5175释放。后端完整616项通过（18.62秒），本地41PG明确跳过；后续取证修正的最终检查另计。
 - 本轮与诊断响应取证修正合并进入下一份完整十四作业CI；精确远端结果、Preview和Notion回执待记录。primary749c9a0与原8000/5173未动；0真实模型/沙箱，原生Browser、托管配置和Production继续在既有人工对话处理。
+
+- 最终 `1ccc48c` 的[完整CI](https://github.com/frontend-is-magic/deep-ai-station/actions/runs/37170660121)十四项全部成功，覆盖公共前端和运行诊断取证修正；753项前端、618项后端（19.22秒）、213条headless（600.80秒）、597文件/ZIP扫描及PostgreSQL17.11的41项（9.16秒）通过。独立公共前端16步、四类存储、375px键盘和反事实通过；上传61原生、六矩阵、五故障与30/30服务回收。Preview `6835810846` 成功，正常TLS匿名健康302；Notion三页回读verified，精确版本已送至原人工对话。0真实模型/沙箱，原生Browser、托管配置与Production继续保持原边界。
 
 ## 2026-10-04 / 免费运行诊断与个人反思
 
