@@ -29,6 +29,8 @@ flowchart LR
 
 信息流与收藏通过[精选资料关联表](learning-links.md)连接课程。关联只接受明确的资料 ID、原始 URL、路线和 guide 类型，同时验证当前课表和语言；RSS 不自动推断。全栈语言写入课程链接，Agent 入口固定 Python，Jotai 公共前端保留服务端偏好。关联本身不写学习数据，访问课程只更新原学习位置及显式选择的语言。
 
+精选卡片共用阅读摘记组件：明确开始时固定已验证来源、课时、语言、UUID、时间和reset epoch；两项个人文本经预览后显式追加现有notes。保存重读最新Progress并检查同草稿整行标记与笔记容量，不用预览缓存覆盖原文；导入/清空失效旧草稿。所有文字以纯文本和动态围栏保存，不改v1结构、不写完成或实践状态；存储失败区分内存追加与持久保存。归属仍仅取现有8条精确映射，不从RSS或任意URL推断。
+
 课程内容位于 `backend/curriculum.py`，专属测验与参考代码分别位于 `backend/quizzes.py`、`backend/examples.py`、`backend/fullstack_examples.py`。48 节课共 96 份专属示例：Agent 24 份 Python，全栈 24 份 Python、24 份 TypeScript、24 份 Go。修改课程需检查 ID 唯一性、阶段引用、官方链接与三语言语法。
 
 React 界面统一使用 TypeScript；Go/Python 对应服务契约与工程机制。TS 示例覆盖 Hono、React、Jotai，Go 包含 net/http 与 Gin，Python 包含 FastAPI、Pydantic。片段中的 Provider / Repository / Database 接口由调用方注入；框架依赖与数据库驱动须在独立练习项目安装。
