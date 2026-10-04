@@ -41,6 +41,7 @@ UNKNOWN = (
 )
 ACK = "我已核对，允许再次上传（可能重复）"
 HEADERS = {"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"}
+POST_CAPTURE_LIMIT = 4096
 
 LAUNCHER = """
 import {preview} from 'vite';
@@ -65,31 +66,102 @@ process.once('SIGINT', stop);
 # Installed before the application. These are observation/scheduling seams, not
 # product imports: actual fetch, File bytes, SHA and Blob download APIs still run.
 AUDIT = """() => {
-  const audit = window.__uploadAudit = {posts:0,violations:[],urls:new Set(),gates:[]};
+  const audit = window.__uploadAudit = {
+    posts:0,violations:[],urls:new Set(),gates:[],postResponses:[],readers:new Map()
+  };
   const realFetch = window.fetch.bind(window);
   const create = URL.createObjectURL.bind(URL), revoke = URL.revokeObjectURL.bind(URL);
   URL.createObjectURL = blob => {const url=create(blob); audit.urls.add(url); return url;};
   URL.revokeObjectURL = url => {audit.urls.delete(url); return revoke(url);};
+  const observeResponse = async (response, record) => {
+    let reader, timer;
+    record.status=response.status;
+    record.responseUrl=response.url;
+    record.responseHeaders=Object.fromEntries(response.headers);
+    record.state='capturing';
+    try {
+      // This clone is independent of the original Response consumed by the app.
+      reader=response.clone().body.getReader();
+      let cancel;
+      const stopped=new Promise(resolve=>{cancel=resolve;});
+      audit.readers.set(record.ticket,()=>cancel('capture_cancelled'));
+      timer=setTimeout(()=>cancel('capture_timeout'),5000);
+      const chunks=[];
+      let total=0;
+      while (true) {
+        const part=await Promise.race([reader.read(),stopped]);
+        if (typeof part==='string') {record.failure=part; break;}
+        if (part.done) {
+          record.bytes=chunks.flatMap(chunk=>Array.from(chunk));
+          record.state='complete';
+          return;
+        }
+        total+=part.value.byteLength;
+        if (total>4096) {record.failure='capture_too_large'; break;}
+        chunks.push(part.value);
+      }
+    } catch {
+      record.failure='capture_failed';
+    } finally {
+      clearTimeout(timer);
+      audit.readers.delete(record.ticket);
+      if (record.state!=='complete') {
+        record.state='failed';
+        record.bytes=null;
+        audit.violations.push(record.failure);
+        // A tee branch's cancel can wait for the app's original branch. Never
+        // delay that branch or shutdown while waiting for our clone to cancel.
+        if (reader) void reader.cancel().catch(()=>{});
+      }
+      if (reader) {try {reader.releaseLock();} catch {}}
+    }
+  };
+  audit.cancelCaptures=()=>audit.readers.forEach(cancel=>cancel());
   window.fetch = async (input, init) => {
     const request = new Request(input, init), path = new URL(request.url).pathname;
+    let record=null;
     if (path.startsWith('/api/')) {
       if (request.credentials !== 'omit' || request.cache !== 'no-store' || request.redirect !== 'error')
         audit.violations.push('request_policy');
       if (!/^Bearer lab-(alice|alice-second|alice-readonly|bob|expired|revoked)-session$/.test(request.headers.get('Authorization') || ''))
         audit.violations.push('public_identity');
-      if (request.method === 'POST') audit.posts++;
+      if (request.method === 'POST') {
+        const ticket=++audit.posts;
+        if (path!=='/api/documents' || ticket>64) audit.violations.push('unexpected_post');
+        else {
+          record={ticket,requestUrl:request.url,method:request.method,
+            requestHeaders:{'content-type':request.headers.get('content-type'),
+              'x-filename':request.headers.get('x-filename')},
+            state:'pending',status:null,responseUrl:null,responseHeaders:null,bytes:null,failure:null};
+          audit.postResponses.push(record);
+        }
+      }
     }
     const gate = window.__fetchGate;
-    if (gate && !gate.started && gate.method === request.method && gate.path === path) {
-      gate.started=true; gate.signal=request.signal; audit.gates.push(gate);
-      const response = await realFetch(request, {signal:new AbortController().signal});
+    const gated=gate && !gate.started && gate.method === request.method && gate.path === path;
+    if (gated) {gate.started=true; gate.signal=request.signal; audit.gates.push(gate);}
+    let response;
+    try {
+      response=await (gated
+        ? realFetch(request,{signal:new AbortController().signal})
+        : realFetch(input,init));
+    } catch (error) {
+      // Deliberate dropped/aborted requests are observed separately by the
+      // unknown-result cases; no Response/body is invented for a fetch failure.
+      if (record) {record.state='fetch_failed'; record.failure='fetch_failed';}
+      throw error;
+    }
+    if (record) void observeResponse(response,record);
+    if (gated) {
       const bytes = await response.arrayBuffer();
       gate.status=response.status;
       await new Promise(resolve => {gate.release=resolve; gate.ready=true;});
       gate.returned=true;
       return new Response(bytes,{status:response.status,headers:response.headers});
     }
-    return realFetch(input,init);
+    // Normal traffic returns the exact original object immediately; only the
+    // observer reads its clone, without an extra request or awaiting clone EOF.
+    return response;
   };
   const read = File.prototype.arrayBuffer;
   File.prototype.arrayBuffer = async function () {
@@ -313,13 +385,69 @@ def select_file(page, body=BODY, name="notes.md"):
     )
 
 
-def upload(page, body=BODY, name="notes.md", *, confirmed=True):
+def parse_post_observation(record, *, ticket, url, status, request_headers, response_headers):
+    # Every field below is recorded from this one fetch closure. CDP still
+    # independently supplies the actual request bytes, status, URL and headers.
+    if (
+        not isinstance(record, dict)
+        or type(record.get("ticket")) is not int
+        or record["ticket"] != ticket
+        or record.get("state") != "complete"
+        or record.get("failure") is not None
+        or record.get("method") != "POST"
+        or record.get("requestUrl") != url
+        or record.get("responseUrl") != url
+        or type(record.get("status")) is not int
+        or record["status"] != status
+        or record.get("requestHeaders") != request_headers
+        or not isinstance(record.get("responseHeaders"), dict)
+    ):
+        raise RuntimeError("POST response observation identity/status mismatch")
+    headers = record["responseHeaders"]
+    for key, value in {"cache-control": "no-store", "x-content-type-options": "nosniff"}.items():
+        if headers.get(key) != value or response_headers.get(key) != value:
+            raise RuntimeError("POST response observation header mismatch")
+    content_type = headers.get("content-type", "")
+    if (
+        content_type != response_headers.get("content-type")
+        or content_type.split(";")[0].strip().lower() != "application/json"
+    ):
+        raise RuntimeError("POST response observation content type mismatch")
+    raw = record.get("bytes")
+    if (
+        not isinstance(raw, list)
+        or not raw
+        or len(raw) > POST_CAPTURE_LIMIT
+        or any(type(value) is not int or not 0 <= value <= 255 for value in raw)
+    ):
+        raise RuntimeError("POST response observation bytes invalid")
+    try:
+        return json.loads(bytes(raw).decode("utf-8", errors="strict"))
+    except (UnicodeError, ValueError) as error:
+        raise RuntimeError("POST response observation JSON invalid") from error
+
+
+def completed_post_capture(page, ticket):
+    page.wait_for_function(
+        "ticket => {const item=window.__uploadAudit.postResponses.find(row=>row.ticket===ticket);"
+        "return item && !['pending','capturing'].includes(item.state);}",
+        arg=ticket,
+        timeout=7000,
+    )
+    records = page.evaluate(
+        "ticket=>window.__uploadAudit.postResponses.filter(row=>row.ticket===ticket)", ticket
+    )
+    if len(records) != 1 or records[0]["state"] != "complete":
+        raise RuntimeError("POST response observation did not complete")
+    return records[0]
+
+
+def post_once(page, body, name, *, status):
     from playwright.sync_api import expect
 
     select_file(page, body, name)
-    if not confirmed:
-        page.get_by_role("button", name="上传文件", exact=True).click()
-        return None
+    previous = page.evaluate("window.__uploadAudit.posts")
+    ticket = previous + 1
     with page.expect_response(
         lambda response: (
             response.request.method == "POST" and response.url.endswith("/api/documents")
@@ -327,12 +455,39 @@ def upload(page, body=BODY, name="notes.md", *, confirmed=True):
     ) as pending:
         page.get_by_role("button", name="上传文件", exact=True).click()
     response = pending.value
-    assert response.status == 201
+    assert response.status == status
     assert response.request.post_data_buffer == body
     headers = response.request.all_headers()
     media = "text/markdown" if name.lower().endswith(".md") else "text/plain"
-    assert headers["content-type"] == media and headers["x-filename"] == name
-    metadata = response.json()
+    request_headers = {"content-type": media, "x-filename": name}
+    assert {key: headers.get(key) for key in request_headers} == request_headers
+    record = completed_post_capture(page, ticket)
+    assert page.evaluate("window.__uploadAudit.posts") == ticket
+    result = parse_post_observation(
+        record,
+        ticket=ticket,
+        url=response.url,
+        status=response.status,
+        request_headers=request_headers,
+        response_headers=response.headers,
+    )
+    expect(page.get_by_role("region", name="上传结果", exact=True)).to_contain_text(
+        "本次上传已确认。" if status == 201 else "本次上传被拒绝。"
+    )
+    checkpoint(page)
+    assert page.evaluate("window.__uploadAudit.posts") == ticket
+    return result
+
+
+def upload(page, body=BODY, name="notes.md", *, confirmed=True):
+    from playwright.sync_api import expect
+
+    if not confirmed:
+        select_file(page, body, name)
+        page.get_by_role("button", name="上传文件", exact=True).click()
+        return None
+    metadata = post_once(page, body, name, status=201)
+    media = "text/markdown" if name.lower().endswith(".md") else "text/plain"
     assert metadata == {
         "id": metadata["id"],
         "filename": name,
@@ -435,12 +590,16 @@ def browser_page(browser, base, *, clock=False):
         assert len(navigations) == 1 and not websockets
         assert not errors and not destinations
         assert page.evaluate("window.__uploadAudit.violations") == []
+        assert page.evaluate("window.__uploadAudit.readers.size") == 0
         assert page.evaluate("window.__uploadAudit.urls.size") == 0
         assert page.evaluate("localStorage.length + sessionStorage.length") == 0
         assert page.evaluate("indexedDB.databases().then(items => items.length)") == 0
     finally:
         try:
-            page.evaluate("window.__uploadAudit?.gates.forEach(gate => gate.release?.())")
+            page.evaluate(
+                "() => {window.__uploadAudit?.gates.forEach(gate=>gate.release?.());"
+                "window.__uploadAudit?.cancelCaptures();}"
+            )
         finally:
             context.close()
 
@@ -542,11 +701,7 @@ def matrix(browser, folder, client, env, language, storage, counters, temporary,
                 identity.select_option("alice")
                 listing(page, 2)
                 assert request(api_port, "POST", "/documents", body=b"other client")[0] == 201
-                with page.expect_response(
-                    lambda response: response.request.method == "POST"
-                ) as refused:
-                    upload(page, b"over quota", confirmed=False)
-                assert refused.value.status == 409 and refused.value.json() == {
+                assert post_once(page, b"over quota", "notes.md", status=409) == {
                     "error": "quota_exceeded"
                 }
                 expect(page.get_by_role("region", name="上传结果", exact=True)).to_contain_text(
@@ -778,6 +933,12 @@ def stopped_and_deadline(browser, folder, client, env, language, counters):
             upload(page, confirmed=False)
             page.wait_for_function("window.__fetchGate.ready === true")
             assert len(database_records(work)) == 1
+            # The real 201 body is already held by this scheduling fault. Wait
+            # for its independent clone as well before advancing the page clock;
+            # only the app's deliberately withheld response may time out below.
+            capture = completed_post_capture(page, 1)
+            assert capture["status"] == 201
+            assert page.evaluate("window.__uploadAudit.readers.size") == 0
             if outcome == "stop":
                 page.get_by_role("button", name="停止等待", exact=True).click()
             else:
@@ -836,9 +997,7 @@ def refusals_and_integrity(browser, folder, client, env, language, counters):
         ).to_be_visible()
         expect(page.get_by_role("button", name="上传文件", exact=True)).to_be_disabled()
         assert page.evaluate("window.__uploadAudit.posts") == 0
-        with page.expect_response(lambda response: response.request.method == "POST") as rejected:
-            upload(page, b"\x80", name="bad.txt", confirmed=False)
-        assert rejected.value.status == 422 and rejected.value.json() == {"error": "invalid_text"}
+        assert post_once(page, b"\x80", "bad.txt", status=422) == {"error": "invalid_text"}
         expect(page.get_by_role("region", name="上传结果", exact=True)).to_contain_text(
             "本次上传被拒绝。"
         )
@@ -872,9 +1031,7 @@ def refusals_and_integrity(browser, folder, client, env, language, counters):
         listing(page, 1)
         upload(page, b"b" * 4096, name="full.txt")
         listing(page, 2)
-        with page.expect_response(lambda response: response.request.method == "POST") as rejected:
-            upload(page, b"over", name="full.txt", confirmed=False)
-        assert rejected.value.status == 409 and rejected.value.json() == {"error": "quota_exceeded"}
+        assert post_once(page, b"over", "full.txt", status=409) == {"error": "quota_exceeded"}
         expect(page.get_by_role("region", name="上传结果", exact=True)).to_contain_text(
             "本次上传被拒绝。"
         )
@@ -981,6 +1138,8 @@ def verify(selected, screenshots=None):
                 "checks": details,
                 **counters,
                 "client_serving": "built_dist_no_hmr",
+                "post_response_evidence": "original_fetch_response_clone",
+                "post_capture_max_bytes": POST_CAPTURE_LIMIT,
                 "documents_stable": True,
                 "headless_closed": True,
                 "listeners_released": True,
