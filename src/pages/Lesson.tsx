@@ -32,7 +32,7 @@ import LanguagePractice from '@/components/LanguagePractice';
 
 export default function LessonPage({ tracks }: { tracks: Track[] }) {
   const { lessonId } = useParams();
-  const { hash } = useLocation();
+  const { hash, key: locationKey } = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const track = tracks.find((x) => x.lessons.some((l) => l.id === lessonId));
   const lesson = track?.lessons.find((x) => x.id === lessonId);
@@ -104,12 +104,13 @@ export default function LessonPage({ tracks }: { tracks: Track[] }) {
     setQuizState(null);
   }, [quizKey]);
   useEffect(() => {
-    if (!validLessonId || hash !== '#quiz') return;
+    const targetId = hash === '#quiz' ? 'quiz' : hash === '#course-lab' ? 'course-lab' : null;
+    if (!validLessonId || !targetId) return;
     const frame = window.requestAnimationFrame(() => {
-      document.getElementById('quiz')?.scrollIntoView({ block: 'start' });
+      document.getElementById(targetId)?.scrollIntoView({ block: 'start' });
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [validLessonId, hash]);
+  }, [validLessonId, hash, locationKey]);
   if (!lesson || !track)
     return (
       <div className="state-panel">
@@ -330,8 +331,9 @@ export default function LessonPage({ tracks }: { tracks: Track[] }) {
           {courseLab && (
             <>
               <section
+                id="course-lab"
                 aria-label={courseLab.title}
-                className="my-7 space-y-3 rounded-xl border border-lime-200 bg-lime-50 p-5"
+                className="my-7 scroll-mt-24 space-y-3 rounded-xl border border-lime-200 bg-lime-50 p-5"
               >
                 <h2>{courseLab.title}</h2>
                 <p>

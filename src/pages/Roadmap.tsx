@@ -17,6 +17,7 @@ import type { Track } from '@/lib/types';
 import { languageNames } from '@/lib/utils';
 import { PageHeading } from '@/components/common';
 import { Button } from '@/components/ui/button';
+import LabPracticeList from '@/components/LabPracticeList';
 
 export default function Roadmap({ tracks }: { tracks: Track[] }) {
   const { trackId } = useParams();
@@ -153,6 +154,7 @@ export default function Roadmap({ tracks }: { tracks: Track[] }) {
           ))}
         </ul>
       </section>
+      <LabPracticeList key={track.id} tracks={tracks} trackId={track.id} progress={progress} />
       <div className="roadmap-stages">
         {track.stages.map((stage) => {
           const isCollapsed = collapsed.includes(stage.id);
