@@ -37,6 +37,8 @@ React 界面统一使用 TypeScript；Go/Python 对应服务契约与工程机�
 
 CI 对 48 份 Python 参考做 AST 校验，对 24 份 TS 参考做严格类型检查，对 24 份 Go 参考做只编译验证。Hono 4.13.12 固定在前端开发依赖，Gin v1.12.0 及其间接依赖固定在 `scripts/go-reference/go.mod` / `go.sum`；Go 使用 `test -c -mod=readonly`，不执行参考程序、测试或学习者输入。类型与编译通过不能代替运行与业务验收。
 
+React组件与Jotai课提供[公共前端状态实验](../labs/frontend-state/shared/CONTRACT.md)。独立页面用类型化Props展示三张固定卡片，Jotai事实atom只持久化完成/收藏ID；统计、全局完成率与可见列表实时派生，筛选不改分母或事实。只有TypeScript ZIP，无后端与模型。平台下载选择将公共前端的实际语言与服务端参考偏好区分：证据/实验实践固定TS，Go/Python旧课程参考实践保留并可撤销，二者不会自动互认；路线共享组与证据返回也不改服务端偏好。
+
 路由与输入校验两课提供 [独立 API 契约实验](../labs/README.md)，包含 FastAPI / Hono / Gin 的路由、服务与可注入 Repository。共享固定资料、严格输入规则和 HTTP 案例；语言差异由共同测试约束。`scripts/build_course_labs.py` 使用文件白名单生成确定性 ZIP（包括包内格式配置），`scripts/verify_course_labs.py` 在仓库外冻结安装、测试并实际启动每个语言服务，禁用回环请求代理，使用独立临时端口并释放自有进程。CI 分语言运行这些检查，静态 ZIP 随前端发布，实验源文件及依赖排除在 Python Function 之外。平台不会启动这些服务，也不执行学习者修改后的代码。
 
 数据建模与迁移两课增加独立 SQLite 仓储实验（Python sqlite3 / Node node:sqlite / Go modernc SQLite），共用版本化 SQL 和 CLI 契约。显式迁移、组合唯一约束、参数化 SQL、事务内进度与审计写入、owner 范围及 keyset 分页均在真实数据库运行。CLI 的 owner 是可信调用方教学输入，不包含登录认证；时钟也是显式输入，不承诺迟到事件排序。`scripts/verify_sqlite_labs.py` 在仓库外逐命令启动新进程，验证保存、迁移保留、未来版本拒绝，以及审计/回填故障时的回滚。数据库与事务旁文件只留练习环境。
