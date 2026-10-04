@@ -1,5 +1,17 @@
 # 验证记录
 
+## 2026-10-04 / 三语言上传的 SQLite 耐久仓储
+
+- 现有 text-upload 三语言包增加显式 `init` 与 `serve --storage sqlite`，默认 memory 继续重启清空。固定 cwd/.data/uploads.sqlite3 保存完整 BLOB、server owner、元数据及 next_id；同一共享 SQL/application_id/version 格式可跨语言读取。已有库不覆盖、缺库不创建，未知或损坏库拒绝；假会话仍随进程重建，固定 Alice/Bob 教学库不代表真实身份或托管存储。
+- 每操作独立短连接，读快照/BEGIN IMMEDIATE 写事务；正文后先重检身份，短锁/事务内再核对最初 owner、原 token 和写权，随后同事务检查配额、插入及推进 ID。私有授权 latch 只映射可信身份错误，仓储伪造 HTTP 异常仍脱敏。busy_timeout=0 由原生连接测试验证，独立 HTTP 只证明有界拒绝；同步文件 I/O 没有非阻塞承诺。
+- COMMIT 调用前标记阶段且仅调用一次，之后异常保守返回 result_unconfirmed；尽力回滚/关闭不掩盖原分类。提交后断连可能已经保存，不能自动重复 POST；同名/同字节可产生新文档，没有幂等或 exactly-once 承诺。原生测试实际验证 INSERT 后回滚、提交前后独立进程退出、真实 COMMIT BUSY 与提交后 HTTP 断连，公共 CLI 不暴露故障开关。
+- 交叉审查修复 Python 巨型 TEXT 的预检投影，先校验 SQLite 类型再取数值，避免先加载非法大字段；另以真实占用随机端口复现并修复 Uvicorn SystemExit 导致 CLI 缺少固定 JSON。Go 用同步 Body.Read 变更复用的 Principal 指针复现误写 Bob，改为初始认证后立即快照 owner；回归从201/误写变为401/零仓储调用。TypeScript 审查无实质缺陷，尾换行 PORT 疑点经真实 CLI 排除。
+- Python 最终143项原生及 Ruff/锁检查通过；TypeScript231项、Prettier与类型构建通过，无新增依赖。Go冻结合并Gin与modernc锁，原race38顶层/249叶子通过，新owner补丁相关6顶层/13叶子race通过；最终 ZIP 再执行完整race成功（12.299秒）。三语言各自实际运行 memory 与 SQLite 的原78个共同HTTP案例，并包含真实重启、身份重检与故障测试。
+- 仓库外 ZIP 独立冻结安装：每语言另执行78个memory HTTP、3个重启清空检查，以及119个SQLite HTTP案例、17个CLI、8个实际服务进程和8类坏库场景。Python最终143原生复验通过；TypeScript231与Go race通过。所有服务均实际wait/reap并确认监听关闭。另一个独立作业按TS→Go→Python→TS依次启动4个进程，直接使用同一数据库文件；每阶段独立SQL核对连续ID、原字节/SHA及最终配额，未用JSON重建。
+- 初轮Python独立检查完成最后坏库断言后，通用清理器的进程组零信号探测返回PermissionError；finally已wait且后查无对应进程。新脚本对无包装/worker的固定入口改为直接terminate/wait/kill/wait及监听检查，不把EPERM视作退出证据；通用runner未改。6项验收器自测证明正确JSON不能替代真实退出，歧义JSON、额外诊断与不合作进程均拒绝；回收后另检查服务日志仅允许固定Node运行时警告。
+- 平台612项Vitest、Prettier、TypeScript与生产构建通过，524项后端通过、41项本地专用PG明确跳过，85份Python Ruff通过。实际三语言ZIP/原参考下载和记录保留，加桌面/375px视觉共2条headless通过（4.29秒）；截图已查看无横向溢出，自有8006/5175及浏览器释放，原primary749c9a0与8000/5173未动。
+- 全部20包重建一致，最终上传ZIP分别Python58829、TS48134、Go55104字节，dist副本相同。.data及SQLite旁文件忽略与强制ZIP拦截均通过；提交前扫描暂存、工作区和内嵌ZIP。0真实模型/沙箱调用，无新托管迁移；精确提交的十一项CI、Preview、Notion与原人工清单回执另行记录，原生Browser和Production边界保持。
+
 ## 2026-10-04 / Agent 结构化结果回归与硬门禁实验
 
 - `agent-regression` 增加独立 Python 标准库 CLI、固定 ZIP 与 Python 实践证据卡；十四节实验课共 20 包、32 种课时/语言组合，含毕业课共 44 种，沿用原 v1 备份和 48 条证据容量。主平台只提供下载，不执行学习者代码。
@@ -9,6 +21,8 @@
 - 最终 ZIP 35325 字节、19 个固定成员，全部 20 包重建与 dist 副本字节一致。独立解包再次通过 192 项原生测试，并完成 96 个黑盒场景、33 格人工期望与六组比较、28 项规则反事实探针；188 个 CLI 子进程及一个探针进程全部实际 wait/reap。验收器 7 项自测通过，8 个辅助进程已回收；首次运行仅因 uv 不在 PATH 而在启动前失败，补入已有工具路径后通过，未改产品。
 - 平台 `pnpm check` 的 612 项 Vitest、Prettier、TypeScript 与生产构建通过；517 项后端通过，本地 41 项专用 PostgreSQL 明确跳过，83 份 Python 文件 Ruff 通过。五条 Agent 下载流程、十条证据索引回归及一条视觉检查共 16 条 headless 通过（32.32秒）；已查看桌面与 375px 截图，无横向溢出。API8006/Vite5175 和 headless 自有进程正常释放，原 primary749c9a0 及8000/5173未动。
 - 提交前检查暂存、工作区与内嵌 ZIP 的敏感文件。0 真实模型/沙箱调用，无新托管迁移；原生 Browser、真实服务与 Production 仍在原人工清单。精确提交的十项 CI、Preview、Notion 与人工回执在远端完成后另行记录。
+
+- 最终 `95e1fd6` [完整 CI](https://github.com/frontend-is-magic/deep-ai-station/actions/runs/37164294777) 十项全部成功；质量日志确认612项前端、517项后端、181条完整headless（462.65秒）和508文件/ZIP扫描。独立回归作业192原生、96场景、188个CLI与一个探针进程全部回收，真实PostgreSQL17.11的41项通过。Preview `6834814191` 成功、正常TLS匿名健康302；Notion三页回读verified，原人工清单已更新。下一轮上传SQLite单独迭代，原生Browser、托管配置与Production边界不变。
 
 ## 2026-10-04 / 学习库实践证据索引
 

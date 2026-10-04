@@ -74,7 +74,7 @@ uv run python -m scripts.compile_go_examples
 
 课程验证覆盖 48 份 Python AST、24 份 TypeScript 严格类型检查（含锁定的 Hono 依赖）、24 份 Go 编译（含锁定的 Gin module）。Go 检查使用 `go test -c -mod=readonly`，只编译维护者提供的参考，不运行程序或测试；这仍不代替业务行为验收。
 
-路由、输入校验、SQLite 数据/迁移、会话/授权及受限文本上传实验的运行说明见 [课程实验](labs/README.md)。`python3 scripts/build_course_labs.py --check` 比较源码与 ZIP；`python3 scripts/verify_course_labs.py` 在仓库之外解包，冻结安装、运行各语言测试并启动实际 HTTP 服务验证共同案例，结束后确认自有监听已释放。`python3 scripts/verify_sqlite_labs.py` 在独立临时目录验证三语言真实 SQLite CLI、迁移及故障回滚。`python3 scripts/verify_session_labs.py` 验证假会话、权限隔离、CSRF、原始重复头及进程重启；服务端Cookie属性测试不代表真实HTTPS浏览器验收。`python3 scripts/verify_upload_labs.py` 验证真实UTF-8字节上传、owner范围、原子配额和附件下载，重启确认内存数据清空。维护者脚本只运行仓库固定代码。
+路由、输入校验、SQLite 数据/迁移、会话/授权及受限文本上传实验的运行说明见 [课程实验](labs/README.md)。`python3 scripts/build_course_labs.py --check` 比较源码与 ZIP；`python3 scripts/verify_course_labs.py` 在仓库之外解包，冻结安装、运行各语言测试并启动实际 HTTP 服务验证共同案例，结束后确认自有监听已释放。`python3 scripts/verify_sqlite_labs.py` 在独立临时目录验证三语言真实 SQLite CLI、迁移及故障回滚。`python3 scripts/verify_session_labs.py` 验证假会话、权限隔离、CSRF、原始重复头及进程重启；服务端Cookie属性测试不代表真实HTTPS浏览器验收。`python3 scripts/verify_upload_labs.py` 验证真实UTF-8字节上传、owner范围、原子配额和附件下载：默认内存重启清空，显式SQLite经新进程保留原文与配额；另验双服务竞争、忙锁和坏库拒绝。`python3 scripts/verify_upload_storage.py` 在同一个数据库文件上按TS→Go→Python→TS读写，所有服务退出后用独立SQL核对。维护者脚本只运行仓库固定代码。
 
 `python3 scripts/verify_agent_write_lab.py` 在独立解包环境冻结安装，检查工具审批的真实 SQLite / HTTP、重启、提交后 503 与断连恢复；`--browser` 另验 React 到实际后端的流程。教学身份为公开假值，不产生模型费用或外部发布。
 

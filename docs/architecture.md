@@ -136,3 +136,9 @@ Agent 回归课增加 [结构化结果与门禁实验](../labs/output-regression
 [测验回顾](quiz-review.md)作为 Progress version 1 的可选 quizReview 保存课时ID与首次加入UTC时间，最多64条。严格结构与日期校验，保留当前目录不可用的合法记录；解析入口时跨整个目录检查ID唯一性和路线归属。检查/移除在functional updater内读取最新有效存储，仅替换该字段。
 
 课时选择与检查结果仅在页面内存中，完整题目内容构成身份；身份变更既同步屏蔽旧结果，也清空状态，A→B→A不会恢复通过资格。未完成课需显式检查答对及全部验收确认才可手动完成，既有完成不迁移。测试专用React入口在tests/fixtures中，只由Vite开发测试使用，不加入生产构建。
+
+## 上传实验的耐久数据边界
+
+三语言 text-upload 保留默认内存，并增加 [SQLite 存储契约](../labs/text-upload/shared/STORAGE.md)。显式 init 创建固定 .data/uploads.sqlite3；HTTP仍使用公开假Bearer，SQLite BLOB保存原字节、server owner、完整元数据和同事务next_id。每操作短连接、事务内最终授权与共享配额，错误不输出SQL或原文；COMMIT开始后的异常保守标记result_unconfirmed，不能据断连盲目重传。
+
+这只覆盖同机Alice/Bob教学库，默认会话重启重建；同步小文件I/O没有非阻塞承诺。独立ZIP验证器在实际进程退出后核对SQL和下载，三语言作业直接读写同一文件。原毕业骨架仍未接入上传、身份与资料检索的完整集成；此仓储提供可比较的实践边界，不自动迁移或代替托管数据库。

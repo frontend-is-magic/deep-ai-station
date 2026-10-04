@@ -8,7 +8,7 @@
 | `sqlite-storage-v1`        | SQL 与数据建模、迁移与事务 | 真实 SQLite、幂等写入、owner 分页、迁移与原子回滚           | [运行](sqlite-storage/shared/README.md) · [契约](sqlite-storage/shared/CONTRACT.md)               |
 | `session-authorization-v1` | 认证、应用安全             | 有效会话、owner隔离、撤销/过期、Cookie CSRF、正文后重检     | [运行](session-authorization/shared/README.md) · [契约](session-authorization/shared/CONTRACT.md) |
 
-`text-upload-v1` 对应文档问答课，使用假Bearer、UTF-8/文件名白名单、私有内存对象、原子配额与逐字节附件下载。[运行](text-upload/shared/README.md) · [契约](text-upload/shared/CONTRACT.md)。此实验不接入RAG、不解析内容、不落盘；它只验证上传边界，不代表生产存储已经验收。
+`text-upload-v1` 对应文档问答课，使用假Bearer、UTF-8/文件名白名单、私有内存对象、原子配额与逐字节附件下载。[运行](text-upload/shared/README.md) · [契约](text-upload/shared/CONTRACT.md)。默认内存重启清空；[SQLite扩展](text-upload/shared/STORAGE.md)显式初始化、保存BLOB原文与配额，验证同机跨进程及三语言互读。提交未确认不能当作未写入；不接入RAG、不解析内容，也不代表生产存储已验收。
 
 `sse-stream-v1` 对应流式聊天与取消、异步并发两课，共享 React 客户端连接 FastAPI / Hono / Gin。包含分块UTF-8、唯一运行ID、递增序号、错误/总超时、真实HTTP断连及A/B隔离；无模型调用。[运行](sse-stream/shared/README.md) · [契约](sse-stream/shared/CONTRACT.md)。
 
@@ -31,6 +31,7 @@ python3 scripts/verify_course_labs.py
 python3 scripts/verify_sqlite_labs.py
 python3 scripts/verify_session_labs.py
 python3 scripts/verify_upload_labs.py
+python3 scripts/verify_upload_storage.py
 python3 scripts/verify_stream_labs.py --browser
 python3 scripts/verify_agent_write_lab.py
 python3 scripts/verify_agent_write_lab.py --browser
@@ -42,7 +43,7 @@ python3 scripts/verify_output_regression_lab.py
 python3 scripts/verify_sqlite_labs.py --language go
 ```
 
-维护环境需 Python 3.12 / uv、Node.js 24 / pnpm 10.32.1、Go 1.27.1。验证脚本在仓库之外解包并冻结安装、检查格式/类型、运行原生测试；API 实验再启动临时本地服务检查37次HTTP请求，结束后释放自有监听；SQLite 实验再逐命令启动独立进程完成6组78次CLI调用与真实SQL故障断言，连接关闭后清理临时数据库。认证实验另在真实HTTP保留重复头执行84个共同案例，并在新进程验证3个会话重置请求；Cookie属性由服务端校验，不冒充HTTPS浏览器行为验收。子进程不接收模型密钥。文本上传实验另运行78个HTTP案例与3个新进程清空检查，Go带race，下载比较原始字节；CI 按三种语言执行相同检查，headless 页面检查九课27个课程/语言下载组合（15种不同实验包）、原资料包、学习记录保留及375px显示。
+维护环境需 Python 3.12 / uv、Node.js 24 / pnpm 10.32.1、Go 1.27.1。验证脚本在仓库之外解包并冻结安装、检查格式/类型、运行原生测试；API 实验再启动临时本地服务检查37次HTTP请求，结束后释放自有监听；SQLite 实验再逐命令启动独立进程完成6组78次CLI调用与真实SQL故障断言，连接关闭后清理临时数据库。认证实验另在真实HTTP保留重复头执行84个共同案例，并在新进程验证3个会话重置请求；Cookie属性由服务端校验，不冒充HTTPS浏览器行为验收。子进程不接收模型密钥。文本上传实验分别在内存与SQLite运行78个共同HTTP案例，内存另验3个新进程清空检查；SQLite验证重启原文、持久配额、双进程竞争和坏库无写拒绝，另有三语言同文件读写作业。Go带race，下载比较原始字节；CI 按三种语言执行相同检查，headless 页面检查九课27个课程/语言下载组合（15种不同实验包）、原资料包、学习记录保留及375px显示。
 
 这些维护脚本只运行固定教学代码。学习者修改应在独立练习环境运行，平台 API 不执行修改后的输入。SQLite CLI 的身份字段不是登录验证，不可直接信任来自客户端的 owner。实验无需模型凭据、不会调用模型；首次依赖安装需要网络。通过固定案例不等于新增业务已验收，应记录自己的实际结果。
 
