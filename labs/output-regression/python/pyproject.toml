@@ -1,0 +1,23 @@
+[project]
+name = "output-regression-lab"
+version = "0.1.0"
+requires-python = ">=3.12,<3.13"
+dependencies = []
+
+[dependency-groups]
+dev = ["pytest==9.1.1", "ruff==0.15.22"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["test_loader.py", "test_evaluator.py", "test_cli.py"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "S"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"test_*.py" = ["S101", "S603"]

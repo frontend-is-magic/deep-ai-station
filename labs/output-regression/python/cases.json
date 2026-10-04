@@ -1,0 +1,105 @@
+{
+  "dataset_version": "output-regression-cases-v1",
+  "corpus_revision": "agent-corpus-v1",
+  "cases": [
+    {
+      "id": "dev-api",
+      "split": "dev",
+      "prompt": "开发练习：整理 API 超时的固定资料约束。",
+      "found_ids": ["api"],
+      "read_ids": ["api"],
+      "required_citation_ids": ["api"],
+      "critical": false
+    },
+    {
+      "id": "dev-empty",
+      "split": "dev",
+      "prompt": "开发练习：没有匹配资料时应怎样输出？",
+      "found_ids": [],
+      "read_ids": [],
+      "required_citation_ids": [],
+      "critical": true
+    },
+    {
+      "id": "dev-conflict",
+      "split": "dev",
+      "prompt": "开发练习：保留两份合成取消计费资料的分歧。",
+      "found_ids": ["billing-a", "billing-b"],
+      "read_ids": ["billing-a", "billing-b"],
+      "required_citation_ids": ["billing-a", "billing-b"],
+      "critical": true
+    },
+    {
+      "id": "accept-api",
+      "split": "acceptance",
+      "prompt": "验收练习：说明 API 的输入和失败状态约束。",
+      "found_ids": ["api"],
+      "read_ids": ["api"],
+      "required_citation_ids": ["api"],
+      "critical": false
+    },
+    {
+      "id": "accept-tools",
+      "split": "acceptance",
+      "prompt": "验收练习：整理工具参数与写入权限的固定资料。",
+      "found_ids": ["tools"],
+      "read_ids": ["tools"],
+      "required_citation_ids": ["tools"],
+      "critical": false
+    },
+    {
+      "id": "accept-evidence",
+      "split": "acceptance",
+      "prompt": "验收练习：列出资料引用和证据不足的处理原则。",
+      "found_ids": ["evidence"],
+      "read_ids": ["evidence"],
+      "required_citation_ids": ["evidence"],
+      "critical": false
+    },
+    {
+      "id": "accept-conflict",
+      "split": "acceptance",
+      "prompt": "验收练习：两份取消费用练习声明不一致，保留两侧引用。",
+      "found_ids": ["billing-a", "billing-b"],
+      "read_ids": ["billing-a", "billing-b"],
+      "required_citation_ids": ["billing-a", "billing-b"],
+      "critical": true
+    },
+    {
+      "id": "accept-empty",
+      "split": "acceptance",
+      "prompt": "验收练习：固定资料没有匹配证据，不添加引用。",
+      "found_ids": [],
+      "read_ids": [],
+      "required_citation_ids": [],
+      "critical": true
+    },
+    {
+      "id": "accept-found-unread",
+      "split": "acceptance",
+      "prompt": "验收练习：只获得 API 搜索条目，尚未取得正文，不得引用。",
+      "found_ids": ["api"],
+      "read_ids": [],
+      "required_citation_ids": [],
+      "critical": true
+    },
+    {
+      "id": "accept-unicode",
+      "split": "acceptance",
+      "prompt": "验收练习：输出中保留中文、emoji 和类似 JSON 的普通文本。",
+      "found_ids": ["api"],
+      "read_ids": ["api"],
+      "required_citation_ids": ["api"],
+      "critical": false
+    },
+    {
+      "id": "accept-two-sources",
+      "split": "acceptance",
+      "prompt": "验收练习：同时保留工具约束与引用原则的两份资料。",
+      "found_ids": ["tools", "evidence"],
+      "read_ids": ["tools", "evidence"],
+      "required_citation_ids": ["tools", "evidence"],
+      "critical": false
+    }
+  ]
+}

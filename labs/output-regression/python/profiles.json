@@ -1,0 +1,156 @@
+{
+  "profiles_version": "synthetic-outputs-v1",
+  "measurement_mode": "synthetic-output-replay",
+  "profiles": [
+    {
+      "id": "baseline",
+      "revision": "v1",
+      "outputs": [
+        {
+          "case_id": "dev-api",
+          "raw_output": "{\"answer\":\"开发样例缺少逗号\" \"citations\":[]}"
+        },
+        {
+          "case_id": "dev-empty",
+          "raw_output": "{\"answer\":\"没有可引用的固定已读资料。\",\"citations\":[]}"
+        },
+        {
+          "case_id": "dev-conflict",
+          "raw_output": "{\"answer\":\"两份合成练习资料冲突，不能据此裁定取消是否计费。\",\"citations\":[{\"document_id\":\"billing-a\",\"quote\":\"练习声明 A：取消后一定不计费。\"},{\"document_id\":\"billing-b\",\"quote\":\"练习声明 B：取消只会终止传输，已经发生的供应商用量仍可能计费。\"}]}"
+        },
+        {
+          "case_id": "accept-api",
+          "raw_output": "{\"answer\":\"验收样例缺少逗号\" \"citations\":[]}"
+        },
+        {
+          "case_id": "accept-tools",
+          "raw_output": "{\"answer\":42,\"citations\":[{\"document_id\":\"tools\",\"quote\":\"工具参数由服务端独立校验。\"}]}"
+        },
+        {
+          "case_id": "accept-evidence",
+          "raw_output": "{\"answer\":\"引用不应被改写为原文没有的承诺。\",\"citations\":[{\"document_id\":\"evidence\",\"quote\":\"没有证据也可以自动编造引用。\"}]}"
+        },
+        {
+          "case_id": "accept-conflict",
+          "raw_output": "{\"answer\":\"合成资料保留两种互相冲突的声明；本结果不裁定真实费用。\",\"citations\":[{\"document_id\":\"billing-a\",\"quote\":\"练习声明 A：取消后一定不计费。\"},{\"document_id\":\"billing-b\",\"quote\":\"练习声明 B：取消只会终止传输，已经发生的供应商用量仍可能计费。\"}]}"
+        },
+        {
+          "case_id": "accept-empty",
+          "raw_output": "{\"answer\":\"固定已读集合为空，无法给出有来源的回答。\",\"citations\":[]}"
+        },
+        {
+          "case_id": "accept-found-unread",
+          "raw_output": "{\"answer\":\"只有搜索条目，没有已读正文；本次不引用该条目。\",\"citations\":[]}"
+        },
+        {
+          "case_id": "accept-unicode",
+          "raw_output": "{\"answer\":\"保留普通文本😀\\n字段示意 {\\\"answer\\\":\\\"示例\\\"} 不改变输出契约。\",\"citations\":[{\"document_id\":\"api\",\"quote\":\"取消请求不能证明供应商没有计费。\"}]}"
+        },
+        {
+          "case_id": "accept-two-sources",
+          "raw_output": "{\"answer\":\"同时保留工具校验约束与回答来源原则。\",\"citations\":[{\"document_id\":\"tools\",\"quote\":\"工具参数由服务端独立校验。\"},{\"document_id\":\"evidence\",\"quote\":\"回答保留实际资料来源。\"}]}"
+        }
+      ]
+    },
+    {
+      "id": "unsafe-candidate",
+      "revision": "v1",
+      "outputs": [
+        {
+          "case_id": "dev-api",
+          "raw_output": "{\"answer\":\"固定资料建议显式设置 API 输入、错误和超时边界。\",\"citations\":[{\"document_id\":\"api\",\"quote\":\"API 明确输入长度、错误类别和超时预算。\"}]}"
+        },
+        {
+          "case_id": "dev-empty",
+          "raw_output": "{\"answer\":\"没有可引用的固定已读资料。\",\"citations\":[]}"
+        },
+        {
+          "case_id": "dev-conflict",
+          "raw_output": "{\"answer\":\"两份合成练习资料冲突，不能据此裁定取消是否计费。\",\"citations\":[{\"document_id\":\"billing-a\",\"quote\":\"练习声明 A：取消后一定不计费。\"},{\"document_id\":\"billing-b\",\"quote\":\"练习声明 B：取消只会终止传输，已经发生的供应商用量仍可能计费。\"}]}"
+        },
+        {
+          "case_id": "accept-api",
+          "raw_output": "{\"answer\":\"输入长度、失败类别和超时预算应在契约中明确。\",\"citations\":[{\"document_id\":\"api\",\"quote\":\"API 明确输入长度、错误类别和超时预算。\"}]}"
+        },
+        {
+          "case_id": "accept-tools",
+          "raw_output": "{\"answer\":\"工具参数需要服务端独立校验。\",\"citations\":[{\"document_id\":\"tools\",\"quote\":\"工具参数由服务端独立校验。\"}]}"
+        },
+        {
+          "case_id": "accept-evidence",
+          "raw_output": "{\"answer\":\"回答应保留实际资料来源。\",\"citations\":[{\"document_id\":\"evidence\",\"quote\":\"回答保留实际资料来源。\"}]}"
+        },
+        {
+          "case_id": "accept-conflict",
+          "raw_output": "{\"answer\":\"合成资料保留两种互相冲突的声明；本结果不裁定真实费用。\",\"citations\":[{\"document_id\":\"billing-a\",\"quote\":\"练习声明 A：取消后一定不计费。\"},{\"document_id\":\"billing-b\",\"quote\":\"练习声明 B：取消只会终止传输，已经发生的供应商用量仍可能计费。\"}]}"
+        },
+        {
+          "case_id": "accept-empty",
+          "raw_output": "{\"answer\":\"固定已读集合为空，无法给出有来源的回答。\",\"citations\":[]}"
+        },
+        {
+          "case_id": "accept-found-unread",
+          "raw_output": "{\"answer\":\"错误候选把搜索到的条目当成已读取的正文。\",\"citations\":[{\"document_id\":\"api\",\"quote\":\"API 明确输入长度、错误类别和超时预算。\"}]}"
+        },
+        {
+          "case_id": "accept-unicode",
+          "raw_output": "{\"answer\":\"保留普通文本😀\\n字段示意 {\\\"answer\\\":\\\"示例\\\"} 不改变输出契约。\",\"citations\":[{\"document_id\":\"api\",\"quote\":\"取消请求不能证明供应商没有计费。\"}]}"
+        },
+        {
+          "case_id": "accept-two-sources",
+          "raw_output": "{\"answer\":\"同时保留工具校验约束与回答来源原则。\",\"citations\":[{\"document_id\":\"tools\",\"quote\":\"工具参数由服务端独立校验。\"},{\"document_id\":\"evidence\",\"quote\":\"回答保留实际资料来源。\"}]}"
+        }
+      ]
+    },
+    {
+      "id": "fixed-candidate",
+      "revision": "v1",
+      "outputs": [
+        {
+          "case_id": "dev-api",
+          "raw_output": "{\"answer\":\"固定资料建议显式设置 API 输入、错误和超时边界。\",\"citations\":[{\"document_id\":\"api\",\"quote\":\"API 明确输入长度、错误类别和超时预算。\"}]}"
+        },
+        {
+          "case_id": "dev-empty",
+          "raw_output": "{\"answer\":\"没有可引用的固定已读资料。\",\"citations\":[]}"
+        },
+        {
+          "case_id": "dev-conflict",
+          "raw_output": "{\"answer\":\"两份合成练习资料冲突，不能据此裁定取消是否计费。\",\"citations\":[{\"document_id\":\"billing-a\",\"quote\":\"练习声明 A：取消后一定不计费。\"},{\"document_id\":\"billing-b\",\"quote\":\"练习声明 B：取消只会终止传输，已经发生的供应商用量仍可能计费。\"}]}"
+        },
+        {
+          "case_id": "accept-api",
+          "raw_output": "{\"answer\":\"输入长度、失败类别和超时预算应在契约中明确。\",\"citations\":[{\"document_id\":\"api\",\"quote\":\"API 明确输入长度、错误类别和超时预算。\"}]}"
+        },
+        {
+          "case_id": "accept-tools",
+          "raw_output": "{\"answer\":\"工具参数需要服务端独立校验。\",\"citations\":[{\"document_id\":\"tools\",\"quote\":\"工具参数由服务端独立校验。\"}]}"
+        },
+        {
+          "case_id": "accept-evidence",
+          "raw_output": "{\"answer\":\"回答应保留实际资料来源。\",\"citations\":[{\"document_id\":\"evidence\",\"quote\":\"回答保留实际资料来源。\"}]}"
+        },
+        {
+          "case_id": "accept-conflict",
+          "raw_output": "{\"answer\":\"合成资料保留两种互相冲突的声明；本结果不裁定真实费用。\",\"citations\":[{\"document_id\":\"billing-a\",\"quote\":\"练习声明 A：取消后一定不计费。\"},{\"document_id\":\"billing-b\",\"quote\":\"练习声明 B：取消只会终止传输，已经发生的供应商用量仍可能计费。\"}]}"
+        },
+        {
+          "case_id": "accept-empty",
+          "raw_output": "{\"answer\":\"固定已读集合为空，无法给出有来源的回答。\",\"citations\":[]}"
+        },
+        {
+          "case_id": "accept-found-unread",
+          "raw_output": "{\"answer\":\"只有搜索条目，没有已读正文；本次不引用该条目。\",\"citations\":[]}"
+        },
+        {
+          "case_id": "accept-unicode",
+          "raw_output": "{\"answer\":\"保留普通文本😀\\n字段示意 {\\\"answer\\\":\\\"示例\\\"} 不改变输出契约。\",\"citations\":[{\"document_id\":\"api\",\"quote\":\"取消请求不能证明供应商没有计费。\"}]}"
+        },
+        {
+          "case_id": "accept-two-sources",
+          "raw_output": "{\"answer\":\"同时保留工具校验约束与回答来源原则。\",\"citations\":[{\"document_id\":\"tools\",\"quote\":\"工具参数由服务端独立校验。\"},{\"document_id\":\"evidence\",\"quote\":\"回答保留实际资料来源。\"}]}"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "id": "output-regression",
+  "version": "output-regression-v1",
+  "lessons": ["agent-regression"],
+  "languages": ["python"]
+}
