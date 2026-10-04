@@ -36,6 +36,14 @@ describe('course lab language availability', () => {
     expect(courseLabFor('agent-rag', 'python')).toBeUndefined();
   });
 
+  it('offers the output regression lab only for its lesson and Python', () => {
+    expect(courseLabFor('agent-regression', 'python')?.id).toBe('output-regression');
+    expect(courseLabFor('agent-regression')?.languages).toEqual(['python']);
+    expect(courseLabFor('agent-regression', 'go')).toBeUndefined();
+    expect(courseLabFor('agent-regression', 'typescript')).toBeUndefined();
+    expect(courseLabFor('agent-eval-dataset', 'python')).toBeUndefined();
+  });
+
   it('retains all three language downloads for the existing fullstack labs', () => {
     for (const lesson of [
       'fullstack-routing',

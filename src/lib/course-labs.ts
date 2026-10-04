@@ -10,7 +10,8 @@ export interface CourseLab {
     | 'agent-write-safety'
     | 'mcp-readonly'
     | 'workflow-checkpoint'
-    | 'document-chunking';
+    | 'document-chunking'
+    | 'output-regression';
   lessons: readonly string[];
   languages: readonly Language[];
   title: string;
@@ -19,6 +20,16 @@ export interface CourseLab {
 }
 
 const courseLabs: readonly CourseLab[] = [
+  {
+    id: 'output-regression',
+    lessons: ['agent-regression'],
+    languages: ['python'],
+    title: '可运行结构化结果回归与门禁实验',
+    description:
+      '逐条检查固定合成输出的 JSON、字段结构与原文引用，比较基线和候选。观察总通过率提高却关键案例退化时，门禁仍然拒绝通过。',
+    notice:
+      '仅使用包内固定场景和合成输出，无模型或外部请求。下载后记录实际逐例原因、分母与退出码；门禁通过不代表生产模型质量达标，也不会自动完成课程或 Python 实践。',
+  },
   {
     id: 'document-chunking',
     lessons: ['agent-chunking'],

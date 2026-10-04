@@ -237,6 +237,30 @@ CHUNKING_FILES = {
     ],
 }
 CHUNKING_SHARED = ["README.md", "CONTRACT.md", "EVIDENCE.md", "AGENTS.md", ".gitignore"]
+REGRESSION_FILES = {
+    "python": [
+        "app.py",
+        "loader.py",
+        "evaluator.py",
+        "corpus.json",
+        "cases.json",
+        "profiles.json",
+        "test_loader.py",
+        "test_evaluator.py",
+        "test_cli.py",
+        "pyproject.toml",
+        "uv.lock",
+    ],
+}
+REGRESSION_SHARED = [
+    "README.md",
+    "CONTRACT.md",
+    "MANUAL_EXPECTATIONS.md",
+    "EVIDENCE.md",
+    "AGENTS.md",
+    ".gitignore",
+]
+
 LABS = {
     "api-contract": (FILES, SHARED),
     "sqlite-storage": (STORAGE_FILES, STORAGE_SHARED),
@@ -247,6 +271,7 @@ LABS = {
     "mcp-readonly": (MCP_FILES, MCP_SHARED),
     "workflow-checkpoint": (CHECKPOINT_FILES, CHECKPOINT_SHARED),
     "document-chunking": (CHUNKING_FILES, CHUNKING_SHARED),
+    "output-regression": (REGRESSION_FILES, REGRESSION_SHARED),
 }
 
 

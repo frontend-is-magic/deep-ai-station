@@ -333,6 +333,35 @@ def assert_standalone_archive(path, lab_id, language, lesson_id):
             assert len(corpus["sources"]) == 3 and len(dataset["cases"]) == 6
             assert "unicode_codepoint" in archive.read("CONTRACT.md").decode()
             assert "revision_mismatch" in archive.read("CONTRACT.md").decode()
+        elif lab_id == "output-regression":
+            assert manifest["languages"] == ["python"]
+            assert {
+                "app.py",
+                "loader.py",
+                "evaluator.py",
+                "corpus.json",
+                "cases.json",
+                "profiles.json",
+                "test_loader.py",
+                "test_evaluator.py",
+                "test_cli.py",
+                "MANUAL_EXPECTATIONS.md",
+            } <= files
+            assert (
+                archive.read("corpus.json")
+                == (ROOT / "starters" / "agent" / "documents.json").read_bytes()
+            )
+            dataset = json.loads(archive.read("cases.json"))
+            profiles = json.loads(archive.read("profiles.json"))
+            assert dataset["dataset_version"] == "output-regression-cases-v1"
+            assert len(dataset["cases"]) == 11
+            assert profiles["measurement_mode"] == "synthetic-output-replay"
+            assert {profile["id"] for profile in profiles["profiles"]} == {
+                "baseline",
+                "unsafe-candidate",
+                "fixed-candidate",
+            }
+            assert "critical_case_failed" in archive.read("CONTRACT.md").decode()
         elif lab_id == "api-contract":
             assert_api_contract_archive(archive, language, files)
         elif lab_id == "sse-stream":
@@ -505,6 +534,13 @@ def test_course_labs_are_limited_to_their_bound_lessons(page):
             "可运行文档切分与引用实验",
             "仅使用包内固定资料与词法检索",
             "待执行：错误来源版本应拒绝，原文引用仍可逐字回读",
+        ),
+        (
+            "output-regression",
+            "agent-regression",
+            "可运行结构化结果回归与门禁实验",
+            "仅使用包内固定场景和合成输出",
+            "待执行：总体通过数更高但关键未读引用退化，应退出2",
         ),
     ],
 )
