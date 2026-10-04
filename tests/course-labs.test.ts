@@ -25,7 +25,7 @@ describe('course lab language availability', () => {
     expect(courseLabFor('agent-state-machine')?.languages).toEqual(['python']);
     expect(courseLabFor('agent-state-machine', 'go')).toBeUndefined();
     expect(courseLabFor('agent-state-machine', 'typescript')).toBeUndefined();
-    expect(courseLabFor('agent-memory', 'python')).toBeUndefined();
+    expect(courseLabFor('agent-agent-loop', 'python')).toBeUndefined();
   });
 
   it('offers the chunking lab only for its lesson and Python', () => {
@@ -42,6 +42,14 @@ describe('course lab language availability', () => {
     expect(courseLabFor('agent-regression', 'go')).toBeUndefined();
     expect(courseLabFor('agent-regression', 'typescript')).toBeUndefined();
     expect(courseLabFor('agent-eval-dataset', 'python')).toBeUndefined();
+  });
+
+  it('offers the memory policy lab only for its lesson and Python', () => {
+    expect(courseLabFor('agent-memory', 'python')?.id).toBe('memory-policy');
+    expect(courseLabFor('agent-memory')?.languages).toEqual(['python']);
+    expect(courseLabFor('agent-memory', 'go')).toBeUndefined();
+    expect(courseLabFor('agent-memory', 'typescript')).toBeUndefined();
+    expect(courseLabFor('agent-agent-loop', 'python')).toBeUndefined();
   });
 
   it('retains all three language downloads for the existing fullstack labs', () => {
@@ -61,5 +69,32 @@ describe('course lab language availability', () => {
       for (const language of ['typescript', 'go', 'python'] as const)
         expect(courseLabFor(lesson, language)).toBe(lab);
     }
+  });
+  it('maps eleven lab types, fifteen lessons and twenty-one language packages', () => {
+    const lessonIds = [
+      'fullstack-routing',
+      'fullstack-validation',
+      'fullstack-database',
+      'fullstack-migrations',
+      'fullstack-auth',
+      'fullstack-app-security',
+      'fullstack-ai-rag',
+      'fullstack-ai-stream',
+      'fullstack-async',
+      'agent-tool-safety',
+      'agent-mcp',
+      'agent-state-machine',
+      'agent-chunking',
+      'agent-regression',
+      'agent-memory',
+    ];
+    const labs = lessonIds.map((id) => courseLabFor(id));
+    expect(labs.every((lab) => lab !== undefined)).toBe(true);
+    expect(new Set(lessonIds).size).toBe(15);
+    expect(new Set(labs.map((lab) => lab?.id)).size).toBe(11);
+    expect(
+      new Set(labs.flatMap((lab) => lab!.languages.map((language) => `${lab!.id}:${language}`)))
+        .size,
+    ).toBe(21);
   });
 });

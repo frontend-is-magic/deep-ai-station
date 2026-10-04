@@ -125,6 +125,7 @@ describe('runnable practice groups', () => {
         'agent-write-safety',
         'document-chunking',
         'output-regression',
+        'memory-policy',
       ]);
       for (const group of groups) {
         expect(group.language).toBe('python');
@@ -266,7 +267,7 @@ describe('runnable practice groups', () => {
     ).toEqual([]);
     expect(
       labPracticeGroups(
-        [track('agent', ['agent-memory', 'agent-research-agent'])],
+        [track('agent', ['agent-agent-loop', 'agent-research-agent'])],
         'agent',
         progress(),
       ),

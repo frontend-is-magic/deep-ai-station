@@ -372,6 +372,45 @@ def assert_standalone_archive(path, lab_id, language, lesson_id):
                 "fixed-candidate",
             }
             assert "critical_case_failed" in archive.read("CONTRACT.md").decode()
+        elif lab_id == "memory-policy":
+            assert manifest == {
+                "id": "memory-policy",
+                "version": "memory-policy-v1",
+                "lessons": ["agent-memory"],
+                "languages": ["python"],
+            }
+            assert files == {
+                "memory_policy.py",
+                "loader.py",
+                "policy.py",
+                "test_loader.py",
+                "test_policy.py",
+                "test_cli.py",
+                "pyproject.toml",
+                "uv.lock",
+                "memories.json",
+                "cases.json",
+                "README.md",
+                "CONTRACT.md",
+                "EVIDENCE.md",
+                "AGENTS.md",
+                ".gitignore",
+                "manifest.json",
+                ".prettierrc.json",
+            }
+            memories = json.loads(archive.read("memories.json"))
+            cases = json.loads(archive.read("cases.json"))
+            assert memories["version"] == "memory-records-v1"
+            assert cases["version"] == "memory-cases-v1"
+            assert {case["id"] for case in cases["cases"]} == {
+                "normal",
+                "request-override",
+                "expiry",
+                "revoked",
+                "scope",
+                "conflict",
+            }
+            assert "--case conflict --language go" in archive.read("CONTRACT.md").decode()
         elif lab_id == "api-contract":
             assert_api_contract_archive(archive, language, files)
         elif lab_id == "sse-stream":
@@ -556,6 +595,13 @@ def test_course_labs_are_limited_to_their_bound_lessons(page):
             "仅使用包内固定场景和合成输出",
             "待执行：总体通过数更高但关键未读引用退化，应退出2",
         ),
+        (
+            "memory-policy",
+            "agent-memory",
+            "可运行记忆资格与冲突实验",
+            "仅使用包内固定教学偏好与本地结构化规则",
+            "待执行：跨 owner 记录不回显；冲突需显式选择本次语言",
+        ),
     ],
 )
 def test_agent_lab_download_is_python_only_and_evidence_does_not_award_progress(
@@ -575,6 +621,19 @@ def test_agent_lab_download_is_python_only_and_evidence_does_not_award_progress(
     seed_existing_records(page)
     page.get_by_label("课程笔记", exact=True).fill("记录实际观察，区分成功、失败与未验证。")
     before = stored(page)
+    if lab_id == "memory-policy":
+        goto(page, "/roadmap/agent")
+        checklist = page.get_by_role("region", name="可运行实践清单", exact=True)
+        group = checklist.get_by_role("article", name=title, exact=True)
+        expect(group).to_have_attribute("data-language", "python")
+        group.get_by_label("查看关联课时：" + title, exact=True).click()
+        link = group.get_by_role("link")
+        expect(link).to_have_attribute("href", "/lesson/agent-memory#course-lab")
+        expect(group).to_contain_text("实践未记录")
+        for field in ("notes", "completed", "practice", "evidence"):
+            assert stored(page)[field] == before[field]
+        link.click()
+        expect(page.locator("#course-lab")).to_be_in_viewport()
     region = page.get_by_role("region", name=title, exact=True)
     expect(region).to_be_visible()
     expect(region).to_contain_text(notice)

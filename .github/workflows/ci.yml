@@ -207,6 +207,18 @@ jobs:
           cache-dependency-glob: labs/output-regression/python/uv.lock
       - run: uv run --no-project --python 3.12 python scripts/build_course_labs.py --check
       - run: uv run --no-project --python 3.12 python scripts/verify_output_regression_lab.py
+  memory-policy-lab:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.12.22'
+          python-version: '3.12'
+          enable-cache: true
+          cache-dependency-glob: labs/memory-policy/python/uv.lock
+      - run: uv run --no-project --python 3.12 python scripts/build_course_labs.py --check
+      - run: uv run --no-project --python 3.12 python scripts/verify_memory_lab.py
   shared-quota:
     runs-on: ubuntu-latest
     services:
