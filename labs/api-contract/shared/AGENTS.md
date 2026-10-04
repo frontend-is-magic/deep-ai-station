@@ -7,3 +7,6 @@
 - 敏感配置、私钥、认证缓存、日志与数据库不得提交；遵守 .gitignore，仅允许空值配置模板。
 - 用共享契约、依赖替换、失败与真实 HTTP 验证行为；实际结果写 EVIDENCE.md，不把未执行项记为通过。
 - 路由、运行命令与练习步骤见 README.md；协议见 CONTRACT.md。
+
+- 公共客户端位于 client/，使用 React Router、Jotai、源码 Button；执行 `pnpm install --frozen-lockfile` 与 `pnpm check`。UI/URL 合同见 CLIENT.md，服务端 CONTRACT.md 不变。
+- 草稿编辑不发请求；实际结果来自 API。不要增加自动重试、任意外部地址、存储副本或模型依赖；学习者的 view 枚举练习保留在独立副本。

@@ -19,3 +19,5 @@ POST 先限制实际字节，再检查 Content-Type，随后严格校验 JSON（
 层次为 HTTP 路由 → 服务 → Repository。服务负责转换为稳定响应，Repository 提供 `find(id)` 与 `search(question)`；测试可注入空实现和失败实现，生产入口没有切换假数据的公开参数。非法输入不得进入 Repository 的查询方法。错误不能回显异常堆栈或内部消息。
 
 `contract-cases.json` 是三种实现共享的 HTTP 案例。请求使用 `json`、`raw` 或 `repeat_body`（字符和次数）三种之一；响应必须与 `expected` 完整相等。额外的实现测试覆盖注入 Repository、实际请求体限额与异常分类。
+
+共享可导航 React 客户端的 URL、草稿、请求和反馈约定见 [CLIENT.md](CLIENT.md)。客户端使用这些既有端点，不改变本 HTTP v1 契约；详情仍只返回 ID/title。

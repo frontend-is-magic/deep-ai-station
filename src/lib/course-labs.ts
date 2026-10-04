@@ -121,9 +121,9 @@ const courseLabs: readonly CourseLab[] = [
     lessons: ['fullstack-routing', 'fullstack-validation'],
     title: '可运行 API 契约实验',
     description:
-      '独立 HTTP 服务，包含完整依赖配置与锁文件、启动入口、共享 API 契约和成功/失败测试。跟踪路由、服务与 Repository，再比较三种语言的相同请求与响应。',
+      '独立 HTTP 服务与共享 React 检索客户端。区分输入草稿、URL 查询和真实服务端结果，练习搜索、资料摘要、刷新与前进后退，再跟踪路由、服务和 Repository。三种后端遵守同一 API 契约。',
     notice:
-      '在独立练习环境按 README 启动，使用固定资料，无需模型密钥或费用。运行测试后将本语言的版本、命令和实际结果记入下方实验实践证据卡，也可填写包内 EVIDENCE.md；测试通过不会自动完成本课。',
+      '按 README 启动所选后端和公共 TypeScript 客户端，仅使用公开教学问题；查询会进入地址和浏览器历史。无模型调用。将本语言的版本、命令和实际观察写入证据卡或 EVIDENCE.md；旧记录保留，下载与测试不会自动完成本课。',
   },
   {
     languages: ['typescript', 'python', 'go'],

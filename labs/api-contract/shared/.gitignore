@@ -68,3 +68,7 @@ logs/
 *.db-journal
 *.tfstate
 *.tfstate.*
+
+# Client native checks and local Vite cache.
+coverage/
+.vite/
