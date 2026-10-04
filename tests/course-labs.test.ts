@@ -2,6 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { courseLabFor, courseLabSelectionFor } from '../src/lib/course-labs';
 
 describe('course lab language availability', () => {
+  it('offers the decision loop only for its first Agent lesson and Python', () => {
+    expect(courseLabFor('agent-agent-loop', 'python')?.id).toBe('agent-loop');
+    expect(courseLabFor('agent-agent-loop')?.languages).toEqual(['python']);
+    expect(courseLabFor('agent-agent-loop', 'go')).toBeUndefined();
+    expect(courseLabFor('agent-agent-loop', 'typescript')).toBeUndefined();
+    expect(courseLabFor('agent-model-context', 'python')).toBeUndefined();
+  });
   it('offers the write lab only for the Agent safety lesson and Python', () => {
     expect(courseLabFor('agent-tool-safety', 'python')?.id).toBe('agent-write-safety');
     expect(courseLabFor('agent-tool-safety')?.languages).toEqual(['python']);
@@ -25,7 +32,7 @@ describe('course lab language availability', () => {
     expect(courseLabFor('agent-state-machine')?.languages).toEqual(['python']);
     expect(courseLabFor('agent-state-machine', 'go')).toBeUndefined();
     expect(courseLabFor('agent-state-machine', 'typescript')).toBeUndefined();
-    expect(courseLabFor('agent-agent-loop', 'python')).toBeUndefined();
+    expect(courseLabFor('agent-model-context', 'python')).toBeUndefined();
   });
 
   it('offers the chunking lab only for its lesson and Python', () => {
@@ -49,7 +56,7 @@ describe('course lab language availability', () => {
     expect(courseLabFor('agent-memory')?.languages).toEqual(['python']);
     expect(courseLabFor('agent-memory', 'go')).toBeUndefined();
     expect(courseLabFor('agent-memory', 'typescript')).toBeUndefined();
-    expect(courseLabFor('agent-agent-loop', 'python')).toBeUndefined();
+    expect(courseLabFor('agent-model-context', 'python')).toBeUndefined();
   });
 
   it('retains all three language downloads for the existing fullstack labs', () => {

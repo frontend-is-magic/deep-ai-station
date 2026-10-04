@@ -13,7 +13,8 @@ export interface CourseLab {
     | 'document-chunking'
     | 'output-regression'
     | 'memory-policy'
-    | 'frontend-state';
+    | 'frontend-state'
+    | 'agent-loop';
   sharedFrontend?: boolean;
   lessons: readonly string[];
   languages: readonly Language[];
@@ -23,6 +24,16 @@ export interface CourseLab {
 }
 
 const courseLabs: readonly CourseLab[] = [
+  {
+    id: 'agent-loop',
+    lessons: ['agent-agent-loop'],
+    languages: ['python'],
+    title: '可运行 Agent 决策循环实验',
+    description:
+      '独立命令行实验，每轮根据真实工具观察选择搜索、读取或结束；改变策略与步数，对比有证据、空结果和预算耗尽，区分搜索命中、实际读取与任务完成。',
+    notice:
+      '使用固定规则策略和本地只读教学资料，无模型或网络调用。策略演练不代表真实模型规划质量；下载后记录实际命令与结果，课程和 Python 实践仍须由你明确确认。',
+  },
   {
     id: 'frontend-state',
     sharedFrontend: true,

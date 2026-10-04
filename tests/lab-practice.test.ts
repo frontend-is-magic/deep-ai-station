@@ -20,6 +20,7 @@ const fullstackIds = [
   'fullstack-product',
 ];
 const agentIds = [
+  'agent-agent-loop',
   'agent-state-machine',
   'agent-mcp',
   'agent-tool-safety',
@@ -120,6 +121,7 @@ describe('runnable practice groups', () => {
       const current = progress({ language });
       const groups = labPracticeGroups(tracks(), 'agent', current);
       expect(groups.map((group) => group.lab.id)).toEqual([
+        'agent-loop',
         'workflow-checkpoint',
         'mcp-readonly',
         'agent-write-safety',
@@ -267,7 +269,7 @@ describe('runnable practice groups', () => {
     ).toEqual([]);
     expect(
       labPracticeGroups(
-        [track('agent', ['agent-agent-loop', 'agent-research-agent'])],
+        [track('agent', ['agent-model-context', 'agent-research-agent'])],
         'agent',
         progress(),
       ),

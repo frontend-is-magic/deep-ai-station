@@ -1,0 +1,25 @@
+{
+  "asset_version": "agent-loop-corpus-v1",
+  "documents": [
+    {
+      "id": "loop-guide",
+      "title": "循环与停止",
+      "body": "每轮先读取上一轮观察，再选择下一步动作。没有停止条件的循环可能反复调用同一工具。",
+      "source": "https://developers.openai.com/api/docs/guides/agents",
+      "kind": "teaching-summary",
+      "keywords": ["循环", "停止"]
+    },
+    {
+      "id": "tool-guide",
+      "title": "只读工具与观察",
+      "body": "搜索结果只提供资料标识。读取工具返回原文后，才拥有本次已读证据。",
+      "source": "https://developers.openai.com/api/docs/guides/function-calling",
+      "kind": "teaching-summary",
+      "keywords": ["工具", "观察"]
+    }
+  ],
+  "cases": [
+    { "id": "found", "query": "循环与工具" },
+    { "id": "empty", "query": "zzqxjx-agent-loop-empty-2048" }
+  ]
+}

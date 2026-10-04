@@ -336,6 +336,27 @@ FRONTEND_STATE_FILES = {
 }
 FRONTEND_STATE_SHARED = ["README.md", "CONTRACT.md", "EVIDENCE.md", "AGENTS.md", ".gitignore"]
 
+AGENT_LOOP_FILES = {
+    "python": [
+        "agent_loop.py",
+        "engine.py",
+        "policies.py",
+        "tools.py",
+        "test_loop.py",
+        "test_cli.py",
+        "pyproject.toml",
+        "uv.lock",
+    ],
+}
+AGENT_LOOP_SHARED = [
+    "fixtures.json",
+    "README.md",
+    "CONTRACT.md",
+    "EVIDENCE.md",
+    "AGENTS.md",
+    ".gitignore",
+]
+
 LABS = {
     "api-contract": (FILES, SHARED),
     "sqlite-storage": (STORAGE_FILES, STORAGE_SHARED),
@@ -349,6 +370,7 @@ LABS = {
     "output-regression": (REGRESSION_FILES, REGRESSION_SHARED),
     "memory-policy": (MEMORY_FILES, MEMORY_SHARED),
     "frontend-state": (FRONTEND_STATE_FILES, FRONTEND_STATE_SHARED),
+    "agent-loop": (AGENT_LOOP_FILES, AGENT_LOOP_SHARED),
 }
 
 

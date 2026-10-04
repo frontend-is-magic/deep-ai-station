@@ -1,0 +1,6 @@
+{
+  "id": "agent-loop",
+  "version": "agent-loop-v1",
+  "lessons": ["agent-agent-loop"],
+  "languages": ["python"]
+}
