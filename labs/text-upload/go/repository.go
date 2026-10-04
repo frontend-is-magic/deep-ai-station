@@ -26,7 +26,7 @@ type Download struct {
 	Content  []byte
 }
 type Repository interface {
-	Commit(owner, filename, mediaType string, content []byte) (*Metadata, error)
+	Commit(owner, filename, mediaType string, content []byte, beforeWrite func() error) (*Metadata, error)
 	List(owner string) ([]Metadata, error)
 	Find(owner, id string) (*Metadata, error)
 	Content(owner, id string) (*Download, error)
@@ -49,9 +49,15 @@ type MemoryRepository struct {
 func NewMemoryRepository() *MemoryRepository {
 	return &MemoryRepository{documents: make(map[string]ownedDocument), ownerUsage: make(map[string]usage), nextID: 1}
 }
-func (repository *MemoryRepository) Commit(owner, filename, mediaType string, content []byte) (*Metadata, error) {
+func (repository *MemoryRepository) Commit(owner, filename, mediaType string, content []byte, beforeWrite func() error) (*Metadata, error) {
 	repository.mu.Lock()
 	defer repository.mu.Unlock()
+	if beforeWrite == nil {
+		return nil, errors.New("authorization missing")
+	}
+	if err := beforeWrite(); err != nil {
+		return nil, err
+	}
 	used := repository.ownerUsage[owner]
 	if used.count >= maxOwnerDocuments || len(content) > maxOwnerBytes-used.bytes {
 		return nil, ErrQuotaExceeded

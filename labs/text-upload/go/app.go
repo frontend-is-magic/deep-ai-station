@@ -98,6 +98,9 @@ func (app *application) private(context *gin.Context) {
 	if principal == nil {
 		return
 	}
+	// SessionStore implementations may reuse a mutable Principal pointer.
+	// Capture the initial identity before reading any caller-controlled body.
+	originalOwner := principal.UserID
 	if context.Request.URL.RawQuery != "" {
 		writeError(context, 422, "invalid_input")
 		return
@@ -131,15 +134,49 @@ func (app *application) private(context *gin.Context) {
 		if principal == nil {
 			return
 		}
+		if principal.UserID != originalOwner {
+			writeError(context, 401, "authentication_required")
+			return
+		}
 		if !principal.CanWrite {
 			writeError(context, 403, "forbidden")
 			return
 		}
+		// Only this closure can set the private latch. Repository errors never grant
+		// permission to expose an arbitrary HTTP error or internal diagnostic.
+		authStatus, authCode, checks := 0, "", 0
+		beforeWrite := func() error {
+			checks++
+			fresh, failure := resolveSession(app.sessions, token, app.clock())
+			switch {
+			case failure != nil:
+				authStatus, authCode = 503, "session_store_unavailable"
+			case fresh == nil || fresh.UserID != originalOwner:
+				authStatus, authCode = 401, "authentication_required"
+			case !fresh.CanWrite:
+				authStatus, authCode = 403, "forbidden"
+			}
+			if authStatus != 0 {
+				return errors.New("commit authorization denied")
+			}
+			return nil
+		}
 		metadata, err := repositoryCall(func() (*Metadata, error) {
-			return app.repository.Commit(principal.UserID, filename, mediaType, content)
+			return app.repository.Commit(originalOwner, filename, mediaType, content, beforeWrite)
 		})
+		if authStatus != 0 {
+			writeError(context, authStatus, authCode)
+			return
+		}
+		if err == nil && checks != 1 {
+			err = errors.New("authorization missing")
+		}
 		if errors.Is(err, ErrQuotaExceeded) {
 			writeError(context, 409, "quota_exceeded")
+			return
+		}
+		if errors.Is(err, ErrResultUnconfirmed) {
+			writeError(context, 503, "result_unconfirmed")
 			return
 		}
 		if err != nil {

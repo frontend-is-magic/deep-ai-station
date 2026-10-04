@@ -104,6 +104,9 @@ type contractCase struct {
 }
 
 func TestSharedContract(t *testing.T) {
+	runSharedContract(t, Config{})
+}
+func runSharedContract(t *testing.T, config Config) {
 	data, err := readLabData("contract-cases.json")
 	if err != nil {
 		t.Fatal(err)
@@ -112,7 +115,7 @@ func TestSharedContract(t *testing.T) {
 	if json.Unmarshal(data, &cases) != nil || len(cases) == 0 {
 		t.Fatal("invalid shared cases")
 	}
-	router := testRouter(t, Config{})
+	router := testRouter(t, config)
 	for _, test := range cases {
 		t.Run(test.ID, func(t *testing.T) {
 			var body []byte
@@ -352,9 +355,9 @@ type countingRepository struct {
 	commits atomic.Int32
 }
 
-func (repository *countingRepository) Commit(owner, filename, media string, content []byte) (*Metadata, error) {
+func (repository *countingRepository) Commit(owner, filename, media string, content []byte, beforeWrite func() error) (*Metadata, error) {
 	repository.commits.Add(1)
-	return repository.Repository.Commit(owner, filename, media, content)
+	return repository.Repository.Commit(owner, filename, media, content, beforeWrite)
 }
 
 type pausedBody struct {
@@ -450,7 +453,7 @@ func TestAuthorizationIsRecheckedAfterPausedBody(t *testing.T) {
 func TestRepositoryFailurePreservesRowsUsageAndIDs(t *testing.T) {
 	for _, panicFailure := range []bool{false, true} {
 		repository := NewMemoryRepository()
-		first, err := repository.Commit("alice", "first.txt", "text/plain", []byte("base"))
+		first, err := repository.Commit("alice", "first.txt", "text/plain", []byte("base"), allowWrite)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -542,10 +545,10 @@ type commitBarrier struct {
 	release chan struct{}
 }
 
-func (repository *commitBarrier) Commit(owner, filename, media string, content []byte) (*Metadata, error) {
+func (repository *commitBarrier) Commit(owner, filename, media string, content []byte, beforeWrite func() error) (*Metadata, error) {
 	repository.arrived <- struct{}{}
 	<-repository.release
-	return repository.Repository.Commit(owner, filename, media, content)
+	return repository.Repository.Commit(owner, filename, media, content, beforeWrite)
 }
 func TestConcurrentLastSlotAndLastByteBudget(t *testing.T) {
 	for _, dimension := range []string{"count", "bytes"} {
@@ -558,7 +561,7 @@ func TestConcurrentLastSlotAndLastByteBudget(t *testing.T) {
 				seeds = 1
 			}
 			for range seeds {
-				if _, err := repository.Commit("alice", "same.txt", "text/plain", body); err != nil {
+				if _, err := repository.Commit("alice", "same.txt", "text/plain", body, allowWrite); err != nil {
 					t.Fatal(err)
 				}
 			}
@@ -604,7 +607,7 @@ func TestConcurrentLastSlotAndLastByteBudget(t *testing.T) {
 func TestCopiesAndSameNamesDoNotOverwrite(t *testing.T) {
 	repository := NewMemoryRepository()
 	input := []byte("original")
-	first, err := repository.Commit("alice", "same.txt", "text/plain", input)
+	first, err := repository.Commit("alice", "same.txt", "text/plain", input, allowWrite)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -619,7 +622,7 @@ func TestCopiesAndSameNamesDoNotOverwrite(t *testing.T) {
 	download, _ := repository.Content("alice", firstID)
 	download.Content[0] = 'Y'
 	download.Metadata.Filename = "mutated-download.txt"
-	second, err := repository.Commit("alice", "same.txt", "text/plain", []byte("second"))
+	second, err := repository.Commit("alice", "same.txt", "text/plain", []byte("second"), allowWrite)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -662,5 +665,43 @@ func TestRoutesAndLoopbackAddress(t *testing.T) {
 	}
 	if address, err := listenAddress("12345"); err != nil || address != "127.0.0.1:12345" {
 		t.Fatal("PORT override failed")
+	}
+}
+
+func allowWrite() error { return nil }
+
+type reusedPrincipalStore struct{ value Principal }
+
+func (store *reusedPrincipalStore) Resolve(string, time.Time) (*Principal, error) {
+	return &store.value, nil
+}
+func (store *reusedPrincipalStore) Revoke(string) error { return nil }
+
+type ownerMutatingBody struct {
+	store *reusedPrincipalStore
+	read  bool
+}
+
+func (body *ownerMutatingBody) Read(target []byte) (int, error) {
+	if body.read {
+		return 0, io.EOF
+	}
+	body.read = true
+	body.store.value.UserID = "bob"
+	return copy(target, []byte("x")), nil
+}
+func TestInitialOwnerCapturedBeforeMutablePrincipalBodyRead(t *testing.T) {
+	store := &reusedPrincipalStore{value: Principal{UserID: "alice", CanWrite: true}}
+	repository := &countingRepository{Repository: NewMemoryRepository()}
+	request := request("POST", "/documents", "lab-alice-session", nil)
+	request.Body = io.NopCloser(&ownerMutatingBody{store: store})
+	response := perform(testRouter(t, Config{Sessions: store, Repository: repository}), request)
+	if response.Code != 401 {
+		bob, _ := repository.Repository.List("bob")
+		t.Fatalf("expected original owner rejection: status=%d bob_rows=%d body=%s", response.Code, len(bob), response.Body)
+	}
+	assertError(t, response, 401, "authentication_required")
+	if repository.commits.Load() != 0 {
+		t.Fatal("changed original owner reached repository")
 	}
 }
