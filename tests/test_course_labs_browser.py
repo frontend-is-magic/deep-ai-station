@@ -192,6 +192,15 @@ def assert_session_archive(archive, language, files):
 
 def assert_upload_archive(archive, language, files):
     assert {"fixtures.json", "contract-cases.json", "STORAGE.md", "schema.sql"} <= files
+    assert {
+        "client/package.json",
+        "client/pnpm-lock.yaml",
+        "client/src/main.tsx",
+        "client/src/controller.mjs",
+        "client/src/protocol.mjs",
+        "client/src/fixtures.json",
+    } <= files
+    assert archive.read("client/src/fixtures.json") == archive.read("fixtures.json")
     assert archive.read("schema.sql") == (ROOT / "labs/text-upload/shared/schema.sql").read_bytes()
     source_files = {
         "python": {"app.py", "repository.py", "test_app.py"},
@@ -433,6 +442,8 @@ def test_course_lab_downloads_follow_language_and_preserve_reference_bundle(
         expect(card).to_contain_text("v1→v2 迁移")
         expect(card).to_contain_text("owner 只是教学输入，不代表登录认证")
     elif lab_id == "text-upload":
+        expect(card).to_contain_text("共享 React 客户端")
+        expect(card).to_contain_text("界面保留未确认提示")
         expect(card).to_contain_text("UTF-8 与字节上限")
         expect(card).to_contain_text("owner 隔离")
         expect(card).to_contain_text("原子配额")
