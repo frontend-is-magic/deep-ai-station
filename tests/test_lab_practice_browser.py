@@ -227,7 +227,7 @@ def test_agent_python_keyboard_download_confirmation_and_revocation_update_the_r
     value = baseline(practice=[practice_record("fullstack-routing", "go")])
     seed(page, value, "agent")
     page.set_viewport_size({"width": 375, "height": 812})
-    expect(checklist(page).get_by_role("article")).to_have_count(6)
+    expect(checklist(page).get_by_role("article")).to_have_count(7)
     current = expand(page, "mcp-readonly", keyboard=True)
     expect(current).to_have_attribute("data-language", "python")
     expect(current).to_contain_text("实践未记录")
